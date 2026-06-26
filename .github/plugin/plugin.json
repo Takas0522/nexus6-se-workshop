@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "name": "project-cloud-skills",
+  "description": "Project-scoped Microsoft Fabric and Azure skills for this repository",
+  "version": "0.3.5",
+  "license": "MIT",
+  "repository": "https://github.com/microsoft/skills-for-fabric",
+  "keywords": [
+    "fabric",
+    "microsoft-fabric",
+    "medallion",
+    "data-warehouse",
+    "lakehouse",
+    "analytics",
+    "kql",
+    "kusto",
+    "eventhouse",
+    "real-time-intelligence",
+    "azure",
+    "cloud",
+    "foundry"
+  ],
+  "skills": [
+    "./.github/fabric-skills/skills/check-updates",
+    "./.github/fabric-skills/skills/semantic-model-consumption",
+    "./.github/fabric-skills/skills/fabriciq",
+    "./.github/fabric-skills/skills/semantic-model-authoring",
+    "./.github/fabric-skills/skills/sqldw-consumption-cli",
+    "./.github/fabric-skills/skills/sqldw-authoring-cli",
+    "./.github/fabric-skills/skills/spark-consumption-cli",
+    "./.github/fabric-skills/skills/spark-authoring-cli",
+    "./.github/fabric-skills/skills/eventhouse-consumption-cli",
+    "./.github/fabric-skills/skills/eventhouse-authoring-cli",
+    "./.github/fabric-skills/skills/eventstream-consumption-cli",
+    "./.github/fabric-skills/skills/eventstream-authoring-cli",
+    "./.github/fabric-skills/skills/activator-consumption-cli",
+    "./.github/fabric-skills/skills/activator-authoring-cli",
+    "./.github/fabric-skills/skills/sqldw-operations-cli",
+    "./.github/fabric-skills/skills/spark-operations-cli",
+    "./.github/fabric-skills/skills/mlv-operations-cli",
+    "./.github/fabric-skills/skills/dataflows-consumption-cli",
+    "./.github/fabric-skills/skills/dataflows-authoring-cli",
+    "./.github/fabric-skills/skills/dataflows-save-as-authoring-cli",
+    "./.github/fabric-skills/skills/search-consumption-cli",
+    "./.github/fabric-skills/skills/fabriciq-ontology-authoring-cli",
+    "./.github/fabric-skills/skills/fabriciq-ontology-consumption-cli",
+    "./.github/fabric-skills/skills/databricks-migration",
+    "./.github/fabric-skills/skills/pipeline-migration",
+    "./.github/fabric-skills/skills/synapse-migration",
+    "./.github/fabric-skills/skills/hdinsight-migration",
+    "./.github/fabric-skills/skills/e2e-medallion-architecture",
+    "./.github/azure-skills/skills/"
+  ],
+  "agents": [
+    "./.github/fabric-skills/agents/FabricAdmin.agent.md",
+    "./.github/fabric-skills/agents/FabricDataEngineer.agent.md",
+    "./.github/fabric-skills/agents/FabricAppDev.agent.md",
+    "./.github/fabric-skills/agents/FabricIQ.agent.md"
+  ],
+  "mcpServers": {
+    "FabricIQ": {
+      "type": "http",
+      "url": "https://api.fabric.microsoft.com/v1/mcp/fabricaihub/integrations/m365",
+      "headers": {
+        "X-VARIANTS": "Fabric.Routing.PowerBIDataExploration"
+      }
+    },
+    "azure": {
+      "command": "npx",
+      "args": ["-y", "@azure/mcp@latest", "server", "start"]
+    }
+  },
+  "hooks": {
+    "paths": ["./.github/azure-skills/hooks/copilot-hooks.json"],
+    "exclusive": true
+  }
+}
