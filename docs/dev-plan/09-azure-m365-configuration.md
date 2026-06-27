@@ -9,7 +9,7 @@
 ```mermaid
 graph TD
     subgraph M365["Microsoft 365"]
-        TEAMS["Teams\nWorkflows (Power Automate)"]
+        TEAMS["Teams\nMicrosoft Graph delegated"]
         D365["Dynamics 365\n本番のみ使用\n(Demo: MockDirectoryPlugin)"]
     end
 
@@ -31,7 +31,7 @@ graph TD
         ADLS["ADLS Gen2\nstnexus6skill*\nskill-docs コンテナ"]
         QUEUE[("Storage Queue\nstnexus6skill*/\nnews-analysis-jobs")]
         STSITE["Storage Static Website\nstnexus6portal*\nNews Portal ホスト\n(Public + robots.txt)"]
-        KV["Azure Key Vault\nkv-nexus6-swc\nTeams URL 他"]
+        KV["Azure Key Vault\nkv-nexus6-swc\n外部 API キー"]
         ACR["Azure Container Registry\ncrnexus6swc"]
         MON["App Insights"]
         HOST["Container Apps\nca-nexus6-hosted-agent\nQueueBackgroundService + DevUI\nSystem Assigned MI"]
@@ -87,12 +87,14 @@ graph TD
 
 ### 新規作成リソース（新規 RG: `rg-nexus6-swc` / Sweden Central）
 
+`<NNNN>` の採用値は `1t2i`。確定経緯は [11. 命名規約](11-naming-conventions.md#採用済み-nnnn) を参照。
+
 | サービス | リソース名（案） | SKU | 用途 |
 |---|---|---|---|
 | **ADLS Gen2** | `stnexus6skill<NNNN>` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
 | **Storage Static Website** | `stnexus6portal<NNNN>` | Standard LRS | News Portal ホスト（Public + `robots.txt` で検索除外） |
 | **Azure Storage Queue** | `stnexus6skill<NNNN>` 内の `news-analysis-jobs` | Standard LRS | Foundry Trigger Agent → Hosted Agent の内部チャネル |
-| **Azure Key Vault** | `kv-nexus6-swc` | Standard | Teams Workflows URL 等の外部 API キー |
+| **Azure Key Vault** | `kv-nexus6-swc` | Standard | 外部 API キー、Teams Graph delegated refresh token |
 | **Azure Container Apps Env** | `cae-nexus6-swc` | Consumption | Hosted Agent 実行環境 |
 | **Azure Container App** | `ca-nexus6-hosted-agent` | Consumption | .NET 10 Hosted Agent（System Assigned MI） |
 | **Azure Container Registry** | `crnexus6swc` | Basic | コンテナイメージ管理 |
@@ -237,29 +239,30 @@ Hosted Agent への起動契機を提供する Foundry 側コンポーネント�
 
 | サービス | 用途 | 担当エージェント | 必須/任意 |
 |---|---|---|---|
-| **Microsoft Teams (Workflows)** | Adaptive Card でレコメンドを各事業部責任者へ通知 | Agent 4 | 必須 |
+| **Microsoft Teams (Graph)** | Microsoft Graph でレコメンドを各事業部責任者へ通知 | Agent 4 | 必須 |
 | **Dynamics 365** | 本番での担当者ディレクトリ・レコメンド記録 | Agent 4 | **Demo では使わずモック** |
 | **Outlook / M365 Mail** | Demo スコープ外（使用しない） | - | 対象外 |
 
-### Teams 構成（Workflows）
+### Teams 構成（Microsoft Graph delegated）
 
 | 項目 | 設定値 |
 |---|---|
-| 接続方式 | Power Automate Workflows（「チャネルへメッセージを投稿」テンプレート + HTTP トリガー） |
+| 接続方式 | Microsoft Graph `POST /teams/{teamId}/channels/{channelId}/messages` |
 | テナント | `9e575763-d389-4aa8-b0a9-a64ba4cc1029`（Azure 管理テナントと同一） |
 | チャネル構成 | **作成済み**。各事業部チームの `Web Pulse Recommender` チャネルへ Agent 4 が通知（下表参照） |
-| URL の供給方法 | Key Vault シークレット `Teams--WorkflowsUrl--<Division>`（事業部単位に 3 本）。Agent 4 は `DefaultAzureCredential` 経由で取得するため、**コード変更なしで URL すげ替え可能** |
-| カード形式 | Adaptive Card v1.5 |
-| @メンション | 優先度 HIGH のアクションは担当者をメンション（Workflow 内で設定） |
-| Demo 暫定動作 | Key Vault に該当事業部の URL が未登録の場合、Agent 4 は当該事業部分のみ `MockTeamsPlugin` にフォールバックしコンソールへ通知ログを出力 |
+| 宛先の供給方法 | ACA 環境変数 `Teams__Graph__<Division>__TeamId` / `Teams__Graph__<Division>__ChannelId`（`appsettings.json` でも設定可） |
+| 認証 | Public client App Registration + Device Code Flow 初期認証。ACA は Key Vault の refresh token を使い delegated access token を更新 |
+| 必要権限 | Delegated `ChannelMessage.Send` / `Group.Read.All` / `offline_access`。application 権限不成立の経緯は [24 章](24-teams-graph.md)、delegated 実装は [25 章](25-teams-delegated.md) |
+| カード形式 | Adaptive Card JSON を HTML 本文として投稿 |
+| Demo 暫定動作 | refresh token 未登録または Graph 呼び出し失敗時は `MockTeamsPlugin` にフォールバックし、ACA の writable path (`/home/app/.nexus6/logs/teams-mock`) に通知ログを保存 |
 
 #### 通知先チーム / チャネル一覧
 
-| 事業部 (Division) | Teams チーム名 | Team ID (groupId) | チャネル名 | Channel ID | Key Vault シークレット |
+| 事業部 (Division) | Teams チーム名 | Team ID (groupId) | チャネル名 | Channel ID | ACA 環境変数 |
 |---|---|---|---|---|---|
-| `ecommerce` | EC チーム | `54e63170-bad8-42b3-959b-cb1cdaad5b6d` | `Web Pulse Recommender` | `19:e5c7a76a0e6e400ab94a0c2c1f3052b6@thread.tacv2` | `Teams--WorkflowsUrl--Ecommerce` |
-| `mobile` | モバイルチーム | `da1f375e-ab3f-45bd-a8c5-027b1f82a8dc` | `Web Pulse Recommender` | `19:8e4127ee9079478d8b9ae900c9d96454@thread.tacv2` | `Teams--WorkflowsUrl--Mobile` |
-| `fintech` | 金融チーム | `c0b91401-532b-4092-93d8-1a5850de6027` | `Web Pulse Recommender` | `19:1499aad7b2ea4d838495bc731fb8824b@thread.tacv2` | `Teams--WorkflowsUrl--Fintech` |
+| `ecommerce` | EC チーム | `54e63170-bad8-42b3-959b-cb1cdaad5b6d` | `Web Pulse Recommender` | `19:e5c7a76a0e6e400ab94a0c2c1f3052b6@thread.tacv2` | `Teams__Graph__Ecommerce__TeamId` / `Teams__Graph__Ecommerce__ChannelId` |
+| `mobile` | モバイルチーム | `da1f375e-ab3f-45bd-a8c5-027b1f82a8dc` | `Web Pulse Recommender` | `19:8e4127ee9079478d8b9ae900c9d96454@thread.tacv2` | `Teams__Graph__Mobile__TeamId` / `Teams__Graph__Mobile__ChannelId` |
+| `fintech` | 金融チーム | `c0b91401-532b-4092-93d8-1a5850de6027` | `Web Pulse Recommender` | `19:1499aad7b2ea4d838495bc731fb8824b@thread.tacv2` | `Teams__Graph__Fintech__TeamId` / `Teams__Graph__Fintech__ChannelId` |
 
 各チャネルのディープリンク（参照用）:
 
@@ -267,8 +270,7 @@ Hosted Agent への起動契機を提供する Foundry 側コンポーネント�
 - モバイルチーム / Web Pulse Recommender: <https://teams.cloud.microsoft/l/channel/19%3A8e4127ee9079478d8b9ae900c9d96454%40thread.tacv2/Web%20Pulse%20Recommender?groupId=da1f375e-ab3f-45bd-a8c5-027b1f82a8dc&tenantId=9e575763-d389-4aa8-b0a9-a64ba4cc1029>
 - 金融チーム / Web Pulse Recommender: <https://teams.cloud.microsoft/l/channel/19%3A1499aad7b2ea4d838495bc731fb8824b%40thread.tacv2/Web%20Pulse%20Recommender?groupId=c0b91401-532b-4092-93d8-1a5850de6027&tenantId=9e575763-d389-4aa8-b0a9-a64ba4cc1029>
 
-> Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo ・ 本番とも Workflows で統一する。
-> Teams チャネルは作成済み。残作業は各チャネルでの Power Automate Workflows（HTTP トリガー）作成と、生成された URL を上記の Key Vault シークレットへ登録する 1 ステップのみ。
+> 旧設計は Power Automate Workflows（HTTP トリガー URL を Key Vault に保持）だった。Track U の Managed Identity + application 権限方式は Graph 制約で不成立のため、現設計は Delegated + Device Code Flow に切り替えた。
 
 ### Dynamics 365（Demo ではモック）
 
@@ -290,7 +292,7 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 | 項目 | 設定値 |
 |---|---|
 | アイデンティティ | Container Apps `ca-nexus6-hosted-agent` の **System Assigned Managed Identity** |
-| 用途 | Foundry / Fabric / Key Vault / ADLS / AI Search へのアクセス |
+| 用途 | Foundry / Fabric / Key Vault / ADLS / AI Search / Microsoft Graph へのアクセス |
 | 認証コード | `DefaultAzureCredential`（.NET 10） |
 
 > Demo では Service Principal シークレットや API キーを使わず、Container Apps の System Assigned MI を Azure リソースの認証に統一する。
@@ -310,22 +312,27 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 | Fabric Workspace `fabric_seworkshop_ws1` | Viewer | Container Apps MI |
 | Fabric Workspace `fabric_seworkshop_ws1` | Contributor | DemoDataGenerator 実行者（開発者） |
 | Key Vault (`kv-nexus6-swc`) | Key Vault Secrets User | Container Apps MI |
+| Key Vault (`kv-nexus6-swc`) | Key Vault Secrets Officer | Container Apps MI（Teams refresh token rotation） |
 | Key Vault (`kv-nexus6-swc`) | Key Vault Secrets Officer | 開発者（シークレット登録用） |
 | App Insights (`appi-nexus6-swc`) | Monitoring Metrics Publisher | Container Apps MI |
 | ACR (`crnexus6swc`) | AcrPull | Container Apps MI |
 | ACR (`crnexus6swc`) | AcrPush | 開発者 / GitHub Actions（任意） |
+| Microsoft Graph | Delegated `ChannelMessage.Send` / `Group.Read.All` / `offline_access` | `nexus6-webpulse-teams-delegated` App Registration |
 
 ---
 
 ## Key Vault シークレット一覧
 
-Azure リソースへの認証は Managed Identity に統一し、Key Vault には **外部サービスの API キー** のみ保持する。
+Azure リソースへの認証は Managed Identity に統一する。Teams Graph 通知は Team / Channel ID を環境変数で持ち、delegated token 更新に必要な値のみ Key Vault に保持する。
 
 | シークレット名 | 内容 | 参照箱所 | 有効性 |
 |---|---|---|---|
-| `Teams--WorkflowsUrl--Ecommerce` | EC チーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
-| `Teams--WorkflowsUrl--Mobile` | モバイルチーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
-| `Teams--WorkflowsUrl--Fintech` | 金融チーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
+| `Teams--Graph--ClientId` | Delegated App Registration appId | Agent 4 | 使用中 |
+| `Teams--Graph--TenantId` | Entra tenant ID | Agent 4 | 使用中 |
+| `Teams--Graph--RefreshToken` | Device Code Flow で取得した refresh token | Agent 4 | 登録待ち |
+| `Teams--WorkflowsUrl--Ecommerce` | 旧 Workflows 設計用 URL | Agent 4（旧実装） | Deprecated / 削除しない |
+| `Teams--WorkflowsUrl--Mobile` | 旧 Workflows 設計用 URL | Agent 4（旧実装） | Deprecated / 削除しない |
+| `Teams--WorkflowsUrl--Fintech` | 旧 Workflows 設計用 URL | Agent 4（旧実装） | Deprecated / 削除しない |
 | `AzureMonitor--ConnectionString` | App Insights 接続文字列 | ホスト全体 | Demo 使用（推奨） |
 | `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | Agent 4 | 本番のみ |
 
@@ -351,9 +358,9 @@ flowchart TD
     S10["⑪ 代表 CSV を Bronze へ手動配置\nNotebook 2 本を手動実行"]
     S11["⑫ ACR / Container Apps 環境作成\ncrnexus6swc / cae-nexus6-swc"]
     S12["⑬ Hosted Agent デプロイ\nca-nexus6-hosted-agent (System Assigned MI)"]
-    S13["⑭ ロール付与・Key Vault シークレット登録\n(Teams Workflows URL は後追い登録可)"]
+    S13["⑭ ロール付与・ACA 環境変数設定\n(Teams Graph 宛先を設定)"]
     S14["⑮ App Insights / 監視ダッシュボード設定"]
-    S15["⑯ (後追加) 各 Teams `Web Pulse Recommender` チャネルで\nWorkflows 作成 → URL を kv-nexus6-swc に登録"]
+    S15["⑯ Microsoft Graph delegated permission 付与\nDevice Code 初回サインイン"]
 
     S0 --> S1 --> S2 --> S3 --> S4
     S1 --> S5 --> S6 --> S7
@@ -366,7 +373,7 @@ flowchart TD
 ```
 
 > Dynamics 365 / オンプレデータゲートウェイ は Demo では作成しない。
-> Teams チームとチャネル（EC / モバイル / 金融の各 `Web Pulse Recommender`）は作成済み。Workflows URL が未登録でも Demo 完走可能（Agent 4 は未登録事業部のみ `MockTeamsPlugin` にフォールバック）。
+> Teams チームとチャネル（EC / モバイル / 金融の各 `Web Pulse Recommender`）は作成済み。Graph 投稿が 403 の間は Agent 4 が `MockTeamsPlugin` にフォールバックする。
 
 ---
 
@@ -385,7 +392,7 @@ flowchart TD
 | Application Insights | $10～$30 | 新規 / ログ量による |
 | Microsoft Fabric Capacity (`fabricswedencu001` / F4) | $500 前後 | 既存 / 共用 |
 | Dynamics 365 | $0 | Demo では使わずモック |
-| Microsoft 365 (Teams Workflows) | 既存ライセンス内 | 追加コストなし |
+| Microsoft 365 (Teams Graph) | 既存ライセンス内 | 追加コストなし |
 | **合計目安（新規分のみ）** | **$30～$100 / 月** | 既存リソース除く |
 | **既存リソース利用分** | **$800～$1,130 / 月** | Foundry + Fabric F4 |
 
@@ -402,7 +409,7 @@ flowchart TD
 | 1 | ADLS Gen2 ストレージアカウント名（Skill 用） | `stnexus6skill<NNNN>` | グローバル一意になる 4 桁の数値を決定 |
 | 2 | ADLS Gen2 ストレージアカウント名（News Portal 用） | `stnexus6portal<NNNN>` | 同上 |
 | 3 | Foundry File Search ベクトルストア名 | `vs_nexus6_skilldocs`（提案） | Foundry Portal 作成時に最終決定 |
-| 4 | Teams Workflows URL × 3 | 未発行 | 各事業部チームの `Web Pulse Recommender` チャネルで Power Automate Workflows を作成し、生成 URL を `Teams--WorkflowsUrl--Ecommerce` / `--Mobile` / `--Fintech` シークレットに登録 |
+| 4 | Teams Graph AppRole | **blocked** | Graph SP に `ChannelMessage.Send` application appRole がなく、POST は `Teamwork.Migrate.All` を要求。詳細は [24 章](24-teams-graph.md) |
 | 5 | Teams チャネル 3 つ | **作成済み** | EC / モバイル / 金融チームに `Web Pulse Recommender` チャネルを設置済み（Team / Channel ID は「通知先チーム / チャネル一覧」参照） |
 
 > 既存リソース（`fd-PartnerIQ` / `proj-PartnerIQ` / `iq-knowledge-source` / `fabricswedencu001` / `fabric_seworkshop_ws1`）は値が確定済み。

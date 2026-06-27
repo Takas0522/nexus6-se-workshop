@@ -46,6 +46,7 @@
 ```
 
 > Microsoft Agent Framework / DevUI 関連の .NET パッケージ名は Preview 中に変更される可能性がある。実装開始時に NuGet / Microsoft Learn / Agent Framework リポジトリの最新パッケージ名と API を確認すること。
+> 現行実装は Preview API の不安定さを避けるため `Microsoft.Agents.*` パッケージを直接参照せず、`IFoundryAgentClient` / `IWorkflow<T>` などの独自プレースホルダで境界を分離している。正式 API 採用時に本節のパッケージ名と Program.cs 例へ置換する。
 
 ---
 
@@ -103,6 +104,8 @@ src/
 ---
 
 ## Program.cs 構成例
+
+> 現行の `src/news-analysis-agent/src/NewsAnalysisAgent.Host/Program.cs` は `MapAgentFrameworkDevUI` の代わりに `/devui` の簡易 HTML を公開し、Foundry 呼び出しも `IFoundryAgentClient` 経由にしている。下記は正式な Microsoft Agent Framework Preview API が安定した後の置換先イメージ。
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);

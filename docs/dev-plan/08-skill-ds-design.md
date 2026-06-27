@@ -11,7 +11,7 @@
 | ファイル | 目的 | 参照タイミング | 配置場所 | 作成者 |
 |---|---|---|---|---|
 | **Skill.md** | 業務判断ロジック・分析ノウハウ・閾値・過去事例を記述する | Agent 2・3 がビジネス影響を判断する際にシステムプロンプトへ注入 | **Azure Data Lake Storage Gen2**（ADLS Gen2） | 各事業部のベテランスタッフ |
-| **DS.md** | Fabric Lakehouse のテーブル意味・KPI 定義・クエリ補助を記述する | Agent 2・3 が Fabric クエリを発行する直前にシステムプロンプトへ注入 | Fabric Lakehouse `/ds-docs/` 配下 | データに詳しい業務担当者・IT |
+| **DS.md** | Fabric Lakehouse のテーブル意味・KPI 定義・クエリ補助を記述する | Agent 2・3 が Fabric クエリを発行する直前にシステムプロンプトへ注入 | ADLS Gen2 `skill-docs/ds-docs/`（Lakehouse 連携時は `/ds-docs/` に同期） | データに詳しい業務担当者・IT |
 
 > どちらも **Azure AI Foundry 上で動く .NET Microsoft Agent Framework エージェント（Agent 2・3）** が消費する。  
 > Work IQ（Copilot Studio）や SharePoint とは独立したルートで管理する。
@@ -51,17 +51,25 @@ graph TD
 ### ストレージ構成
 
 ```
-ADLS Gen2 ストレージアカウント: stnexus6skill<NNNN>
+ADLS Gen2 ストレージアカウント: stnexus6skill1t2i
 └── コンテナ: skill-docs/
     ├── mobile/
     │   ├── mobile_skill_fx-impact.md
-    │   └── mobile_skill_competitor-mnp.md
+    │   ├── mobile_skill_competitor-mnp.md
+    │   └── mobile_skill_boj-installment.md
     ├── ecommerce/
     │   ├── ecommerce_skill_point-competition.md
-    │   └── ecommerce_skill_cross-border-margin.md
-    └── fintech/
-        ├── fintech_skill_rate-hike-impact.md
-        └── fintech_skill_fx-position-risk.md
+    │   ├── ecommerce_skill_fx-crossborder.md
+    │   └── ecommerce_skill_consumer-sentiment.md
+    ├── fintech/
+    │   ├── fintech_skill_fx-exposure.md
+    │   ├── fintech_skill_card-share.md
+    │   └── fintech_skill_mortgage-rate-hike.md
+    └── ds-docs/
+        ├── ds_kpi_monthly_revenue.md
+        ├── ds_mobile_ai.md
+        ├── ds_ecommerce_ai.md
+        └── ds_fintech_ai.md
 ```
 
 ---
@@ -106,7 +114,7 @@ Skill.md は「**この事業のデータをどう読むか**」「**どうい�
 
 | 項目 | ルール |
 |---|---|
-| 配置場所 | ADLS Gen2 `stnexus6skill<NNNN> / skill-docs / {domain}/` |
+| 配置場所 | ADLS Gen2 `stnexus6skill1t2i / skill-docs / {domain}/` |
 | ベクトルストア | Foundry File Search（ADLS Gen2 をデータソースとして自動再インデクシング） |
 | 参照タイミング | Agent 2・3 の推論中に `FoundryFileSearchTool` が事業部・ニュースキーワードで検索して注入 |
 | Fabric 連携 | OneLake Shortcut で `skill-docs` コンテナを透過参照（Notebook から読み取り可） |
@@ -137,7 +145,7 @@ Skill.md は「**この事業のデータをどう読むか**」「**どうい�
 
 ## DS.md の構成
 
-DS.md は **Fabric Lakehouse に配置する**データソース補完ファイル。  
+DS.md は **ADLS Gen2 `skill-docs/ds-docs/` に配置する**データソース補完ファイル。Lakehouse 連携時は Fabric Files `/ds-docs/` に同期する。  
 AI エージェントが Fabric に対してクエリを発行する際に参照され、テーブルのビジネス的意味・KPI 計算式・クエリ上の注意事項を提供する。
 
 > Fabric の SQL Analytics エンドポイントや Notebook が DS.md を読み込み、  
@@ -147,7 +155,7 @@ AI エージェントが Fabric に対してクエリを発行する際に参照
 
 | 項目 | ルール |
 |---|---|
-| 配置場所 | 各 Lakehouse の Files セクション直下 (`/ds-docs/ds_{domain}.md`) |
+| 配置場所 | リポジトリ `knowledge/ds/`、ADLS Gen2 `stnexus6skill1t2i / skill-docs / ds-docs/`（Foundry File Search 用）。Lakehouse 連携時は各 Files `/ds-docs/` に同期 |
 | 参照タイミング | `FabricDataPlugin` / `MobileDataPlugin` 等がクエリ前にシステムプロンプトへ注入 |
 | 更新頻度 | テーブル追加・KPI 定義変更・業務ルール変更時 |
 
@@ -293,11 +301,11 @@ ORDER BY total_jpy DESC;
 
 ## Fintech DS.md 例
 
-Fabric Gold Lakehouse (`fintech_ai`) の `/ds-docs/ds_fintech.md` に配置する。
+ADLS Gen2 `skill-docs/ds-docs/ds_fintech_ai.md` に配置し、Lakehouse 連携時は Fabric Gold Lakehouse (`fintech_ai`) の `/ds-docs/ds_fintech_ai.md` に同期する。
 
 ```markdown
 # Fintech Data Source Definition
-# 配置: fintech_ai Lakehouse / Files / ds-docs / ds_fintech.md
+# 配置: ADLS Gen2 skill-docs/ds-docs/ds_fintech_ai.md
 
 ## 対象 Lakehouse・テーブル一覧
 | Lakehouse | テーブル | 用途 |
@@ -384,13 +392,13 @@ ORDER BY rate_band;
 
 | 項目 | Skill.md | DS.md |
 |---|---|---|
-| 配置場所 | **ADLS Gen2** `skill-docs/{domain}/` | Fabric Lakehouse `/ds-docs/` |
-| ファイル命名 | `{domain}_skill_{topic}.md` | `ds_{domain}.md`（ドメイン 1 ファイル） |
+| 配置場所 | **ADLS Gen2** `skill-docs/{domain}/` | **ADLS Gen2** `skill-docs/ds-docs/`（Lakehouse 連携時は `/ds-docs/` に同期） |
+| ファイル命名 | `{domain}_skill_{topic}.md` | `ds_<scope>.md`（例: `ds_mobile_ai.md`） |
 | 更新頻度 | 業務ルール・閾値変更時 | テーブル追加・KPI 定義変更時 |
 | レビュー | 事業部長が承認 | データオーナー（IT + 業務担当）が承認 |
-| バージョン管理 | ADLS Gen2 の Blob バージョニング | Fabric Files のバージョン履歴 |
-| AI への反映 | Blob 更新 → File Search 自動再インデクシング → Agent 2・3 が File Search ツールで参照 | Lakehouse 配置後、Plugin がクエリ前に読み込み |
-| Fabric との連携 | OneLake Shortcut で透過参照（コピー不要） | Lakehouse ネイティブ |
+| バージョン管理 | ADLS Gen2 の Blob バージョニング | ADLS Gen2 の Blob バージョニング（Lakehouse 同期後は Fabric Files 履歴も利用） |
+| AI への反映 | Blob 更新 → File Search 自動再インデクシング → Agent 2・3 が File Search ツールで参照 | Blob 更新 → File Search 再インデクシング、Lakehouse 同期後は Plugin がクエリ前に読み込み |
+| Fabric との連携 | OneLake Shortcut で透過参照（コピー不要） | Lakehouse Files `/ds-docs/` へ同期 |
 | Work IQ との関係 | **無関係**（Foundry エージェント専用） | **無関係**（Foundry エージェント専用） |
 
 ### ファイル一覧（初期作成対象）
@@ -399,11 +407,14 @@ ORDER BY rate_band;
 |---|---|---|---|---|
 | `mobile_skill_fx-impact.md` | Skill | ADLS Gen2 / File Search | モバイル 財務担当 | 高 |
 | `mobile_skill_competitor-mnp.md` | Skill | ADLS Gen2 / File Search | モバイル 営業企画 | 高 |
-| `ds_mobile.md` | DS | mobile_ai Lakehouse | モバイル IT | 高 |
+| `mobile_skill_boj-installment.md` | Skill | ADLS Gen2 / File Search | モバイル 財務担当 | 高 |
 | `ecommerce_skill_point-competition.md` | Skill | ADLS Gen2 / File Search | EC マーケティング | 高 |
-| `ecommerce_skill_cross-border-margin.md` | Skill | ADLS Gen2 / File Search | EC 商品部 | 中 |
-| `ds_ecommerce.md` | DS | ecommerce_ai Lakehouse | EC IT | 高 |
-| `fintech_skill_rate-hike-impact.md` | Skill | ADLS Gen2 / File Search | Fintech リスク管理 | 高 |
-| `fintech_skill_fx-position-risk.md` | Skill | ADLS Gen2 / File Search | Fintech トレーディング | 高 |
-| `ds_fintech.md` | DS | fintech_ai Lakehouse | Fintech IT | 高 |
-| `ds_common.md` | DS | Gold Lakehouse (`lh_nexus6_gold`) | 全社 IT | 中 |
+| `ecommerce_skill_fx-crossborder.md` | Skill | ADLS Gen2 / File Search | EC 商品部 | 高 |
+| `ecommerce_skill_consumer-sentiment.md` | Skill | ADLS Gen2 / File Search | EC マーケティング | 高 |
+| `fintech_skill_fx-exposure.md` | Skill | ADLS Gen2 / File Search | Fintech リスク管理 | 高 |
+| `fintech_skill_card-share.md` | Skill | ADLS Gen2 / File Search | Fintech 決済企画 | 高 |
+| `fintech_skill_mortgage-rate-hike.md` | Skill | ADLS Gen2 / File Search | Fintech 与信管理 | 高 |
+| `ds_kpi_monthly_revenue.md` | DS | ADLS Gen2 `skill-docs/ds-docs/` | 全社 IT | 高 |
+| `ds_mobile_ai.md` | DS | ADLS Gen2 `skill-docs/ds-docs/` | モバイル IT | 高 |
+| `ds_ecommerce_ai.md` | DS | ADLS Gen2 `skill-docs/ds-docs/` | EC IT | 高 |
+| `ds_fintech_ai.md` | DS | ADLS Gen2 `skill-docs/ds-docs/` | Fintech IT | 高 |

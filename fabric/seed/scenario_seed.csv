@@ -1,0 +1,7 @@
+scenario_id,scenario_name,domain,entity_id,event_date,currency,amount,signal,notes
+fx-shock,円安ショック,mobile,DEMO-MOB-001,2026-06-01,USD,650.00,overseas_procurement_cost,synthetic device procurement signal
+fx-shock,円安ショック,ecommerce,DEMO-EC-001,2026-06-01,USD,1280.00,cross_border_order_cost,synthetic import cost signal
+competitor,ONE PASS競合統合,mobile,DEMO-MOB-002,2026-06-02,JPY,1.00,mnp_out_risk,synthetic churn risk signal
+competitor,ONE PASS競合統合,ecommerce,DEMO-EC-002,2026-06-02,JPY,200.00,point_campaign,synthetic loyalty campaign signal
+boj-rate-hike,日銀利上げ,fintech,DEMO-FIN-001,2026-06-03,JPY,0.052,loan_interest_rate,synthetic interest-rate risk signal
+boj-rate-hike,日銀利上げ,mobile,DEMO-MOB-003,2026-06-03,JPY,4300.00,installment_payment,synthetic installment impact signal

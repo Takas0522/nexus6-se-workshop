@@ -19,6 +19,22 @@
 | [07-fabric-data-model.md](07-fabric-data-model.md) | Fabric データモデル詳細・レコード数試算（30,000名・6ヶ月） |
 | [08-skill-ds-design.md](08-skill-ds-design.md) | Skill.md / DS.md 設計（ベテランスタッフが作成する業務ナレッジファイル） |
 | [09-azure-m365-configuration.md](09-azure-m365-configuration.md) | Azure / M365 必要構成まとめ・ロール割り当て・構築順序・コスト概算 |
+| [10-secrets-management.md](10-secrets-management.md) | user-secrets / Key Vault / コミット禁止物の整理 |
+| [11-naming-conventions.md](11-naming-conventions.md) | Azure / M365 リソースの命名規約・サフィックス決定ルール |
+| [12-news-portal-deployment.md](12-news-portal-deployment.md) | News Portal の Static Website デプロイ手順・公開 URL・Trigger Agent 巡回設定 |
+| [13-foundry-runtime-config.md](13-foundry-runtime-config.md) | Foundry File Search・Bing Grounding・Trigger Agent のランタイム構成記録 |
+| [14-container-build.md](14-container-build.md) | Hosted Agent の Dockerfile・ACR ビルド・タグ規約・smoke 確認 |
+| [15-aca-deployment.md](15-aca-deployment.md) | Azure Container Apps への Hosted Agent デプロイ・RBAC・smoke 記録 |
+| [16-foundry-trigger-wiring.md](16-foundry-trigger-wiring.md) | Foundry Trigger 未作成時の手動 enqueue E2E 手順・ACA ログ証跡・Trigger Agent 自動化試行結果 |
+| [17-scenario-verification.md](17-scenario-verification.md) | Phase 3 シナリオ E2E 検証結果・キーワード照合記録 |
+| [18-observability-check.md](18-observability-check.md) | Phase 4 観測性検証・App Insights クエリ結果 |
+| [19-open-items.md](19-open-items.md) | 未解決 TODO と代替手段・優先度 |
+| [20-fabric-db-build.md](20-fabric-db-build.md) | Fabric SQL Database 実プロビジョニング・投入件数・ACA 接続更新結果 |
+| [21-fabric-medallion.md](21-fabric-medallion.md) | Fabric Bronze/Silver/Gold Lakehouse・Notebook 実行・Gold KPI 検証結果 |
+| [22-fabric-rbac.md](22-fabric-rbac.md) | ACA Managed Identity の Fabric Workspace RBAC 付与・再 E2E 検証結果 |
+| [23-foundry-fix.md](23-foundry-fix.md) | Foundry gpt-5.4 Chat Completions BadRequest の原因・修正・再 E2E 検証結果 |
+| [24-teams-graph.md](24-teams-graph.md) | Teams 通知の Microsoft Graph + Managed Identity 設計変更・AppRole blocked 記録 |
+| [25-teams-delegated.md](25-teams-delegated.md) | Teams Graph Delegated + Device Code Flow 方式・Key Vault refresh token 管理 |
 
 ## 技術スタック
 

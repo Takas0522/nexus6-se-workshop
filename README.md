@@ -10,7 +10,7 @@
 
 | セットアップ内容 | 詳細 |
 |---|---|
-| .NET 10 SDK | ベースイメージに含まれる |
+| .NET 10 SDK | `global.json` の `10.0.301` を `~/.dotnet` ユーザーインストールで参照 |
 | Azure CLI (`az`) | `containerapp` 拡張込みでインストール |
 | Azure Developer CLI (`azd`) | `postCreate` スクリプトでインストール |
 | GitHub CLI (`gh`) | インストール済み |
@@ -42,6 +42,16 @@ azd auth login
 | [Git](https://git-scm.com/) | 2.x 以上 | バージョン管理 |
 | [GitHub Copilot CLI](https://docs.github.com/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | 最新 | DemoDataGenerator の Copilot SDK ランタイム（CLI が自動バンドルされるため通常は別途不要だが、ローカル動作確認に使用） |
 
+`.NET 10 SDK` は `global.json` で `10.0.301` を指定しています。DevContainer / ローカルではユーザー領域 `~/.dotnet` へ導入し、`DOTNET_ROOT` と `PATH` で優先参照します。
+
+```bash
+export DOTNET_ROOT="$HOME/.dotnet"
+export PATH="$HOME/.dotnet:$PATH"
+dotnet --list-sdks
+```
+
+現行実装では Preview API 差分によるビルド失敗を避けるため、Microsoft Agent Framework は独自プレースホルダ経由で分離しています。正式 API が安定した時点で `docs/dev-plan/04-implementation-guide.md` の想定パッケージへ置換します。
+
 ### Azure・クラウドリソース（既存利用 / RG: `SEWorkShopC12` / Sweden Central）
 
 | サービス | リソース名 | SKU | 用途 |
@@ -56,13 +66,15 @@ azd auth login
 
 | サービス | リソース名（案） | SKU | 用途 |
 |---|---|---|---|
-| **ADLS Gen2**（Skill.md 用） | `stnexus6skill<NNNN>` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
-| **Storage Static Website**（News Portal 用） | `stnexus6portal<NNNN>` | Standard LRS | 静的 HTML ホスト（Public + `robots.txt` で検索除外） |
+| **ADLS Gen2**（Skill.md 用） | `stnexus6skill1t2i` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
+| **Storage Static Website**（News Portal 用） | `stnexus6portal1t2i` | Standard LRS | 静的 HTML ホスト（Public + `robots.txt` で検索除外） |
 | **Azure Key Vault** | `kv-nexus6-swc` | Standard | Teams Workflows URL 等の外部 API キー |
 | **Azure Container Apps Env** | `cae-nexus6-swc` | Consumption | Hosted Agent 実行環境 |
 | **Azure Container App** | `ca-nexus6-hosted-agent` | Consumption | .NET 10 Hosted Agent ホスティング |
 | **Azure Container Registry** | `crnexus6swc` | Basic | コンテナイメージ管理 |
 | **Application Insights** | `appi-nexus6-swc` | Pay-as-you-go | エージェント実行ログ・トークン使用量監視 |
+
+News Portal 公開 URL: <https://stnexus6portal1t2i.z1.web.core.windows.net/>
 
 ### M365 / Identity
 
@@ -82,6 +94,8 @@ azd auth login
 | **代表 CSV 1 ファイル** | `scripts/seed-data/scenario_seed.csv`（手動配置） |
 | 環境変数 `GITHUB_TOKEN` | `dotnet user-secrets` で管理・コミット禁止 |
 
+> Fabric SQL Database × 16 は設計上の最終形です。現行 DemoDataGenerator は 4 DB 分割で動作し、Notebook 側 fallback で両対応します（詳細: [06](docs/dev-plan/06-fabric-data-ingestion.md) / [19](docs/dev-plan/19-open-items.md)）。
+
 ## ディレクトリ構成
 
 ```
@@ -90,14 +104,16 @@ nexus6-se-workshop/
 │   ├── scenario/          # シナリオ文書（為替・競合統合・日銀利上げ）
 │   ├── usecase/           # 事業部別業務システム・データモデル定義
 │   └── dev-plan/          # Hosted Agent 開発仕様（Agent / Foundry / Fabric / M365）
+├── fabric/                # Fabric Lakehouse / Notebook / seed / SQL 関連資材
+├── knowledge/             # Skill.md / DS.md など業務ナレッジ
 └── src/
-    ├── news-portal/       # Demo 入力源：静的 HTML ニュースポータル（既存）
-    ├── news-analysis-agent/   # ニュース分析エージェント本体（未実装）
-    │   │                      # .NET 10 / Azure AI Foundry / Microsoft Agent Framework
+    ├── news-portal/       # Demo 入力源：静的 HTML ニュースポータル
+    ├── news-analysis-agent/   # ニュース分析エージェント本体
     │   ├── src/           # Agent 1〜4・Orchestration・Tools・Models
     │   └── tests/
-    └── DemoDataGenerator/ # Copilot SDK によるデモデータ生成サービス（未実装）
-                           # EF Core → Fabric SQL Database（業務システム単位 16 DB）
+    └── DemoDataGenerator/ # Copilot SDK によるデモデータ生成サービス
+        ├── src/           # App / Data
+        └── tests/
 ```
 
 ### 主要コンポーネント
@@ -121,3 +137,12 @@ nexus6-se-workshop/
 | [Fintechデータモデル](docs/usecase/fintech-system-data-model.md) | 口座・カード・決済GW・FX・与信 |
 | [Copilot SDK デモデータ生成仕様](docs/usecase/copilot-sdk-demo-data-generation.md) | デモデータ生成サービスの実装仕様 |
 | [Agent Framework 開発計画](docs/dev-plan/README.md) | Hosted Agent の設計・実装・インフラ仕様一覧 |
+| [シークレット管理](docs/dev-plan/10-secrets-management.md) | user-secrets / Key Vault / コミット禁止物 |
+| [命名規約](docs/dev-plan/11-naming-conventions.md) | Azure / M365 リソース名・採用サフィックス |
+| [News Portal デプロイ](docs/dev-plan/12-news-portal-deployment.md) | Static Website 公開 URL・デプロイ手順 |
+| [Foundry ランタイム構成](docs/dev-plan/13-foundry-runtime-config.md) | File Search / Bing Grounding / Trigger Agent 構成 |
+| [コンテナビルド](docs/dev-plan/14-container-build.md) | Dockerfile・ACR ビルド・smoke 確認 |
+| [ACA デプロイ](docs/dev-plan/15-aca-deployment.md) | Container Apps デプロイ・RBAC・smoke 記録 |
+| [Foundry Trigger 引継ぎ](docs/dev-plan/16-foundry-trigger-wiring.md) | 手動 enqueue E2E と Trigger Agent 自動化試行 |
+| [シナリオ検証](docs/dev-plan/17-scenario-verification.md) | Phase 3 E2E 検証結果 |
+| [観測性検証](docs/dev-plan/18-observability-check.md) | Phase 4 App Insights クエリ結果 |
