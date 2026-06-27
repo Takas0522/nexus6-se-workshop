@@ -29,12 +29,15 @@ graph TD
 
     subgraph AZURE_NEW["Azure 新規 RG: rg-nexus6-swc (Sweden Central)"]
         ADLS["ADLS Gen2\nstnexus6skill*\nskill-docs コンテナ"]
+        QUEUE[("Storage Queue\nstnexus6skill*/\nnews-analysis-jobs")]
         STSITE["Storage Static Website\nstnexus6portal*\nNews Portal ホスト\n(Public + robots.txt)"]
         KV["Azure Key Vault\nkv-nexus6-swc\nTeams URL 他"]
         ACR["Azure Container Registry\ncrnexus6swc"]
         MON["App Insights"]
-        HOST["Container Apps\nca-nexus6-hosted-agent\nSystem Assigned MI"]
+        HOST["Container Apps\nca-nexus6-hosted-agent\nQueueBackgroundService + DevUI\nSystem Assigned MI"]
     end
+
+    TRIGGER["Foundry Scheduled Trigger\n+ Trigger Agent\n(WebIQ / Bing Grounding で\nNews Portal を巡回)"]
 
     subgraph IDENTITY["Microsoft Entra ID（既存テナント）"]
         ENTRA["Managed Identity"]
@@ -43,6 +46,11 @@ graph TD
     DEMOGEN["DemoDataGenerator\n(.NET + Copilot SDK + EF Core)\nローカル / Codespaces 実行"]
     DEMOGEN -->|EF Core 書き込み| SQLDB
     SQLDB -.->|OneLake ミラー 自動同期| ONELAKE
+
+    TRIGGER -->|URL 指定 fetch| STSITE
+    TRIGGER -->|enqueue job| QUEUE
+    QUEUE -->|dequeue| HOST
+    FOUNDRY -.->|Scheduled Trigger 提供| TRIGGER
 
     HOST -->|LLM 推論 / File Search / Grounding| FOUNDRY
     HOST -->|Fabric クエリ Agent2・3| GLD
@@ -58,7 +66,7 @@ graph TD
     BRZ --> NB --> SLV --> NB --> GLD
     ONELAKE --- BRZ & SLV & GLD
 
-    ENTRA -->|MI 認証| HOST & FOUNDRY & FABRIC & KV & SEARCH & ADLS
+    ENTRA -->|MI 認証| HOST & FOUNDRY & FABRIC & KV & SEARCH & ADLS & QUEUE
 ```
 
 ---
@@ -83,6 +91,7 @@ graph TD
 |---|---|---|---|
 | **ADLS Gen2** | `stnexus6skill<NNNN>` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
 | **Storage Static Website** | `stnexus6portal<NNNN>` | Standard LRS | News Portal ホスト（Public + `robots.txt` で検索除外） |
+| **Azure Storage Queue** | `stnexus6skill<NNNN>` 内の `news-analysis-jobs` | Standard LRS | Foundry Trigger Agent → Hosted Agent の内部チャネル |
 | **Azure Key Vault** | `kv-nexus6-swc` | Standard | Teams Workflows URL 等の外部 API キー |
 | **Azure Container Apps Env** | `cae-nexus6-swc` | Consumption | Hosted Agent 実行環境 |
 | **Azure Container App** | `ca-nexus6-hosted-agent` | Consumption | .NET 10 Hosted Agent（System Assigned MI） |
@@ -135,6 +144,24 @@ Foundry で `gpt-5.4` のみがデプロイされているため、全エージ�
 
 ---
 
+## Foundry Scheduled Trigger（News Portal 巡回ジョブ）
+
+Hosted Agent への起動契機を提供する Foundry 側コンポーネント。Foundry Agent Service の Scheduled Trigger（Preview）と専用 Trigger Agent を組み合わせる。
+
+| 項目 | 設定値 |
+|---|---|
+| トリガー種別 | Foundry Agent Service **Scheduled Trigger**（Preview / cron 式） |
+| 実行間隔 | Demo 用途は 5〜15 分（実演時のみ手動 Run） |
+| Trigger Agent 名 | `news-portal-poller` |
+| Trigger Agent 役割 | 1) WebIQ / Grounding with Bing Search で **News Portal の BLOB URL を fetch** し記事一覧を取得<br>2) 未処理記事を判定（過去 enqueue 履歴は Storage Queue または Blob `processed/` で管理）<br>3) 各記事の本文と URL を `NewsAnalysisJob` JSON にして Azure Storage Queue (`news-analysis-jobs`) に enqueue |
+| Trigger Agent モデル | `gpt-5.4` |
+| Trigger Agent Tool | WebIQ / Grounding with Bing Search、Storage Queue 書込（Function Tool として実装） |
+| 認証 | Foundry の Managed Identity に `Storage Queue Data Message Sender` を付与 |
+
+> Hosted Agent 側はこの Queue を購読する `QueueBackgroundService` のみを起動契機とする。News Portal 側に「分析開始」ボタンや JS の API 呼び出しは **一切持たせない**。
+
+---
+
 ## Foundry File Search（Skill.md / DS.md ベクトルストア）
 
 | 項目 | 設定値 |
@@ -177,8 +204,8 @@ Foundry で `gpt-5.4` のみがデプロイされているため、全エージ�
 | 公開範囲 | Public（Foundry / Bing Grounding が URL fetch するため） |
 | 検索エンジン除外 | `robots.txt` で `Disallow: /` を設定し外部クローラーをブロック |
 | デプロイ対象 | `src/news-portal/` 配下の静的 HTML（`index.html` / `article-*.html`） |
-| 起動契機 | **Foundry のタイマートリガー**から記事 URL を fetch（人手の操作なし・ボタン等は不要） |
-| Foundry からの利用 | Grounding with Bing Search または直接 fetch で記事本文を取得し、Agent 1 の入力にする |
+| 起動契機 | **Foundry Scheduled Trigger** が定期起動 → Foundry Trigger Agent が WebIQ/Bing Grounding で記事 URL を巡回 → Azure Storage Queue (`news-analysis-jobs`) に enqueue → Hosted Agent が dequeue して Workflow 実行 |
+| Foundry からの利用 | WebIQ または Grounding with Bing Search に **BLOB URL を直接指定**して記事本文を取得 |
 
 > 厳密な Private 制御（IP 制限・Private Endpoint）は Demo スコープ外。`robots.txt` で検索インデックス除外し、URL 共有も限定範囲に留める運用で対応する。
 > News Portal 側に「分析開始」ボタンや JavaScript の API 呼び出しは **含めない**。あくまで読み取られる対象としての静的記事のみを置く。
@@ -262,6 +289,8 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 | Azure AI Search (`iq-knowledge-source`) | Search Index Data Reader | Foundry MI（File Search のクエリ実行用） |
 | ADLS Gen2 (`stnexus6skill<NNNN>`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
 | ADLS Gen2 (`stnexus6skill<NNNN>`) | Storage Blob Data Contributor | 開発者（Skill.md 配置のため） |
+| Storage Queue (`stnexus6skill<NNNN>` / `news-analysis-jobs`) | Storage Queue Data Message Sender | Foundry MI（enqueue） |
+| Storage Queue (`stnexus6skill<NNNN>` / `news-analysis-jobs`) | Storage Queue Data Message Processor | Container Apps MI（dequeue） |
 | Storage (`stnexus6portal<NNNN>`) | Storage Blob Data Contributor | 開発者（News Portal デプロイ） |
 | Fabric Workspace `fabric_seworkshop_ws1` | Viewer | Container Apps MI |
 | Fabric Workspace `fabric_seworkshop_ws1` | Contributor | DemoDataGenerator 実行者（開発者） |
@@ -300,6 +329,7 @@ flowchart TD
     S6["⑦ Fabric SQL Database × 16 作成\nsqldb_<domain>_<NN>"]
     S7["⑧ Fabric Shortcut\nADLS Gen2 → OneLake 接続"]
     S8["⑨ Storage Static Website 作成\nstnexus6portal* / News Portal デプロイ"]
+    S8b["⑨b Storage Queue 作成\nstnexus6skill* / news-analysis-jobs"]
     S9["⑩ DemoDataGenerator 実行\nCopilot SDK で SQL DB に書き込み"]
     S10["⑪ 代表 CSV を Bronze へ手動配置\nNotebook 2 本を手動実行"]
     S11["⑫ ACR / Container Apps 環境作成\ncrnexus6swc / cae-nexus6-swc"]
@@ -311,6 +341,7 @@ flowchart TD
     S0 --> S1 --> S2 --> S3 --> S4
     S1 --> S5 --> S6 --> S7
     S1 --> S8
+    S3 --> S8b
     S6 --> S9
     S5 --> S10
     S1 --> S11 --> S12 --> S13 --> S14

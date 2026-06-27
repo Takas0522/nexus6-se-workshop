@@ -21,9 +21,9 @@ Agent1〜4 の実行管理・コンテキスト伝播・エラーハンドリン
 
 ## Hosted Agent の実装方針
 
-Microsoft Agent Framework for .NET の **Workflow** を採用し、Agent 1～4 をグラフとして連結する。ホストプロセスは ASP.NET Core **Minimal API** として起動し、Workflow インスタンスを DI で保持して `/api/analyze` から起動する。同じホストプロセスで **Agent Framework DevUI** を併設し、開発/デモ時に Workflow の実行状態・ノード間のデータ・トークン使用量を可視化する。
+Microsoft Agent Framework for .NET の **Workflow** を採用し、Agent 1～4 をグラフとして連結する。ホストプロセスは ASP.NET Core ベースで起動するが、**外部公開 HTTP エンドポイントは持たない**。起動契機は **Azure Storage Queue メッセージのみ**（`QueueBackgroundService` が IHostedService として常駐 dequeue）。同じホストプロセスで **Agent Framework DevUI** を併設し、開発/デモ時に Workflow の実行状態・ノード間のデータ・トークン使用量を可視化する。
 
-これにより、**「Hosted Agent」= Minimal API ホスト + NewsAnalysisWorkflow + DevUI** の三つを一体化したデモランタイムと位置づける。
+これにより、**「Hosted Agent」= QueueBackgroundService + NewsAnalysisWorkflow + DevUI** の三つを一体化したデモランタイムと位置づける。起動は外部の Foundry Scheduled Trigger が Queue に enqueue することで間接的に駆動される。
 
 ```mermaid
 flowchart LR
@@ -125,28 +125,54 @@ ResiliencePipeline retryPipeline = new ResiliencePipelineBuilder()
 
 ## 入力インターフェース
 
-Hosted Agent は以下のエントリーポイントを公開する。Demo では認証は設けない（ローカル / 限定環境前提）。
+Hosted Agent は **外部公開 HTTP エンドポイントを持たない**。起動契機は Azure Storage Queue メッセージのみで、`QueueBackgroundService`（`IHostedService` 実装）が常駐し dequeue → Workflow 実行する。Demo では認証は設けない（Queue は内部チャネル / Managed ID 制御）。
 
 ```csharp
-// REST API 経由（ASP.NET Core Minimal API）
-app.MapPost("/api/analyze", async (
-    AnalyzeRequest request,
-    Workflow<NewsAnalysisContext, NewsAnalysisContext> workflow,
-    CancellationToken ct) =>
+// Storage Queue リスナー（IHostedService）
+public sealed class QueueBackgroundService : BackgroundService
 {
-    var initialContext = new NewsAnalysisContext { OriginalNewsText = request.NewsText };
-    var result = await workflow.RunAsync(initialContext, ct);
-    return Results.Ok(result);
-});
+    private readonly QueueClient _queue;
+    private readonly Workflow<NewsAnalysisContext, NewsAnalysisContext> _workflow;
+    private readonly ILogger<QueueBackgroundService> _logger;
+
+    public QueueBackgroundService(
+        QueueServiceClient queueService,
+        Workflow<NewsAnalysisContext, NewsAnalysisContext> workflow,
+        ILogger<QueueBackgroundService> logger)
+    {
+        _queue = queueService.GetQueueClient("news-analysis-jobs");
+        _workflow = workflow;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        await _queue.CreateIfNotExistsAsync(cancellationToken: ct);
+        while (!ct.IsCancellationRequested)
+        {
+            var msg = await _queue.ReceiveMessageAsync(TimeSpan.FromMinutes(5), ct);
+            if (msg.Value is null) { await Task.Delay(TimeSpan.FromSeconds(5), ct); continue; }
+
+            var job = JsonSerializer.Deserialize<NewsAnalysisJob>(msg.Value.MessageText)!;
+            var ctx = new NewsAnalysisContext
+            {
+                OriginalNewsText = job.NewsText,
+                SourceUrl = job.Url
+            };
+            await _workflow.RunAsync(ctx, ct);
+            await _queue.DeleteMessageAsync(msg.Value.MessageId, msg.Value.PopReceipt, ct);
+        }
+    }
+}
+
+// Queue メッセージスキーマ（Foundry Trigger Agent が enqueue）
+public record NewsAnalysisJob(string Url, string NewsText, string? ScenarioHint = null);
 
 // DevUI エンドポイント（Agent Framework 付属ミドルウェアを mount）
 app.MapAgentFrameworkDevUI("/devui");
-
-// Request モデル
-public record AnalyzeRequest(string NewsText, string? ScenarioHint = null);
 ```
 
-> Demo 時は DevUI (`/devui`) をブラウザで開き、Workflow のグラフと各ステップの出力を可視化しながら説明する。
+> Demo 時は DevUI (`/devui`) をブラウザで開き、Workflow のグラフと各ステップの出力を可視化しながら説明する。Queue へのテスト投入は `az storage message put` または Storage Explorer から手動で行える。
 
 ---
 

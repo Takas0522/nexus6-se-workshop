@@ -38,8 +38,10 @@ graph LR
 
 ```mermaid
 flowchart TD
-    IN([入力: ニュース本文])
-    HA[Hosted Agent 開始]
+    TRG([Foundry Scheduled Trigger\ncron 起動])
+    FA["Foundry Trigger Agent\nWebIQ / Bing Grounding で\nNews Portal の記事 URL を巡回・新着検出"]
+    Q[("Azure Storage Queue\nnews-analysis-jobs")]
+    HA["Hosted Agent\nQueueBackgroundService が dequeue"]
     A1["Agent 1: Web情報収集\nFoundry Grounding with Bing Search で関連情報収集\n収集結果 → Context に追記"]
     A2["Agent 2: ビジネスインパクト評価\nOneLake / Fabric の全社経営データ参照\n3事業部への影響スコア・要因を出力"]
     subgraph A3["Agent 3: 事業部別レコメンド（並列実行）"]
@@ -50,9 +52,11 @@ flowchart TD
     A4["Agent 4: 通知・パブリッシュ\nTeams カード / Outlook メール送信\nDynamics 365 / M365 へのレコメンド記録"]
     OUT([出力: 事業部別レコメンドレポート + 通知完了])
 
-    IN --> HA --> A1 --> A2 --> A3
+    TRG --> FA --> Q --> HA --> A1 --> A2 --> A3
     A3 --> A4 --> OUT
 ```
+
+> Hosted Agent には外部公開 HTTP エンドポイント（`/api/analyze` 等）は持たせない。起動契機は **Storage Queue メッセージのみ**。DevUI (`/devui`) は同一プロセスに併設し、Demo 時の可視化に使う。
 
 ---
 

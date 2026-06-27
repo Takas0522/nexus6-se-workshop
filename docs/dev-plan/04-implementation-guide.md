@@ -146,20 +146,14 @@ builder.Services.AddResiliencePipeline("agent-retry", pipeline =>
 // Azure Monitor テレメトリ
 builder.Services.AddOpenTelemetry().UseAzureMonitor();
 
-var app = builder.Build();
-
-// REST エンドポイント
-app.MapPost("/api/analyze", async (
-    AnalyzeRequest request,
-    Workflow<NewsAnalysisContext, NewsAnalysisContext> workflow,
-    CancellationToken ct) =>
-{
-    var initialContext = new NewsAnalysisContext { OriginalNewsText = request.NewsText };
-    var result = await workflow.RunAsync(initialContext, ct);
-    return Results.Ok(result);
-});
+// Queue リスナー（IHostedService として常駐）
+builder.Services.AddSingleton(sp =>
+    new QueueServiceClient(new Uri($"https://{builder.Configuration["Storage:Account"]}.queue.core.windows.net"),
+                            new DefaultAzureCredential()));
+builder.Services.AddHostedService<QueueBackgroundService>();
 
 // DevUI マウント（Demo / 開発時にワークフローを可視化）
+var app = builder.Build();
 app.MapAgentFrameworkDevUI("/devui");
 
 app.Run();
@@ -267,8 +261,9 @@ dotnet test src/news-analysis-agent/tests/NewsAnalysisAgent.IntegrationTests/
 # ローカル起動（Minimal API + DevUI）
 cd src/news-analysis-agent/src/NewsAnalysisAgent.Host
 dotnet run
-# REST API:  POST http://localhost:5000/api/analyze
-# DevUI:    http://localhost:5000/devui
+# DevUI:        http://localhost:5000/devui
+# Queue 投入:   az storage message put --queue-name news-analysis-jobs --content "$(cat sample-job.json | base64)" \
+#                 --account-name stnexus6skill<NNNN> --auth-mode login
 ```
 
 ## デプロイ（Azure Container Apps / Consumption）

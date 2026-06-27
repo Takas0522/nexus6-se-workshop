@@ -45,4 +45,4 @@ Demo 実演時のニュース入力源として、`src/news-portal/` 配下に�
 | `src/news-portal/article-comp1.html` | シナリオ2（競合経済圏統合） |
 | `src/news-portal/article-boj1.html` | シナリオ3（日銀金融政策転換） |
 
-Demo フロー: **Foundry 側のタイマートリガー** が起動 → 記事 URL を Foundry が fetch（Grounding with Bing Search または直接 fetch）→ Agent 1〜4 を順次実行 → Teams / DevUI で結果確認。News Portal 側はコード（JavaScript・API 呼び出し）を持たない純粋な静的サイト。
+Demo フロー: **Foundry Scheduled Trigger** が cron 起動 → Foundry Trigger Agent が WebIQ/Bing Grounding に **BLOB 静的サイトの URL を指定** して記事本文を取得 → 新着分を Azure Storage Queue (`news-analysis-jobs`) に enqueue → Hosted Agent (.NET) の `QueueBackgroundService` が dequeue → Agent 1〜4 を順次実行 → Teams / DevUI で結果確認。News Portal 側はコード（JavaScript・API 呼び出し）を持たない純粋な静的サイトで、人手のボタン操作も発生しない。
