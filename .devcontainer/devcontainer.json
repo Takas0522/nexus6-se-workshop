@@ -1,8 +1,12 @@
 {
   "name": "nexus6-se-workshop",
 
-  // .NET 10 ベースイメージ（Debian Bookworm）
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0-bookworm",
+  // .NET 9 ベースイメージ（Debian Bookworm）
+  // NOTE: 一部環境で存在する Yarn APT ソースの鍵不整合を回避するため、
+  // Dockerfile 経由でベースイメージを軽く前処理する
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
 
   "features": {
     // Azure CLI

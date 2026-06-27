@@ -3,15 +3,24 @@ set -euo pipefail
 
 echo "=== nexus6-se-workshop DevContainer セットアップ ==="
 
+warn() {
+  echo "  [WARN] $1"
+}
+
 # ── 1. Azure Developer CLI (azd) ──────────────────────────────────────────────
 echo "[1/4] Azure Developer CLI (azd) をインストール中..."
 curl -fsSL https://aka.ms/install-azd.sh | bash
 echo "  azd $(azd version) インストール完了"
 
-# ── 2. GitHub Copilot CLI 拡張 (gh copilot) ──────────────────────────────────
-echo "[2/4] GitHub Copilot CLI 拡張をインストール中..."
-gh extension install github/gh-copilot 2>/dev/null || gh extension upgrade gh-copilot
-echo "  gh copilot 拡張インストール完了"
+# ── 2. GitHub Copilot CLI (copilot) ──────────────────────────────────────────
+echo "[2/4] GitHub Copilot CLI (copilot) をインストール中..."
+if command -v copilot >/dev/null 2>&1; then
+  echo "  copilot は既に利用可能です"
+elif curl -fsSL https://gh.io/copilot-install | bash; then
+  echo "  copilot CLI インストール完了"
+else
+  warn "copilot CLI のインストールに失敗しました（続行）。後で 'curl -fsSL https://gh.io/copilot-install | bash' を実行してください。"
+fi
 
 # ── 3. .NET tools ─────────────────────────────────────────────────────────────
 echo "[3/4] .NET グローバルツールをインストール中..."

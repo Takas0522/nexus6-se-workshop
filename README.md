@@ -14,7 +14,7 @@
 | Azure CLI (`az`) | `containerapp` 拡張込みでインストール |
 | Azure Developer CLI (`azd`) | `postCreate` スクリプトでインストール |
 | GitHub CLI (`gh`) | インストール済み |
-| GitHub Copilot CLI (`gh copilot`) | `gh extension install github/gh-copilot` で追加 |
+| GitHub Copilot CLI (`copilot`) | `curl -fsSL https://gh.io/copilot-install | bash` でインストール |
 | Docker | ホスト（WSL）の Docker Engine をソケット経由で使用（Docker outside of Docker） |
 | EF Core CLI (`dotnet ef`) | DemoDataGenerator のマイグレーション用 |
 | VS Code 拡張 | C# Dev Kit・Azure Dev・GitHub Copilot・Markdown 等 |
