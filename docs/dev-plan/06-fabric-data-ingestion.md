@@ -22,7 +22,7 @@
 
 ```mermaid
 graph TD
-    subgraph OL["OneLake / nexus6-workspace"]
+    subgraph OL["OneLake / fabric_seworkshop_ws1"]
         subgraph Bronze["🔶 Bronze Lakehouse（合成 CSV をそのまま取り込み）"]
             B1[mobile_raw]
             B2[ecommerce_raw]

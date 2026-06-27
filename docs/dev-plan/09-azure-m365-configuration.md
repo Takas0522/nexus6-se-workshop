@@ -54,7 +54,7 @@ graph TD
 
 | サービス | SKU / ティア | 用途 | 参照エージェント |
 |---|---|---|---|
-| **Azure AI Foundry** | Standard（リージョン: `<既存環境に合わせる>`） | LLM 推論（GPT-4o / gpt-4o-mini）、File Search (Knowledge)、Grounding with Bing Search | 全エージェント |
+| **Azure AI Foundry** | Standard（リソース名: `fd-PathnerIQ` / リージョン: `<要確認>`） | LLM 推論（GPT-4o / gpt-4o-mini）、File Search (Knowledge)、Grounding with Bing Search | 全エージェント |
 | **ADLS Gen2** | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 | Agent 2・3 / Fabric |
 | **Microsoft Fabric** | F2～F4 | データレイク / OneLake / Notebook | Agent 2・3 |
 | **Azure Key Vault** | Standard | 外部サービス API キーのみ | Agent 4 他 |
@@ -82,11 +82,11 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| リソース名 | `nexus6-foundry` |
-| リージョン | `<既存環境に合わせる>` |
+| リソース名 | `fd-PathnerIQ` |
+| リージョン | `<要確認>` |
 | モデルデプロイ 1 | `gpt-4o`（Agent 1・2・3 用） |
 | モデルデプロイ 2 | `gpt-4o-mini`（Agent 4 用） |
-| Knowledge / File Search | `nexus6-skill-vectorstore`（Skill.md / DS.md 参照） |
+| Knowledge / File Search | `<要確認: ベクトルストア名>`（Skill.md / DS.md 参照） |
 | Grounding with Bing Search 接続 | Foundry Connections で追加し Connection ID を保持 |
 | Fabric 接続 | OneLake / SQL Analytics Endpoint（Gold Lakehouse） |
 | 認証 | Container Apps の System Assigned MI に `Cognitive Services User` を付与 |
@@ -106,8 +106,8 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| ベクトルストア名 | `nexus6-skill-vectorstore` |
-| データソース | ADLS Gen2 `nexus6skillstore / skill-docs` |
+| ベクトルストア名 | `<要確認: Foundry Portal で作成したベクトルストア名>` |
+| データソース | ADLS Gen2 `<要確認: ADLS アカウント名> / skill-docs` |
 | 再インデクシング | Foundry が Blob 変更を検知して自動実行 |
 | チャンク分割 | デフォルト（1024 tokens 目安） |
 | Agent 2・3 での利用 | `FoundryFileSearchTool`、Vector Store ID を `Foundry:FileSearchVectorStoreId` で供給 |
@@ -118,11 +118,11 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| アカウント名 | `nexus6skillstore` |
+| アカウント名 | `<要確認: ADLS Gen2 ストレージアカウント名>` |
 | 冗長性 | LRS（デモ用途） |
 | コンテナ名 | `skill-docs` |
 | ディレクトリ構成 | `mobile/`, `ecommerce/`, `fintech/` |
-| Fabric 連携 | OneLake Shortcut（`skill-docs` → `nexus6-workspace/Files/skill-docs`） |
+| Fabric 連携 | OneLake Shortcut（`skill-docs` → `fabric_seworkshop_ws1/Files/skill-docs`） |
 | アクセス制御 | Foundry File Search・Container Apps MI に `Storage Blob Data Reader` を付与 |
 
 ---
@@ -131,10 +131,10 @@ graph TD
 
 | リソース | 名称 | 用途 |
 |---|---|---|
-| Workspace | `nexus6-workspace` | 全 Fabric リソースの管理単位 |
-| Bronze Lakehouse | `nexus6-bronze` | 合成 CSV をそのまま取り込み |
-| Silver Lakehouse | `nexus6-silver` | クレンジング・型整備済みデータ |
-| Gold Lakehouse | `nexus6-gold` | AI エージェント向け集計テーブル |
+| Workspace | `fabric_seworkshop_ws1` | 全 Fabric リソースの管理単位 |
+| Bronze Lakehouse | `<要確認>` | 合成 CSV をそのまま取り込み |
+| Silver Lakehouse | `<要確認>` | クレンジング・型整備済みデータ |
+| Gold Lakehouse | `<要確認>` | AI エージェント向け集計テーブル |
 | Notebook | `nb_bronze_to_silver` | Bronze → Silver 変換（PySpark） |
 | Notebook | `nb_silver_to_gold` | Silver → Gold KPI 集計（PySpark） |
 | OneLake Shortcut | `skill-docs` | ADLS Gen2 の Skill.md を透過参照 |
@@ -181,7 +181,7 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 
 | 項目 | 設定値 |
 |---|---|
-| アイデンティティ | Container Apps `nexus6-hosted-agent` の **System Assigned Managed Identity** |
+| アイデンティティ | Container Apps `<要確認: Container Apps アプリ名>` の **System Assigned Managed Identity** |
 | 用途 | Foundry / Fabric / Key Vault へのアクセス |
 | 認証コード | `DefaultAzureCredential`（.NET 10） |
 
@@ -192,9 +192,9 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 | リソース | ロール | 付与対象 |
 |---|---|---|
 | Azure AI Foundry | Cognitive Services User | Container Apps MI |
-| ADLS Gen2 (`nexus6skillstore`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
-| Fabric Workspace `nexus6-workspace` | Viewer | Container Apps MI |
-| Key Vault (`nexus6-kv`) | Key Vault Secrets User | Container Apps MI |
+| ADLS Gen2 (`<要確認: ADLS アカウント名>`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
+| Fabric Workspace `fabric_seworkshop_ws1` | Viewer | Container Apps MI |
+| Key Vault (`<要確認: Key Vault 名>`) | Key Vault Secrets User | Container Apps MI |
 | Azure Monitor (App Insights) | Monitoring Metrics Publisher | Container Apps MI |
 
 ---
@@ -259,4 +259,28 @@ flowchart TD
 | **Fabric 除く合計** | **$231～$601 / 月** | 既存 Fabric テナントを利用する場合 |
 
 > Azure AI Search Basic（$75/月）を廃止し Foundry File Search に統一したこと、Container Apps Consumption を採用したことで App Service (P1v3 / $70) を削減している。
-> リージョンはすべて「既存環境に合わせる」を前提とし、独立不要。
+> リージョンは `fd-PathnerIQ` の既存リージョンに合わせる（`<要確認>`）。
+
+---
+
+## 要確認の設定値一覧
+
+ドキュメント内の `<要確認>` マーカーを実際の値に置き換える前に、以下を確認・決定してください。
+
+| No. | 項目 | 現在の仮名 / プレースホルダー | 確認方法 |
+|---|---|---|---|
+| 1 | **Azure AI Foundry リージョン** | `<要確認>` | Azure Portal → `fd-PathnerIQ` リソースの「概要」 |
+| 2 | **Foundry Project 名** | `<project-name>` | Azure AI Foundry Portal → プロジェクト一覧 |
+| 3 | **Foundry Project Endpoint URL** | `https://fd-pathneriq.services.ai.azure.com/api/projects/<project-name>` | Foundry Portal → プロジェクト → 概要 → エンドポイント |
+| 4 | **Fabric Gold Lakehouse 名** | `<要確認>` | Fabric ワークスペース `fabric_seworkshop_ws1` のアイテム一覧 |
+| 5 | **Fabric Silver Lakehouse 名** | `<要確認>` | 同上 |
+| 6 | **Fabric Bronze Lakehouse 名** | `<要確認>` | 同上 |
+| 7 | **Fabric SQL Analytics Endpoint** | `fabric_seworkshop_ws1.datawarehouse.fabric.microsoft.com` | Gold Lakehouse → SQL Analytics Endpoint → 接続文字列 |
+| 8 | **ADLS Gen2 アカウント名** | `<要確認>` | Azure Portal → ストレージアカウント一覧（または新規作成） |
+| 9 | **Foundry File Search ベクトルストア名** | `<要確認>` | Foundry Portal → Knowledge |
+| 10 | **Azure Key Vault 名** | `<要確認>` | Azure Portal → Key Vault（または新規作成） |
+| 11 | **Container Apps リソースグループ名** | `<要確認>` | Azure Portal → リソースグループ一覧 |
+| 12 | **Container Apps 環境名** | `<要確認>` | Azure Portal → Container Apps 環境（または新規作成） |
+| 13 | **Container Apps アプリ名** | `<要確認>` | 新規作成時に決定 |
+
+> **既に存在するリソース**（`fd-PathnerIQ`・`fabric_seworkshop_ws1`）に合わせて、他のリソース名・リージョンを決定することを推奨します。

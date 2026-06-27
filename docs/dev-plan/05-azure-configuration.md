@@ -27,7 +27,7 @@
 
 ### セットアップ
 
-1. Azure ポータルで **Azure AI Foundry** リソースを作成（リージョンは `<既存環境に合わせる>`）
+1. Azure ポータルで **Azure AI Foundry** リソース `fd-PathnerIQ` を確認（リージョン: `<要確認>`）
 2. `gpt-4o` ・ `gpt-4o-mini` モデルをデプロイ
 3. Foundry Project を作成し、Project Endpoint を `appsettings.json` に設定
 4. 認証は **Managed Identity に統一**（App / Container Apps の System Assigned MI に `Cognitive Services User` を付与）
@@ -72,7 +72,7 @@ services.AddSingleton(_ => new FoundryAgentClient(
 
 ### セットアップ
 
-1. ADLS Gen2 (`nexus6skillstore` / `skill-docs` コンテナ) に Skill.md を配置
+1. ADLS Gen2 (`<要確認: ADLS アカウント名>` / `skill-docs` コンテナ) に Skill.md を配置
 2. Foundry Project の **Knowledge → File Search** でベクトルストアを作成
 3. ADLS Gen2 をデータソースとして追加し、`skill-docs/**` をインデクシング
 4. Agent 2 / Agent 3 に `FoundryFileSearchTool` を登録し、ベクトルストア ID を `Foundry:FileSearchVectorStoreId` で参照
@@ -86,7 +86,7 @@ services.AddSingleton(_ => new FoundryAgentClient(
 
 ### セットアップ
 
-1. Fabric ワークスペースに各事業部データを格納した **Lakehouse**（`nexus6-bronze` / `nexus6-silver` / `nexus6-gold`）を作成
+1. Fabric ワークスペース `fabric_seworkshop_ws1` に各事業部データを格納した **Lakehouse**（`<要確認: Bronze>`  / `<要確認: Silver>` / `<要確認: Gold>`）を作成
 2. 接続は Managed Identity を使用し、Container Apps の MI に Fabric ワークスペースの Viewer ロールを付与
 3. Gold Lakehouse の **SQL Analytics Endpoint** に T-SQL でアクセス (`Microsoft.Data.SqlClient`)
 

@@ -226,15 +226,15 @@ public sealed class FabricDataPlugin(SqlConnection connection)
 ```json
 {
   "Foundry": {
-    "ProjectEndpoint": "https://<foundry-resource>.services.ai.azure.com/api/projects/<project-name>",
+    "ProjectEndpoint": "https://fd-pathneriq.services.ai.azure.com/api/projects/<要確認: プロジェクト名>",
     "DefaultModelDeployment": "gpt-4o",
     "NotificationModelDeployment": "gpt-4o-mini",
     "FileSearchVectorStoreId": "<vector-store-id>",
     "GroundingBingConnectionId": "<bing-grounding-connection-id>"
   },
   "Fabric": {
-    "SqlEndpoint": "<workspace>.datawarehouse.fabric.microsoft.com",
-    "Database": "nexus6-gold"
+    "SqlEndpoint": "fabric_seworkshop_ws1.datawarehouse.fabric.microsoft.com",
+    "Database": "<要確認: Gold Lakehouse 名>"
   },
   "Teams": {
     "WorkflowsUrl": "<Power Automate Workflow の HTTP トリガー URL>"
@@ -273,10 +273,10 @@ dotnet run
 ```bash
 # コンテナイメージを ACR または GHCR に push 後、Container Apps へデプロイ
 az containerapp up \
-  --resource-group nexus6-rg \
-  --name nexus6-hosted-agent \
+  --resource-group <要確認: リソースグループ名> \
+  --name <要確認: Container Apps アプリ名> \
   --image <registry>/nexus6-hosted-agent:latest \
-  --environment nexus6-aca-env \
+  --environment <要確認: Container Apps 環境名> \
   --ingress external --target-port 8080 \
   --system-assigned
 ```
