@@ -36,7 +36,7 @@
 
 ## Demo 入力源（ニュース記事プレビュー）
 
-Demo 実演時のニュース入力源として、`src/news-portal/` 配下に静的 HTML 記事を配置している。これは「外部ニュースが社内に届く」状況を可視化するための表示用 UI であり、Hosted Agent への入力は API 経由（記事本文テキスト）で行う。
+Demo 実演時のニュース入力源として、`src/news-portal/` 配下に静的 HTML 記事を配置している。これは **外部ニュースサイトを模した「読み取り対象」** であり、人間がブラウザから閲覧したり「分析開始」ボタンを押したりすることは想定しない。
 
 | ファイル | 想定シナリオ |
 |---|---|
@@ -45,4 +45,4 @@ Demo 実演時のニュース入力源として、`src/news-portal/` 配下に�
 | `src/news-portal/article-comp1.html` | シナリオ2（競合経済圏統合） |
 | `src/news-portal/article-boj1.html` | シナリオ3（日銀金融政策転換） |
 
-Demo フロー: ニュース閲覧 → 該当記事の本文を Hosted Agent の `/api/analyze` に POST → 4 Agent の結果を Teams / DevUI で確認。
+Demo フロー: **Foundry 側のタイマートリガー** が起動 → 記事 URL を Foundry が fetch（Grounding with Bing Search または直接 fetch）→ Agent 1〜4 を順次実行 → Teams / DevUI で結果確認。News Portal 側はコード（JavaScript・API 呼び出し）を持たない純粋な静的サイト。

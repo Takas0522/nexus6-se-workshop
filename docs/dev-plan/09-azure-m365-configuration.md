@@ -166,7 +166,7 @@ Foundry で `gpt-5.4` のみがデプロイされているため、全エージ�
 
 ## News Portal Static Hosting
 
-Demo 実演時に「外部ニュースを検索エンジン経由で見つけた」体験を再現するための静的サイトホスティング。
+外部ニュースサイトの「読み取り対象」として動作する静的サイト。**人間がブラウザで閲覧することは想定せず**、Foundry 側のタイマートリガーが定期的に URL を fetch して新着記事を AI 分析パイプラインへ流す入力源となる。
 
 | 項目 | 設定値 |
 |---|---|
@@ -174,12 +174,14 @@ Demo 実演時に「外部ニュースを検索エンジン経由で見つけた
 | アカウント名 | `stnexus6portal<NNNN>` |
 | リソースグループ | `rg-nexus6-swc`（新規） |
 | リージョン | `Sweden Central` |
-| 公開範囲 | Public（Foundry の Web Browsing Tool が URL fetch するため） |
+| 公開範囲 | Public（Foundry / Bing Grounding が URL fetch するため） |
 | 検索エンジン除外 | `robots.txt` で `Disallow: /` を設定し外部クローラーをブロック |
 | デプロイ対象 | `src/news-portal/` 配下の静的 HTML（`index.html` / `article-*.html`） |
-| Foundry からの利用 | Grounding with Bing Search に URL を直接指定して「検索結果からの導線」を疑似再現 |
+| 起動契機 | **Foundry のタイマートリガー**から記事 URL を fetch（人手の操作なし・ボタン等は不要） |
+| Foundry からの利用 | Grounding with Bing Search または直接 fetch で記事本文を取得し、Agent 1 の入力にする |
 
 > 厳密な Private 制御（IP 制限・Private Endpoint）は Demo スコープ外。`robots.txt` で検索インデックス除外し、URL 共有も限定範囲に留める運用で対応する。
+> News Portal 側に「分析開始」ボタンや JavaScript の API 呼び出しは **含めない**。あくまで読み取られる対象としての静的記事のみを置く。
 
 ---
 
