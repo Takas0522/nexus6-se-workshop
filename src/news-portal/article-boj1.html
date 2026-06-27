@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日銀が政策金利を0.5%に引き上げ決定　17年ぶり高水準 - NEXUS経済ニュース</title>
+  <style>
+    :root {
+      --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5; --cp-border: #dedede; --cp-border-strong: #919191;
+      --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b; --cp-accent-hover: #9a1a41; --cp-accent-soft: rgba(177,31,75,0.08);
+      --cp-accent-fg: #ffffff; --cp-success: #16a34a; --cp-danger: #dc2626;
+      --cp-warning: #f59e0b; --cp-link: #0078d4;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:"Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic UI","MS PGothic","Segoe UI",sans-serif; background:var(--cp-bg); color:var(--cp-text); font-size:13px; line-height:1.6; }
+    a { color:var(--cp-link); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .site-header-band { background:var(--cp-accent); }
+    .site-header-inner { max-width:980px; margin:0 auto; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .site-logo { color:var(--cp-accent-fg); font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; white-space:nowrap; }
+    .site-logo a { color:inherit; text-decoration:none; }
+    .site-logo-sub { color:rgba(255,255,255,0.75); font-size:11px; font-weight:400; display:block; margin-top:2px; }
+    .header-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .header-search { display:flex; border:1px solid rgba(255,255,255,0.5); }
+    .header-search input { padding:4px 8px; font-size:12px; border:none; background:rgba(255,255,255,0.92); color:var(--cp-text); width:180px; outline:none; }
+    .header-search button { padding:4px 10px; background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:12px; cursor:pointer; }
+    .header-date { font-size:11px; color:rgba(255,255,255,0.8); white-space:nowrap; }
+    .nav-tabs { background:var(--cp-surface); border-bottom:2px solid var(--cp-accent); }
+    .nav-tabs-inner { max-width:980px; margin:0 auto; display:flex; overflow-x:auto; }
+    .nav-tabs a { display:block; padding:7px 14px; font-size:12px; font-weight:700; color:var(--cp-text); border-right:1px solid var(--cp-border); white-space:nowrap; text-decoration:none; }
+    .nav-tabs a:first-child { border-left:1px solid var(--cp-border); }
+    .nav-tabs a:hover, .nav-tabs a.active { background:var(--cp-accent); color:var(--cp-accent-fg); }
+    .breadcrumb { max-width:980px; margin:6px auto; padding:0 12px; font-size:11px; color:var(--cp-text-soft); }
+    .breadcrumb a { color:var(--cp-link); }
+    .page-wrap { max-width:980px; margin:8px auto; padding:0 12px; display:flex; gap:16px; }
+    .main-col { flex:1; min-width:0; }
+    .side-col { width:220px; flex-shrink:0; }
+    @media(max-width:680px){ .page-wrap{flex-direction:column;} .side-col{width:100%;} }
+    .article-wrap { background:var(--cp-surface); border:1px solid var(--cp-border); padding:20px 22px; margin-bottom:14px; }
+    .article-badge { font-size:11px; font-weight:900; padding:1px 6px; color:#fff; display:inline-block; margin-bottom:8px; background:#1a5fa0; }
+    .article-title { font-size:22px; font-weight:900; line-height:1.4; color:var(--cp-text); margin-bottom:10px; border-bottom:1px solid var(--cp-border); padding-bottom:10px; }
+    .article-byline { font-size:11px; color:var(--cp-text-soft); margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap; border-bottom:1px dotted var(--cp-border); padding-bottom:10px; }
+    .article-lead { font-size:14px; font-weight:700; line-height:1.8; color:var(--cp-text); background:var(--cp-surface-soft); border-left:3px solid var(--cp-accent); padding:10px 14px; margin-bottom:16px; }
+    .article-body { font-size:13px; line-height:1.9; color:var(--cp-text); }
+    .article-body p { margin-bottom:14px; }
+    .article-body strong { color:var(--cp-accent); font-weight:700; }
+    .article-body h3 { font-size:14px; font-weight:900; border-left:3px solid var(--cp-accent); padding-left:8px; margin:20px 0 10px; }
+    .impact-section { margin:18px 0; border:1px solid var(--cp-border); }
+    .impact-section-head { background:var(--cp-surface-soft); border-bottom:1px solid var(--cp-border); padding:5px 10px; font-size:12px; font-weight:900; color:var(--cp-text); border-left:3px solid var(--cp-accent); }
+    .impact-section-body { padding:8px 10px; font-size:12px; }
+    .impact-section-body ul { padding-left:16px; }
+    .impact-section-body li { margin-bottom:5px; line-height:1.55; }
+    .data-table { width:100%; border-collapse:collapse; font-size:12px; margin:14px 0; }
+    .data-table th { background:var(--cp-surface-soft); padding:5px 8px; border:1px solid var(--cp-border); text-align:left; font-weight:700; }
+    .data-table td { padding:5px 8px; border:1px solid var(--cp-border); }
+    .article-tags { margin-top:16px; padding-top:12px; border-top:1px dotted var(--cp-border); display:flex; flex-wrap:wrap; gap:4px; }
+    .tag { font-size:11px; border:1px solid var(--cp-border); padding:1px 7px; color:var(--cp-link); }
+    .side-widget { border:1px solid var(--cp-border); margin-bottom:12px; background:var(--cp-surface); }
+    .side-widget-head { background:var(--cp-surface-soft); border-bottom:2px solid var(--cp-accent); padding:5px 8px; font-size:12px; font-weight:900; color:var(--cp-text); }
+    .side-widget-body { padding:6px 0; }
+    .rank-row { display:flex; align-items:flex-start; gap:6px; padding:5px 8px; border-bottom:1px dotted var(--cp-border); cursor:pointer; }
+    .rank-row:last-child { border-bottom:none; }
+    .rank-row:hover { background:var(--cp-accent-soft); }
+    .rank-num { font-size:14px; font-weight:900; color:var(--cp-text-muted); width:18px; flex-shrink:0; line-height:1.3; }
+    .rank-num.r1,.rank-num.r2,.rank-num.r3 { color:var(--cp-danger); }
+    .rank-title { font-size:12px; color:var(--cp-text); line-height:1.4; flex:1; }
+    .rank-count { font-size:11px; color:var(--cp-text-soft); margin-top:2px; }
+    .market-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .market-table td { padding:4px 8px; border-bottom:1px dotted var(--cp-border); }
+    .market-table tr:last-child td { border-bottom:none; }
+    .market-val { text-align:right; font-weight:700; }
+    .market-chg { text-align:right; font-size:11px; }
+    .up { color:var(--cp-danger); } .dn { color:var(--cp-link); }
+    footer { background:var(--cp-surface); border-top:2px solid var(--cp-accent); margin-top:20px; padding:14px 12px; }
+    .footer-inner { max-width:980px; margin:0 auto; }
+    .footer-links { display:flex; flex-wrap:wrap; gap:0; margin-bottom:8px; }
+    .footer-links a { font-size:11px; color:var(--cp-text-muted); padding:2px 10px; border-right:1px solid var(--cp-border); }
+    .footer-links a:first-child { padding-left:0; }
+    .footer-copy { font-size:11px; color:var(--cp-text-soft); }
+  </style>
+</head>
+<body>
+
+<div class="site-header-band">
+  <div class="site-header-inner">
+    <div class="site-logo">
+      <a href="index.html">NEXUS経済</a>
+      <span class="site-logo-sub">ビジネス・金融・テクノロジー情報</span>
+    </div>
+    <div class="header-right">
+      <div class="header-search"><input type="text" placeholder="キーワードで検索" /><button>検索</button></div>
+      <span class="header-date" id="headerDate"></span>
+    </div>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tabs-inner">
+    <a href="index.html">トップ</a>
+    <a href="index.html#fx">為替・国際</a>
+    <a href="index.html#comp">通信・EC</a>
+    <a href="index.html#boj" class="active">金融政策</a>
+    <a href="index.html#market">マーケット</a>
+    <a href="#">テクノロジー</a>
+    <a href="#">Fintech</a>
+    <a href="#">経済</a>
+    <a href="#">企業</a>
+    <a href="#">産業</a>
+  </div>
+</div>
+
+<div class="breadcrumb">
+  <a href="index.html">トップ</a> &rsaquo; <a href="index.html#boj">金融政策</a> &rsaquo; 日銀が政策金利を0.5%に引き上げ決定
+</div>
+
+<div class="page-wrap">
+  <div class="main-col">
+    <div class="article-wrap">
+      <span class="article-badge">【政策転換】日銀・金融政策</span>
+      <h1 class="article-title">日銀が政策金利を0.5%に引き上げ決定　17年ぶりの高水準、住宅ローン・リボ払いへの影響注視　次回会合での追加利上げも視野</h1>
+      <div class="article-byline">
+        <span>📰 金融政策部</span>
+        <span>🕐 2026年6月27日 08:00</span>
+        <span>📄 97,443 PV</span>
+      </div>
+
+      <div class="article-lead">
+        日本銀行は金融政策決定会合において、政策金利を0.25%から0.5%へ引き上げることを決定。2007年以来17年ぶりとなる高水準。植田総裁は「経済・物価の見通しが実現していけば、引き続き利上げを進める」と表明し、7月末の追加利上げも意識される。
+      </div>
+
+      <div class="article-body">
+        <p>日本銀行は27日の金融政策決定会合において、政策金利（無担保コール翌日物金利）の誘導目標を<strong>0.25%から0.5%へ引き上げる</strong>ことを賛成多数で決定した。2007年2月以来17年ぶりとなる高水準で、国内の金融環境は正常化への歩みを続けている。</p>
+
+        <h3>■ 決定の背景：物価・賃金の持続的上昇を確認</h3>
+        <p>植田和男総裁は会合後の記者会見で「消費者物価指数（コアCPI）の前年比上昇率が2%を超える状況が継続し、春季労使交渉での賃上げ率も5.1%と2年連続で高水準を維持した。経済・物価の見通しが実現していけば、引き続き政策金利を引き上げ、金融緩和の度合いを調整していく」と述べた。</p>
+        <p>金融政策決定会合の票決は7対2の賛成多数。反対した2名の委員は「海外経済の不確実性が高まっているなかでの利上げは時期尚早」との意見を示した。</p>
+
+        <h3>■ 金利推移と今後の見通し</h3>
+        <table class="data-table">
+          <thead><tr><th>時期</th><th>政策金利</th><th>長期金利（10年）</th><th>主な判断材料</th></tr></thead>
+          <tbody>
+            <tr><td>2024年3月</td><td>0% → 0.1%</td><td>約0.7%</td><td>マイナス金利解除</td></tr>
+            <tr><td>2024年7月</td><td>0.1% → 0.25%</td><td>約0.9%</td><td>賃上げ・物価継続確認</td></tr>
+            <tr><td>2026年6月（今回）</td><td><strong>0.25% → 0.5%</strong></td><td>1.12%</td><td>物価・賃金の持続的上昇</td></tr>
+            <tr><td>2026年7月（予想）</td><td>0.5% → 0.75%？</td><td>1.2〜1.3%？</td><td>次回会合（7月30〜31日）</td></tr>
+          </tbody>
+        </table>
+
+        <div class="impact-section">
+          <div class="impact-section-head">■ モバイル通信業界への影響</div>
+          <div class="impact-section-body">
+            <ul>
+              <li>5G基地局整備等の設備投資向け社債・借入金の調達コストが上昇。今期発行予定の社債（計6,000億円超）は金利上乗せが見込まれる</li>
+              <li>端末割賦販売の実質負担増加で消費者の購買意欲に影響。<strong>24〜48回割賦の月次返済額増加</strong>が秋商戦の逆風に</li>
+              <li>割賦債権残高（大手キャリア合計で約2兆円）の評価コストが上昇し、収益構造の見直しが急務</li>
+              <li>2027〜2028年度の設備投資計画を10〜15%圧縮または延期する検討を始めたキャリアも</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="impact-section">
+          <div class="impact-section-head">■ Eコマース業界への影響</div>
+          <div class="impact-section-body">
+            <ul>
+              <li>住宅ローン返済額の増加が消費者の可処分所得を圧迫。<strong>高単価カテゴリ（家電・家具・ブランド品）の需要が先行して減速</strong>するリスク</li>
+              <li>消費者信頼感指数が2ヶ月連続低下。EC全体の成長率見通しが前年比+6.1%→+3.2%に圧縮される試算も</li>
+              <li>後払い・分割払い利用者の延滞リスクが上昇し、後払い決済の与信コストが増加</li>
+              <li>節約志向の高まりで「低価格・コスパ」カテゴリへの需要シフトが発生。商品ポートフォリオの再設計が必要</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="impact-section">
+          <div class="impact-section-head">■ Fintech業界への影響</div>
+          <div class="impact-section-body">
+            <ul>
+              <li>銀行の預貸金利ざやが拡大し、金利収益が増加。メガバンクは今期の純利益見通しを上方修正する動き</li>
+              <li>リボ払い残高（国内約6兆円）の延滞率が上昇リスク。<strong>住宅ローン変動型利用者との与信重複層が特に高リスク</strong></li>
+              <li>変動型住宅ローン金利が0.1〜0.2%上昇し、全国約1,200万人の変動型ローン利用者の月額返済が増加</li>
+              <li>証券・投資商品面では、金利上昇による債券価格下落リスクと、国内株式への資金回帰が同時進行</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>■ 家計への影響：借入3,000万円の試算</h3>
+        <table class="data-table">
+          <thead><tr><th>変動型ローン条件</th><th>利上げ前（0.25%）</th><th>利上げ後（0.5%）</th><th>月額差</th></tr></thead>
+          <tbody>
+            <tr><td>借入2,000万円・残期間30年</td><td>約57,900円</td><td>約59,700円</td><td class="up">＋約1,800円</td></tr>
+            <tr><td>借入3,000万円・残期間25年</td><td>約91,200円</td><td>約94,100円</td><td class="up">＋約2,900円</td></tr>
+            <tr><td>借入4,000万円・残期間20年</td><td>約130,800円</td><td>約135,200円</td><td class="up">＋約4,400円</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--cp-text-soft);">※短期プライムレート改定後の変動型適用金利を0.975%→1.225%と仮定した試算。実際の返済額はローン条件により異なります。</p>
+
+        <h3>■ 政府・各省庁の反応</h3>
+        <p>経済産業省は「企業の設備投資コスト増加が中小企業を中心に影響する可能性があり、金融支援策の拡充を検討する」と表明。国土交通省も「住宅市場への影響を注視しながら、補助制度や税制面での支援策を検討する」と述べた。</p>
+        <p>与党内では追加的な給付金・税額控除の拡充論が出ているが、財源論との兼ね合いで結論は出ていない。</p>
+
+        <h3>■ 次回会合（7月30〜31日）が最大の焦点</h3>
+        <p>市場では次回7月末の金融政策決定会合での追加利上げを意識した動きが始まっている。OIS（翌日物金利スワップ）市場では7月末までの0.25%追加利上げ確率を55%と織り込んでいる。ただし、円安進行や海外経済の急激な悪化があれば利上げ一時停止もあり得るとの見方もある。</p>
+
+        <div class="article-tags">
+          <span class="tag">日銀</span><span class="tag">利上げ</span><span class="tag">政策金利</span>
+          <span class="tag">住宅ローン</span><span class="tag">リボ払い</span><span class="tag">長期金利</span>
+          <span class="tag">モバイル通信</span><span class="tag">Eコマース</span><span class="tag">Fintech</span>
+          <span class="tag">植田総裁</span><span class="tag">消費動向</span><span class="tag">設備投資</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-widget" style="margin-bottom:14px;">
+      <div class="side-widget-head">■ 関連記事</div>
+      <div class="side-widget-body">
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">▶</span><div><div class="rank-title">変動型住宅ローン金利が0.1〜0.2%上昇へ、大手3行が7月から見直し</div><div class="rank-count">2026年6月27日 09:50</div></div></div>
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">▶</span><div><div class="rank-title">通信キャリア、端末分割ローンの金利負担増で割賦販売戦略を見直しへ</div><div class="rank-count">2026年6月27日 09:30</div></div></div>
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">▶</span><div><div class="rank-title">金利上昇で消費者マインドに急ブレーキ、高単価EC需要の減速を警戒</div><div class="rank-count">2026年6月27日 08:45</div></div></div>
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">▶</span><div><div class="rank-title">リボ払い延滞リスクが上昇懸念、Fintech各社が与信基準の引き締めを検討</div><div class="rank-count">2026年6月27日 08:10</div></div></div>
+        <div class="rank-row" onclick="location.href='article-fx1.html'"><span class="rank-num">▶</span><div><div class="rank-title">円が一時158円台に急落、地政学リスクで年初来安値更新</div><div class="rank-count">2026年6月27日 10:32</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-col">
+    <div class="side-widget">
+      <div class="side-widget-head">■ アクセスランキング</div>
+      <div class="side-widget-body">
+        <div class="rank-row" onclick="location.href='article-boj1.html'"><span class="rank-num r1">1</span><div><div class="rank-title">日銀が政策金利を0.5%に引き上げ</div><div class="rank-count">📄 97,443PV</div></div></div>
+        <div class="rank-row" onclick="location.href='article-fx1.html'"><span class="rank-num r2">2</span><div><div class="rank-title">円が一時158円台に急落</div><div class="rank-count">📄 84,201PV</div></div></div>
+        <div class="rank-row" onclick="location.href='article-comp1.html'"><span class="rank-num r3">3</span><div><div class="rank-title">大手3キャリア×EC「ONE PASS」発表</div><div class="rank-count">📄 61,089PV</div></div></div>
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">4</span><div><div class="rank-title">変動型住宅ローン金利が0.2%上昇へ</div><div class="rank-count">📄 45,902PV</div></div></div>
+        <div class="rank-row" onclick="location.href='index.html'"><span class="rank-num">5</span><div><div class="rank-title">越境EC、円安で仕入れ価格が最大2割上昇</div><div class="rank-count">📄 38,774PV</div></div></div>
+      </div>
+    </div>
+    <div class="side-widget">
+      <div class="side-widget-head">■ 為替・株価（速報）</div>
+      <div class="side-widget-body" style="padding:4px 0;">
+        <table class="market-table">
+          <tr><td style="padding-left:8px;">USD/JPY</td><td class="market-val up">158.42</td><td class="market-chg up">▲2.31</td></tr>
+          <tr><td style="padding-left:8px;">EUR/JPY</td><td class="market-val up">171.08</td><td class="market-chg up">▲1.84</td></tr>
+          <tr><td style="padding-left:8px;">日経平均</td><td class="market-val dn">38,412</td><td class="market-chg dn">▼287</td></tr>
+          <tr><td style="padding-left:8px;">長期金利</td><td class="market-val up">1.12%</td><td class="market-chg up">▲0.08</td></tr>
+          <tr><td style="padding-left:8px;">BTC/JPY</td><td class="market-val up">10,824K</td><td class="market-chg up">▲312K</td></tr>
+        </table>
+        <div style="font-size:10px;color:var(--cp-text-soft);padding:2px 8px 4px;">15:05現在（デモ値）</div>
+      </div>
+    </div>
+    <div class="side-widget">
+      <div class="side-widget-head">■ 主要ニュース</div>
+      <div class="side-widget-body">
+        <div class="rank-row" onclick="location.href='article-fx1.html'"><span class="rank-num">▶</span><div><div class="rank-title">【速報】円が一時158円台に急落</div><div class="rank-count">10:32 ・ 為替</div></div></div>
+        <div class="rank-row" onclick="location.href='article-comp1.html'"><span class="rank-num">▶</span><div><div class="rank-title">【統合】大手3キャリア×EC「ONE PASS」</div><div class="rank-count">09:15 ・ 通信・EC</div></div></div>
+        <div class="rank-row" onclick="location.href='article-boj1.html'"><span class="rank-num">▶</span><div><div class="rank-title">【政策転換】日銀0.5%利上げ決定</div><div class="rank-count">08:00 ・ 日銀</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="#">NEXUSについて</a><a href="#">編集方針</a><a href="#">広告掲載</a>
+      <a href="#">お問い合わせ</a><a href="#">利用規約</a><a href="#">プライバシーポリシー</a><a href="#">RSS</a>
+    </div>
+    <div class="footer-copy">© 2026 NEXUS経済 All Rights Reserved.　※本サイトの記事・データは全てデモ用フィクションです。</div>
+  </div>
+</footer>
+
+<script>
+  const d = new Date();
+  document.getElementById('headerDate').textContent =
+    `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
+</script>
+</body>
+</html>
