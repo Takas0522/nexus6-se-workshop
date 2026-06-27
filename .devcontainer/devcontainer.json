@@ -1,0 +1,68 @@
+{
+  "name": "nexus6-se-workshop",
+
+  // .NET 10 ベースイメージ（Debian Bookworm）
+  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0-bookworm",
+
+  "features": {
+    // Azure CLI
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "latest",
+      "extensions": "containerapp"
+    },
+    // GitHub CLI（gh copilot 拡張のインストールベース）
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
+    // Docker outside of Docker: ホスト（WSL）の Docker ソケットをマウントして使用
+    // Docker Desktop 不使用・WSL 上の Docker Engine を前提
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest"
+    },
+    // Node.js（Azure Developer CLI のインストールスクリプトが依存する場合があるため LTS を追加）
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+
+  // コンテナ作成後に実行するセットアップ
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+
+  // VS Code 拡張・設定
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // C# 開発
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        // Azure
+        "ms-azuretools.azure-dev",
+        "ms-azuretools.vscode-azurecontainerapps",
+        "ms-azuretools.vscode-azurefunctions",
+        // GitHub Copilot
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        // ドキュメント
+        "yzhang.markdown-all-in-one",
+        "bierner.markdown-mermaid",
+        "DavidAnson.vscode-markdownlint"
+      ],
+      "settings": {
+        "dotnet.defaultSolution": "src/news-analysis-agent/NewsAnalysisAgent.sln",
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+
+  // ローカル実行時のポート転送
+  // news-analysis-agent: REST API + DevUI
+  "forwardPorts": [5000, 5001],
+  "portsAttributes": {
+    "5000": { "label": "NewsAnalysisAgent API (HTTP)" },
+    "5001": { "label": "NewsAnalysisAgent DevUI / HTTPS" }
+  },
+
+  "remoteUser": "vscode"
+}

@@ -9,8 +9,8 @@
 ```mermaid
 graph TD
     subgraph M365["Microsoft 365"]
-        TEAMS["Teams\nIncoming Webhook"]
-        D365["Dynamics 365\n通知先照会・記録"]
+        TEAMS["Teams\nWorkflows (Power Automate)"]
+        D365["Dynamics 365\n本番のみ使用\n(Demo: MockDirectoryPlugin)"]
     end
 
     subgraph FABRIC["Microsoft Fabric"]
@@ -18,38 +18,32 @@ graph TD
         BRZ["Bronze Lakehouse"]
         SLV["Silver Lakehouse"]
         GLD["Gold Lakehouse"]
-        PL["Data Pipeline"]
-        DFG["Dataflow Gen2"]
-        NB["Notebook (PySpark)"]
+        NB["Notebook (PySpark)\nbronze→silver→gold"]
     end
 
     subgraph AZURE["Azure"]
-        FOUNDRY["Azure AI Foundry\nGPT-4o / gpt-4o-mini"]
-        AISEARCH["Azure AI Search\nSkill.md インデックス"]
+        FOUNDRY["Azure AI Foundry\nGPT-4o / gpt-4o-mini\n+ File Search (Knowledge)\n+ Grounding with Bing Search"]
         ADLS["ADLS Gen2\nskill-docs コンテナ"]
-        BING["Bing Search API"]
-        KV["Azure Key Vault"]
+        KV["Azure Key Vault\n外部 API キーのみ"]
         MON["Azure Monitor\nApp Insights"]
-        HOST["App Service / Container Apps\n.NET 10 Hosted Agent"]
-        ENTRA["Microsoft Entra ID\nService Principal / Managed Identity"]
+        HOST["Container Apps (Consumption)\n.NET 10 Hosted Agent\nSystem Assigned MI"]
+        ENTRA["Microsoft Entra ID\nManaged Identity"]
     end
 
-    HOST -->|LLM 推論| FOUNDRY
-    HOST -->|Web 検索 Agent1| BING
-    HOST -->|Skill RAG 検索| AISEARCH
+    HOST -->|LLM 推論 / File Search / Grounding| FOUNDRY
     HOST -->|Fabric クエリ Agent2・3| GLD
     HOST -->|Teams 通知 Agent4| TEAMS
-    HOST -->|通知先照会 Agent4| D365
-    HOST -->|シークレット取得| KV
+    HOST -.->|Demo ではモック| D365
+    HOST -->|外部キー取得| KV
     HOST -->|テレメトリ| MON
 
-    AISEARCH -->|Blob クロール| ADLS
+    FOUNDRY -->|File Search がデータソースとして参照| ADLS
     ADLS -->|OneLake Shortcut| ONELAKE
 
-    PL --> BRZ --> DFG --> SLV --> NB --> GLD
+    BRZ --> NB --> SLV --> NB --> GLD
     ONELAKE --- BRZ & SLV & GLD
 
-    ENTRA -->|認証| HOST & FOUNDRY & FABRIC & KV
+    ENTRA -->|MI 認証| HOST & FOUNDRY & FABRIC & KV
 ```
 
 ---
@@ -60,20 +54,27 @@ graph TD
 
 | サービス | SKU / ティア | 用途 | 参照エージェント |
 |---|---|---|---|
-| **Azure AI Foundry** | Standard（リージョン: Japan East） | LLM 推論（GPT-4o / gpt-4o-mini） | 全エージェント |
-| **Azure AI Search** | Basic 以上 | Skill.md の RAG インデックス | Agent 2・3 |
+| **Azure AI Foundry** | Standard（リージョン: `<既存環境に合わせる>`） | LLM 推論（GPT-4o / gpt-4o-mini）、File Search (Knowledge)、Grounding with Bing Search | 全エージェント |
 | **ADLS Gen2** | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 | Agent 2・3 / Fabric |
-| **Bing Search API** | S1 以上 | Web 情報収集 | Agent 1 |
-| **Azure Key Vault** | Standard | シークレット一元管理 | 全サービス |
-| **Azure App Service / Container Apps** | P1v3 以上 / Consumption | .NET 10 Hosted Agent のホスティング | - |
-| **Microsoft Entra ID** | 既存テナント | Service Principal・Managed Identity | 全サービス |
+| **Microsoft Fabric** | F2～F4 | データレイク / OneLake / Notebook | Agent 2・3 |
+| **Azure Key Vault** | Standard | 外部サービス API キーのみ | Agent 4 他 |
+| **Azure Container Apps** | Consumption | .NET 10 Hosted Agent のホスティング（System Assigned MI） | - |
+| **Microsoft Entra ID** | 既存テナント | Managed Identity | 全サービス |
 
 ### 推奨サービス
 
 | サービス | SKU / ティア | 用途 |
 |---|---|---|
 | **Azure Monitor / App Insights** | Pay-as-you-go | エージェント実行ログ・トークン使用量・レイテンシ監視 |
-| **Azure Container Registry** | Basic | .NET 10 コンテナイメージ管理（Container Apps 利用時） |
+| **Azure Container Registry** | Basic | .NET 10 コンテナイメージ管理 |
+
+### Demo では使用しないサービス
+
+| サービス | 理由 |
+|---|---|
+| **Azure AI Search** | Skill.md / DS.md の総量が 100KB 未満のため Basic SKU でも過剩。Foundry **File Search** に統一 |
+| **Bing Search v7 API（単体）** | 新規受付停止。Foundry 組込の Grounding with Bing Search を使用 |
+| **App Service （P1v3）** | Container Apps Consumption と重複。Demo は使用時のみ課金の Consumption に統一 |
 
 ---
 
@@ -82,11 +83,13 @@ graph TD
 | 項目 | 設定値 |
 |---|---|
 | リソース名 | `nexus6-foundry` |
-| リージョン | Japan East |
+| リージョン | `<既存環境に合わせる>` |
 | モデルデプロイ 1 | `gpt-4o`（Agent 1・2・3 用） |
 | モデルデプロイ 2 | `gpt-4o-mini`（Agent 4 用） |
-| AI Search 接続 | `nexus6-skill-index`（Skill.md RAG） |
-| Fabric 接続 | OneLake データ接続（Gold Lakehouse） |
+| Knowledge / File Search | `nexus6-skill-vectorstore`（Skill.md / DS.md 参照） |
+| Grounding with Bing Search 接続 | Foundry Connections で追加し Connection ID を保持 |
+| Fabric 接続 | OneLake / SQL Analytics Endpoint（Gold Lakehouse） |
+| 認証 | Container Apps の System Assigned MI に `Cognitive Services User` を付与 |
 
 ### モデル設定
 
@@ -99,16 +102,15 @@ graph TD
 
 ---
 
-## Azure AI Search 構成詳細
+## Foundry File Search（Skill.md / DS.md ベクトルストア）
 
 | 項目 | 設定値 |
 |---|---|
-| リソース名 | `nexus6-aisearch` |
-| インデックス名 | `nexus6-skill-index` |
+| ベクトルストア名 | `nexus6-skill-vectorstore` |
 | データソース | ADLS Gen2 `nexus6skillstore / skill-docs` |
-| クロール頻度 | 1 時間ごと（差分クロール） |
-| セマンティック検索 | 有効（Semantic Ranker） |
-| フィールド | `domain`, `topic`, `content`, `scenario_tags` |
+| 再インデクシング | Foundry が Blob 変更を検知して自動実行 |
+| チャンク分割 | デフォルト（1024 tokens 目安） |
+| Agent 2・3 での利用 | `FoundryFileSearchTool`、Vector Store ID を `Foundry:FileSearchVectorStoreId` で供給 |
 
 ---
 
@@ -121,7 +123,7 @@ graph TD
 | コンテナ名 | `skill-docs` |
 | ディレクトリ構成 | `mobile/`, `ecommerce/`, `fintech/` |
 | Fabric 連携 | OneLake Shortcut（`skill-docs` → `nexus6-workspace/Files/skill-docs`） |
-| アクセス制御 | AI Search：Storage Blob Data Reader ロール |
+| アクセス制御 | Foundry File Search・Container Apps MI に `Storage Blob Data Reader` を付与 |
 
 ---
 
@@ -130,25 +132,14 @@ graph TD
 | リソース | 名称 | 用途 |
 |---|---|---|
 | Workspace | `nexus6-workspace` | 全 Fabric リソースの管理単位 |
-| Bronze Lakehouse | `nexus6-bronze` | 生データ（ソースミラー・12ヶ月保持） |
-| Silver Lakehouse | `nexus6-silver` | クレンジング・標準化済みデータ（6ヶ月保持） |
+| Bronze Lakehouse | `nexus6-bronze` | 合成 CSV をそのまま取り込み |
+| Silver Lakehouse | `nexus6-silver` | クレンジング・型整備済みデータ |
 | Gold Lakehouse | `nexus6-gold` | AI エージェント向け集計テーブル |
-| Data Pipeline | `pl_ingest_mobile` 他 4本 | ソース → Bronze 差分取り込み（日次） |
-| Data Pipeline | `pl_transform_silver` | Bronze → Silver 変換（日次） |
-| Data Pipeline | `pl_aggregate_gold` | Silver → Gold 集計（日次） |
-| Dataflow Gen2 | `df_cleanse_{domain}` | クレンジング・型変換ロジック |
-| Notebook | `nb_aggregate_gold` | KPI 集計・JPY 換算（PySpark） |
+| Notebook | `nb_bronze_to_silver` | Bronze → Silver 変換（PySpark） |
+| Notebook | `nb_silver_to_gold` | Silver → Gold KPI 集計（PySpark） |
 | OneLake Shortcut | `skill-docs` | ADLS Gen2 の Skill.md を透過参照 |
 
-### Fabric ゲートウェイ
-
-オンプレミス DB（SQL Server / PostgreSQL）に接続する場合は **オンプレミスデータゲートウェイ** が必要。
-
-| 項目 | 設定値 |
-|---|---|
-| ゲートウェイ名 | `nexus6-onprem-gw` |
-| 接続先 | Mobile DB (SQL Server)・Fintech/EC DB (PostgreSQL) |
-| 認証 | Windows 認証 / SQL 認証 |
+> Demo では Data Pipeline / Dataflow Gen2 / スケジューラーは作成せず Notebook を手動実行する。オンプレデータゲートウェイも不要。
 
 ---
 
@@ -156,20 +147,24 @@ graph TD
 
 | サービス | 用途 | 担当エージェント | 必須/任意 |
 |---|---|---|---|
-| **Microsoft Teams** | Adaptive Card でレコメンドを各事業部責任者へ通知 | Agent 4 | 必須 |
-| **Dynamics 365** | 通知先担当者情報の照会・レコメンドのレコード登録 | Agent 4 | 必須 |
-| **Outlook / M365 Mail** | Teams 通知の補完（任意） | Agent 4 | 任意 |
+| **Microsoft Teams (Workflows)** | Adaptive Card でレコメンドを各事業部責任者へ通知 | Agent 4 | 必須 |
+| **Dynamics 365** | 本番での担当者ディレクトリ・レコメンド記録 | Agent 4 | **Demo では使わずモック** |
+| **Outlook / M365 Mail** | Demo スコープ外（使用しない） | - | 対象外 |
 
-### Teams 構成
+### Teams 構成（Workflows）
 
 | 項目 | 設定値 |
 |---|---|
-| 接続方式 | Incoming Webhook（チャネルごとに設定） |
+| 接続方式 | Power Automate Workflows（「チャネルへメッセージを投稿」テンプレート + HTTP トリガー） |
 | チャネル構成 | `#mobile-ai-recommend`, `#ecommerce-ai-recommend`, `#fintech-ai-recommend` |
 | カード形式 | Adaptive Card v1.5 |
-| @メンション | 優先度 HIGH のアクションは担当者をメンション |
+| @メンション | 優先度 HIGH のアクションは担当者をメンション（Workflow 内で設定） |
 
-### Dynamics 365 構成
+> Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo ・ 本番とも Workflows で統一する。
+
+### Dynamics 365（Demo ではモック）
+
+Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替する。以下は本番での接続仕様。
 
 | 項目 | 設定値 |
 |---|---|
@@ -182,63 +177,67 @@ graph TD
 
 ## Microsoft Entra ID 構成
 
-### Service Principal（Hosted Agent 用）
+### Managed Identity（Hosted Agent 用）
 
 | 項目 | 設定値 |
 |---|---|
-| アプリ名 | `nexus6-ai-agent-sp` |
-| 用途 | Fabric Gold Lakehouse・Dynamics 365・Key Vault へのアクセス |
-| 認証方式 | Managed Identity（App Service / Container Apps） |
+| アイデンティティ | Container Apps `nexus6-hosted-agent` の **System Assigned Managed Identity** |
+| 用途 | Foundry / Fabric / Key Vault へのアクセス |
+| 認証コード | `DefaultAzureCredential`（.NET 10） |
+
+> Demo では Service Principal シークレットや API キーを使わず、Container Apps の System Assigned MI を Azure リソースの認証に統一する。
 
 ### ロール割り当て一覧
 
 | リソース | ロール | 付与対象 |
 |---|---|---|
-| ADLS Gen2 (`nexus6skillstore`) | Storage Blob Data Reader | AI Search サービス |
-| Gold Lakehouse (`nexus6-gold`) | Fabric ビューアー | `nexus6-ai-agent-sp` |
-| Key Vault (`nexus6-kv`) | Key Vault Secrets User | App Service Managed Identity |
-| Dynamics 365 | Dynamics 365 ユーザー | `nexus6-ai-agent-sp` |
-| Azure AI Foundry | Cognitive Services User | App Service Managed Identity |
+| Azure AI Foundry | Cognitive Services User | Container Apps MI |
+| ADLS Gen2 (`nexus6skillstore`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
+| Fabric Workspace `nexus6-workspace` | Viewer | Container Apps MI |
+| Key Vault (`nexus6-kv`) | Key Vault Secrets User | Container Apps MI |
+| Azure Monitor (App Insights) | Monitoring Metrics Publisher | Container Apps MI |
 
 ---
 
 ## Key Vault シークレット一覧
 
-| シークレット名 | 内容 | 参照箇所 |
-|---|---|---|
-| `AzureOpenAI--ApiKey` | Azure OpenAI API キー | 全エージェント |
-| `BingSearch--ApiKey` | Bing Search v7 API キー | Agent 1 |
-| `AzureAISearch--ApiKey` | AI Search 管理キー | SkillSearchPlugin |
-| `Teams--Mobile--WebhookUrl` | Teams Mobile チャネル Webhook | Agent 4 |
-| `Teams--Ecommerce--WebhookUrl` | Teams EC チャネル Webhook | Agent 4 |
-| `Teams--Fintech--WebhookUrl` | Teams Fintech チャネル Webhook | Agent 4 |
-| `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | Agent 4 |
-| `AzureMonitor--ConnectionString` | App Insights 接続文字列 | ホスト全体 |
+Azure リソースへの認証は Managed Identity に統一し、Key Vault には **外部サービスの API キー** のみ保持する。
+
+| シークレット名 | 内容 | 参照箱所 | 有効性 |
+|---|---|---|---|
+| `Teams--WorkflowsUrl` | Teams Workflows の HTTP トリガー URL | Agent 4 | Demo 使用 |
+| `AzureMonitor--ConnectionString` | App Insights 接続文字列 | ホスト全体 | Demo 使用（推奨） |
+| `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | Agent 4 | 本番のみ |
+
+> Foundry / Fabric / Key Vault への認証は Managed Identity で行うため API キーは保持しない。古いシークレット (`AzureOpenAI--ApiKey` / `BingSearch--ApiKey` / `AzureAISearch--ApiKey` / `Teams--*--WebhookUrl`) は本設計では採用しない。
 
 ---
 
-## 構築順序（推奨）
+## 構築順序（推奨・Demo）
 
 ```mermaid
 flowchart TD
-    S1["① Microsoft Entra ID\nService Principal 作成"]
-    S2["② Azure Key Vault\nリソース作成・シークレット登録"]
+    S1["① Microsoft Entra ID\nContainer Apps System Assigned MI を有効化"]
+    S2["② Azure Key Vault\nリソース作成・外部キーのみ登録"]
     S3["③ ADLS Gen2\nストレージアカウント・コンテナ作成"]
     S4["④ Azure AI Foundry\nリソース作成・モデルデプロイ"]
-    S5["⑤ Azure AI Search\nインデックス・データソース設定"]
-    S6["⑥ Microsoft Fabric\nワークスペース・Lakehouse 作成"]
-    S7["⑦ Fabric Shortcut\nADLS Gen2 → OneLake 接続"]
-    S8["⑧ Fabric パイプライン\nBronze / Silver / Gold 構築"]
-    S9["⑨ Teams\nWebhook・チャネル設定"]
-    S10["⑩ Dynamics 365\nカスタムエンティティ・API 接続設定"]
-    S11["⑪ Hosted Agent デプロイ\nApp Service / Container Apps"]
+    S5["⑤ Foundry File Search\nベクトルストア作成・ADLS 接続"]
+    S6["⑥ Foundry Grounding with Bing Search\n接続追加"]
+    S7["⑦ Microsoft Fabric\nワークスペース・Lakehouse 作成"]
+    S8["⑧ Fabric Shortcut\nADLS Gen2 → OneLake 接続"]
+    S9["⑨ 合成 CSV アップロード\nNotebook 2 本を手動実行"]
+    S10["⑩ Teams Workflows\nHTTP トリガー作成・URL を Key Vault へ"]
+    S11["⑪ Container Apps\nHosted Agent デプロイ・MI ロール付与"]
     S12["⑫ Azure Monitor\n監視ダッシュボード設定"]
 
     S1 --> S2 --> S3 --> S4 --> S5
-    S3 --> S6 --> S7 --> S8
-    S1 --> S9 & S10
-    S4 & S5 & S8 & S9 & S10 --> S11 --> S12
+    S4 --> S6
+    S3 --> S7 --> S8 --> S9
+    S1 --> S10
+    S5 & S6 & S9 & S10 --> S11 --> S12
 ```
+
+> Dynamics 365 / オンプレデータゲートウェイ は Demo では作成しない。
 
 ---
 
@@ -246,12 +245,18 @@ flowchart TD
 
 | サービス | 想定コスト帯 | 備考 |
 |---|---|---|
-| Azure AI Foundry (GPT-4o) | $200〜$500 | デモ頻度・トークン数による |
-| Azure AI Search (Basic) | $75 | 固定 |
+| Azure AI Foundry (GPT-4o / mini) | $200～$500 | デモ頻度・トークン数による |
+| Foundry Grounding with Bing Search | $10～$30 | クエリ数・未使用月は $0 |
 | ADLS Gen2 | $5 以下 | Skill.md は小容量 |
-| Bing Search API (S1) | $7〜$15 | クエリ数による |
-| App Service (P1v3) | $70 | 固定 |
-| Azure Monitor | $10〜$30 | ログ量による |
-| Microsoft Fabric | Fabric 容量ライセンス依存 | F2〜F4 相当 |
-| Dynamics 365 | 既存ライセンス前提 | 新規不要の場合が多い |
-| **合計目安** | **$370〜$700 / 月** | Fabric・D365 除く |
+| Azure Container Apps (Consumption) | $0～$30 | リクエスト時のみ課金。デモ未実行時は $0 |
+| Azure Container Registry (Basic) | $5 | 固定 |
+| Azure Key Vault | $1 以下 | シークレット数件 |
+| Azure Monitor | $10～$30 | ログ量による |
+| Microsoft Fabric (F2～F4) | $250～$500 | Fabric 容量ライセンス（テナント単位で一括課金） |
+| Dynamics 365 | $0 | Demo では使わずモック |
+| Microsoft 365 (Teams Workflows) | 既存ライセンス内 | 追加コストなし |
+| **合計目安** | **$481～$1,101 / 月** | Fabric 容量を含む |
+| **Fabric 除く合計** | **$231～$601 / 月** | 既存 Fabric テナントを利用する場合 |
+
+> Azure AI Search Basic（$75/月）を廃止し Foundry File Search に統一したこと、Container Apps Consumption を採用したことで App Service (P1v3 / $70) を削減している。
+> リージョンはすべて「既存環境に合わせる」を前提とし、独立不要。

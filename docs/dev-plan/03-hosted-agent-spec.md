@@ -21,20 +21,20 @@ Agent1〜4 の実行管理・コンテキスト伝播・エラーハンドリン
 
 ## Hosted Agent の実装方針
 
-Microsoft Agent Framework の Agent / Tool 抽象は利用しつつ、
-マルチエージェントの実行順序は **カスタムオーケストレーター** として `NewsAnalysisOrchestrator` クラスで明示的に制御する。
-これにより実行フローを明示的にコードで制御し、デバッグ・テストを容易にする。
+Microsoft Agent Framework for .NET の **Workflow** を採用し、Agent 1～4 をグラフとして連結する。ホストプロセスは ASP.NET Core **Minimal API** として起動し、Workflow インスタンスを DI で保持して `/api/analyze` から起動する。同じホストプロセスで **Agent Framework DevUI** を併設し、開発/デモ時に Workflow の実行状態・ノード間のデータ・トークン使用量を可視化する。
+
+これにより、**「Hosted Agent」= Minimal API ホスト + NewsAnalysisWorkflow + DevUI** の三つを一体化したデモランタイムと位置づける。
 
 ```mermaid
 flowchart LR
-    S1["Step 1\n順次\nAgent 1 → Agent 2"]
+    S1["Step 1\nAgent 1 (Web調査)\n↓\nAgent 2 (インパクト評価)"]
     S2M["Mobile"]
     S2E["Eコマース"]
     S2F["Fintech"]
-    S3["Step 3\n順次\nAgent 4"]
+    S3["Step 3\nAgent 4 (通知)"]
 
     S1 --> S2M & S2E & S2F
-    subgraph S2["Step 2: 並列 (Task.WhenAll)"]
+    subgraph S2["Step 2: Workflow Fan-out (Agent 3 × 3)"]
         S2M
         S2E
         S2F
@@ -42,53 +42,46 @@ flowchart LR
     S2M & S2E & S2F --> S3
 ```
 
+> Step 2 の Fan-out / Fan-in は Workflow の `ParallelExecutor`（または同等の Workflow API）により表現する。コード上で明示的に `Task.WhenAll` を書かず、グラフ定義で並列性を宣言する。
+
 ---
 
 ## 主要クラス設計
 
-### `NewsAnalysisOrchestrator`
+### `NewsAnalysisWorkflowBuilder`
+
+Workflow Builder を使い、各 Agent をノードとして接続する。Workflow の入出力は `NewsAnalysisContext`。
 
 ```csharp
 /// <summary>
-/// Agent 1〜4 をワークフロー的に制御するオーケストレーター
+/// Agent 1〜4 を Microsoft Agent Framework Workflow として組み上げるビルダー。
+/// DevUI はこの Workflow インスタンスを参照して可視化する。
 /// </summary>
-public sealed class NewsAnalysisOrchestrator
+public sealed class NewsAnalysisWorkflowBuilder(
+    WebResearchAgent webResearchAgent,
+    BusinessImpactAgent impactAgent,
+    DivisionRecommendAgentFactory recommendFactory,
+    NotificationAgent notificationAgent)
 {
-    private readonly WebResearchAgent _webResearchAgent;
-    private readonly BusinessImpactAgent _impactAgent;
-    private readonly DivisionRecommendAgentFactory _recommendFactory;
-    private readonly NotificationAgent _notificationAgent;
-    private readonly ILogger<NewsAnalysisOrchestrator> _logger;
-
-    public async Task<NewsAnalysisContext> RunAsync(
-        string newsText,
-        CancellationToken cancellationToken = default)
+    public Workflow<NewsAnalysisContext, NewsAnalysisContext> Build()
     {
-        var context = new NewsAnalysisContext { OriginalNewsText = newsText };
-
-        // Step 1: Web 情報収集（Agent 1）
-        context.WebResearchResult = await _webResearchAgent
-            .RunAsync(newsText, cancellationToken);
-
-        // Step 2: ビジネスインパクト評価（Agent 2）
-        context.ImpactResult = await _impactAgent
-            .RunAsync(context.WebResearchResult, cancellationToken);
-
-        // Step 3: 事業部別レコメンド（Agent 3 × 3 並列）
-        var divisionTasks = new[] { "mobile", "ecommerce", "fintech" }
-            .Select(div => _recommendFactory
-                .Create(div)
-                .RunAsync(context.ImpactResult, div, cancellationToken));
-        context.Recommendations = [.. await Task.WhenAll(divisionTasks)];
-
-        // Step 4: 通知・パブリッシュ（Agent 4）
-        context.NotificationResult = await _notificationAgent
-            .RunAsync(context.Recommendations, cancellationToken);
-
-        return context;
+        return new WorkflowBuilder<NewsAnalysisContext>("news-analysis")
+            // Step 1: Web 情報収集
+            .AddStep("web-research", webResearchAgent.RunStepAsync)
+            // Step 2: ビジネスインパクト評価
+            .AddStep("impact-assessment", impactAgent.RunStepAsync)
+            // Step 3: 事業部別レコメンド（3 事業部を Fan-out）
+            .AddParallelStep("division-recommend",
+                new[] { "mobile", "ecommerce", "fintech" },
+                (ctx, division, ct) => recommendFactory.Create(division).RunStepAsync(ctx, division, ct))
+            // Step 4: 通知
+            .AddStep("notification", notificationAgent.RunStepAsync)
+            .Build();
     }
 }
 ```
+
+> 上記は概念コード。Microsoft Agent Framework Workflow API の実 API 名・シグネチャは Preview 中のため、実装時に公式サンプルと照合して調整する。参照: [Unlocking enterprise AI complexity: multi-agent orchestration with the Microsoft Agent Framework](https://devblogs.microsoft.com/agent-framework/unlocking-enterprise-ai-complexity-multi-agent-orchestration-with-the-microsoft-agent-framework/)
 
 ### `NewsAnalysisContext`
 
@@ -112,7 +105,7 @@ public sealed class NewsAnalysisContext
 | 発生箇所 | 対応方針 |
 |---|---|
 | Agent 1 失敗 | リトライ 3 回。全失敗時は `WebResearchResult = null` でフロー継続。Agent 2 はニュース原文のみで評価。 |
-| Agent 2 失敗 | リトライ 3 回。全失敗時はフロー中断し例外をスロー。 |
+| Agent 2 失敗 | リトライ 3 回。全失敗時は Workflow を中断し 502 と部分結果を返却。 |
 | Agent 3 特定事業部失敗 | 該当事業部の `Recommendation = null`。他事業部の結果で Agent 4 を継続。 |
 | Agent 4 失敗 | リトライ 3 回。全失敗時は通知失敗ログのみ記録し、`context` は返す。 |
 
@@ -132,22 +125,28 @@ ResiliencePipeline retryPipeline = new ResiliencePipelineBuilder()
 
 ## 入力インターフェース
 
-Hosted Agent は以下のエントリポイントを公開する。
+Hosted Agent は以下のエントリーポイントを公開する。Demo では認証は設けない（ローカル / 限定環境前提）。
 
 ```csharp
 // REST API 経由（ASP.NET Core Minimal API）
 app.MapPost("/api/analyze", async (
     AnalyzeRequest request,
-    NewsAnalysisOrchestrator orchestrator,
+    Workflow<NewsAnalysisContext, NewsAnalysisContext> workflow,
     CancellationToken ct) =>
 {
-    var result = await orchestrator.RunAsync(request.NewsText, ct);
+    var initialContext = new NewsAnalysisContext { OriginalNewsText = request.NewsText };
+    var result = await workflow.RunAsync(initialContext, ct);
     return Results.Ok(result);
 });
+
+// DevUI エンドポイント（Agent Framework 付属ミドルウェアを mount）
+app.MapAgentFrameworkDevUI("/devui");
 
 // Request モデル
 public record AnalyzeRequest(string NewsText, string? ScenarioHint = null);
 ```
+
+> Demo 時は DevUI (`/devui`) をブラウザで開き、Workflow のグラフと各ステップの出力を可視化しながら説明する。
 
 ---
 
@@ -164,5 +163,5 @@ public record AnalyzeRequest(string NewsText, string? ScenarioHint = null);
 | テスト種別 | 対象 | 方針 |
 |---|---|---|
 | ユニットテスト | 各 Agent クラス | LLM 呼び出しをモック化し、プロンプト組み立て・出力パースを検証 |
-| 統合テスト | `NewsAnalysisOrchestrator` | Azure AI Foundry テスト環境に接続して E2E 実行 |
-| シナリオテスト | 3 シナリオ × 入力ニュース | 出力レポートの品質を手動確認 |
+| 統合テスト（任意） | `NewsAnalysisWorkflow` | Azure AI Foundry テスト環境に接続して E2E 実行 |
+| シナリオテスト | 3 シナリオ × 入力ニュース | DevUI で出力レポートの品質を手動確認 |

@@ -4,6 +4,20 @@
 
 ---
 
+## Demo と本番のスコープ
+
+本設計書は**本番データモデルの全容を記述**し、Demo ではその一部を合成 CSV で作成する。
+
+| 区分 | 対象テーブル | 生成手段 |
+|---|---|---|
+| **Demo 必須** | `common.unified_customers` / `mobile.contracts` / `mobile.mnp_history` / `mobile.device_costs` / `ecommerce.orders` / `ecommerce.inventory` / `ecommerce.campaign_reactions` / `fintech.fx_positions` / `fintech.loan_balances` / `fintech.credit_reviews` / Gold `kpi.*` ・ `*_ai.risk_summary` | `scripts/seed-data/generate_csv.py` で合成 CSV を生成し Bronze に配置、Notebook 2 本で Silver/Gold を作成 |
+| **Demo 対象外（本番設計のみ）** | `mobile.usage_billing` / `mobile.installment_details` / `mobile.crm_tickets` / `ecommerce.members` / `ecommerce.member_behaviors` / `ecommerce.point_events` / `fintech.accounts` / `fintech.card_transactions` / `fintech.fx_rate_snapshots` / `common.domain_id_mappings` / `common.customer_segments` | 本設計書にスキーマのみ記載。Demo では作成しない |
+| **usecase 完全版との差分** | `mobile.customers` （customer_type=個人/法人を含む顧客マスタ）、収益・リスク詳細、リスクイベント履歴、取引アラート、商品・カテゴリマスタ、出店者、価格ルール、返品履歴 など | `docs/usecase/*` で定義されるが、本 Fabric モデルでは Demo / 本番とも取り込み対象外として割愛 |
+
+> Demo 出力は Gold (`kpi.monthly_revenue`, `kpi.monthly_cost_detail`, `kpi.customer_count`, `kpi.fx_sensitivity`, `mobile_ai.risk_summary`, `ecommerce_ai.risk_summary`, `fintech_ai.risk_summary`) の 7 テーブルがあれば Agent 2/3 は動作する。
+
+---
+
 ## 規模前提・レコード数試算
 
 グループ全体 **30,000 名**・**過去 6 ヶ月**を前提とし、各事業部の利用状況から推定する。
@@ -126,7 +140,7 @@
 | year_month | string | パーティションキー |
 | _ingest_date | date | |
 
-**推定レコード数**: 約 180,000 行（30,000 契約 × 6 ヶ月）
+**推定レコード数**: 約 210,000 行（平均有効契約 35,000 × 6 ヶ月の月次請求）
 
 ---
 
@@ -183,6 +197,8 @@
 | _ingest_date | date | |
 
 **推定レコード数**: 約 45,000 行（端末購入者の分割払い月次スナップショット）
+
+> スキーマは「月次スナップショット（同一 `installment_id` が `year_month` ごとに 1 行）」を前提とする。請求生成は Silver では行わず、Gold で集計する。
 
 ---
 
@@ -501,25 +517,31 @@
 
 ## レコード数サマリ
 
-| Lakehouse | テーブル | 推定レコード数 |
-|---|---|---|
-| Silver | common.unified_customers | 30,000 |
-| Silver | common.domain_id_mappings | 65,000 |
-| Silver | mobile.contracts | 35,000 |
-| Silver | mobile.usage_billing | 180,000 |
-| Silver | mobile.mnp_history | 9,000 |
-| Silver | mobile.installment_details | 45,000 |
-| Silver | mobile.crm_tickets | 18,000 |
-| Silver | ecommerce.orders | 540,000 |
-| Silver | ecommerce.inventory | 900,000 |
-| Silver | ecommerce.member_behaviors | 7,200,000 |
-| Silver | ecommerce.point_events | 720,000 |
-| Silver | ecommerce.campaign_reactions | 480,000 |
-| Silver | fintech.card_transactions | 5,400,000 |
-| Silver | fintech.fx_positions | 180,000 |
-| Silver | fintech.loan_balances | 30,000 |
-| Silver | fintech.fx_rate_snapshots | 10,800 |
-| Silver | fintech.credit_reviews | 18,000 |
-| **合計** | | **≒ 15,860,800 行** |
+| Lakehouse | テーブル | 推定レコード数 | Demo 対象 |
+|---|---|---|---|
+| Silver | common.unified_customers | 30,000 | ○ |
+| Silver | common.domain_id_mappings | 65,000 | × |
+| Silver | common.customer_segments | 60,000 | × |
+| Silver | mobile.contracts | 35,000 | ○ |
+| Silver | mobile.usage_billing | 210,000 | × |
+| Silver | mobile.mnp_history | 9,000 | ○ |
+| Silver | mobile.device_costs | 3,600 | ○ |
+| Silver | mobile.installment_details | 45,000 | × |
+| Silver | mobile.crm_tickets | 18,000 | × |
+| Silver | ecommerce.members | 20,000 | × |
+| Silver | ecommerce.orders | 540,000 | ○ |
+| Silver | ecommerce.inventory | 900,000 | ○ |
+| Silver | ecommerce.member_behaviors | 7,200,000 | × |
+| Silver | ecommerce.point_events | 720,000 | × |
+| Silver | ecommerce.campaign_reactions | 480,000 | ○ |
+| Silver | fintech.accounts | 22,500 | × |
+| Silver | fintech.card_transactions | 5,400,000 | × |
+| Silver | fintech.fx_positions | 180,000 | ○ |
+| Silver | fintech.loan_balances | 30,000 | ○ |
+| Silver | fintech.fx_rate_snapshots | 10,800 | × |
+| Silver | fintech.credit_reviews | 18,000 | ○ |
+| **本番合計** | | **≒ 15,996,900 行** | |
+| **Demo 合計** | | **≒ 2,237,600 行**（うち ecommerce.inventory 900,000 / orders 540,000） | |
 
 > Gold テーブルは Silver を集計したサマリで、行数は各テーブル数十〜数千行程度。
+> Demo ではさらに規模を縮小しても良い（例: `ecommerce.orders` 50,000 行 / `ecommerce.inventory` 10,000 行など）。`scripts/seed-data/generate_csv.py` のパラメータで調整する。

@@ -23,8 +23,8 @@
 | source_urls | string[] | 参照 URL リスト |
 
 ### 使用ツール / プラグイン
-- **BingSearchPlugin**: Bing Search API を呼び出し最新情報を取得
-- **WebPageFetchPlugin**: 特定 URL の本文抽出（任意）
+- **GroundingBingSearchTool**（Foundry 組込）: Grounding with Bing Search 経由で最新情報を取得
+- **WebPageFetchPlugin**（任意）: 特定 URL の本文抽出。外部 URL の本文はそのまま LLM に渡さず、要約してから使用
 
 ### システムプロンプト（骨子）
 ```
@@ -44,7 +44,9 @@ AgentDefinition webResearchAgent = new()
     Description = "ニュースに関する Web 情報収集・要約を担当",
     Instructions = WebResearchPrompts.SystemPrompt,
     ModelDeployment = "gpt-4o",
-    Tools = [typeof(BingSearchPlugin), typeof(WebPageFetchPlugin)]
+    Temperature = 0.3f,
+    MaxOutputTokens = 4096,
+    Tools = [typeof(GroundingBingSearchTool), typeof(WebPageFetchPlugin)]
 };
 ```
 
@@ -58,8 +60,8 @@ Agent 1 の Web 調査結果と、OneLake / Microsoft Fabric に格納された�
 ### 入力
 | 項目 | 型 | 説明 |
 |---|---|---|
-| web_summary | string | Agent 1 のサマリ |
-| key_factors | string[] | Agent 1 の影響因子リスト |
+| news_text | string | 元ニュース本文（原文も住所に使う） |
+| web_research | WebResearchResult | Agent 1 の出力全体 |
 
 ### 出力
 | 項目 | 型 | 説明 |
@@ -71,13 +73,16 @@ Agent 1 の Web 調査結果と、OneLake / Microsoft Fabric に格納された�
 #### ImpactScore 型
 | 項目 | 型 |
 |---|---|
-| division | string |
+| division | DivisionKind （`Mobile` / `Ecommerce` / `Fintech` の enum） |
 | score | float |
 | risk_level | string ("low" / "medium" / "high") |
 
+> `priority_order` は `impact_scores` を `score` 降順で並べた際の `division` リストとして生成する。
+
 ### 使用ツール / プラグイン
-- **FabricDataPlugin**: OneLake の全社 KPI・収益データを Kusto/SQL で照会
+- **FabricDataPlugin**: OneLake / Lakehouse SQL Analytics Endpoint へ T-SQL で全社 KPI・収益データを照会
 - **FinancialCalculatorPlugin**: 為替感応度・金利影響の簡易計算
+- **FoundryFileSearchTool**（Skill.md 参照）: 追加コンテキストとしてベテラン規則の Skill.md を検索
 
 ### システムプロンプト（骨子）
 ```
@@ -95,10 +100,12 @@ Agent 1 の Web 調査結果と、OneLake / Microsoft Fabric に格納された�
 AgentDefinition impactAgent = new()
 {
     Name = "BusinessImpactAgent",
-    Description = "全社経営データを元にビジネスインパクトを評価",
+    Description = "全社経営データと Skill.md を元にビジネスインパクトを評価",
     Instructions = ImpactAssessmentPrompts.SystemPrompt,
     ModelDeployment = "gpt-4o",
-    Tools = [typeof(FabricDataPlugin), typeof(FinancialCalculatorPlugin)]
+    Temperature = 0.1f,
+    MaxOutputTokens = 8192,
+    Tools = [typeof(FabricDataPlugin), typeof(FinancialCalculatorPlugin), typeof(FoundryFileSearchTool)]
 };
 ```
 
@@ -107,7 +114,7 @@ AgentDefinition impactAgent = new()
 ## Agent 3: 事業部別レコメンドエージェント
 
 ### 役割
-Agent 2 の影響評価を受け、各事業部の業務システムデータを直接参照して具体的な Next Action を生成する。3 事業部は **並列実行**（または優先度順の逐次実行）を想定。
+Agent 2 の影響評価を受け、各事業部の業務システムデータを直接参照して具体的な Next Action を生成する。3 事業部は **並列実行**を想定し、同一の Agent 定義をファクトリで 3 インスタンス生成し Tool を事業部別に差し替える。
 
 ### 入力
 | 項目 | 型 | 説明 |
@@ -129,7 +136,7 @@ Agent 2 の影響評価を受け、各事業部の業務システムデータを
 | title | string |
 | description | string |
 | priority | string ("high" / "medium" / "low") |
-| owner_hint | string |
+| owner_hint | string（部門名、担当者全人名は Agent 4 で D365 参照して解決） |
 
 ### 事業部別参照データ・プラグイン
 
@@ -138,6 +145,8 @@ Agent 2 の影響評価を受け、各事業部の業務システムデータを
 | モバイル | 端末コスト・MNP履歴・分割払い・施策配信履歴 | `MobileDataPlugin` |
 | Eコマース | 在庫・仕入通貨・ポイント還元・会員行動 | `EcommerceDataPlugin` |
 | Fintech | FX・ローン残高・与信スコア・収益リスク | `FintechDataPlugin` |
+
+さらに、各事業部インスタンスは **`FoundryFileSearchTool`**（Skill.md 参照）を共通で使用する。
 
 ### システムプロンプト（骨子）
 ```
@@ -157,7 +166,9 @@ AgentDefinition CreateDivisionAgent(string division, Type dataToolType) => new()
     Description = $"{division} 事業部の業務データを元にレコメンドを生成",
     Instructions = string.Format(RecommendPrompts.SystemPromptTemplate, division),
     ModelDeployment = "gpt-4o",
-    Tools = [dataToolType, typeof(SkillSearchPlugin)]
+    Temperature = 0.2f,
+    MaxOutputTokens = 8192,
+    Tools = [dataToolType, typeof(FoundryFileSearchTool)]
 };
 ```
 
@@ -166,7 +177,7 @@ AgentDefinition CreateDivisionAgent(string division, Type dataToolType) => new()
 ## Agent 4: 通知エージェント
 
 ### 役割
-Agent 3 が生成した事業部別レコメンドを、適切な担当者・チャネルへ通知する。通知先は Dynamics 365 の組織データを元に決定する。
+Agent 3 が生成した事業部別レコメンドを、適切な担当者・チャネルへ通知する。Demo では担当者ディレクトリは固定モックとし、本番は Dynamics 365 への差し替えを拡張ポイントとする。
 
 ### 入力
 | 項目 | 型 | 説明 |
@@ -177,21 +188,29 @@ Agent 3 が生成した事業部別レコメンドを、適切な担当者・チ
 ### 出力
 | 項目 | 型 | 説明 |
 |---|---|---|
-| notification_log | NotificationEntry[] | 送信ログ（宛先・チャネル・時刻） |
-| publish_status | string | "success" / "partial" / "failed" |
+| notification_log | NotificationEntry[] | 送信ログ |
+| publish_status | PublishStatus | `Success` / `Partial` / `Failed` |
+
+#### NotificationEntry 型
+| 項目 | 型 | 説明 |
+|---|---|---|
+| channel | string | Teams チャネル名または `mock` |
+| recipient | string | 宛先（担当者名 / UPN またはチャネル） |
+| sent_at | DateTimeOffset | 送信時刻 |
+| status | string | `sent` / `failed` |
 
 ### 使用ツール / プラグイン
-- **TeamsNotificationPlugin**: Teams Adaptive Card の送信
-- **M365MailPlugin**: Outlook メール送信（オプション）
-- **Dynamics365Plugin**: 通知先担当者情報の照会
-- **PublishPlugin**: Dynamics 365 / Dataverse へのレコメンド記録
+- **TeamsWorkflowsPlugin**: Teams **Workflows**（Power Automate 「チャネルへメッセージを投稿」）へ Adaptive Card を POST。Incoming Webhook は廃止予定のため未採用
+- **MockDirectoryPlugin**: 事業部責任者の固定ディレクトリ（Demo 用モック）。将来的に D365 接続に置換可能
+
+> Demo では Dynamics 365 / Outlook 送信は未採用。実案件では `MockDirectoryPlugin` を `Dynamics365Plugin` に、`PublishPlugin` を追加で接続する拡張ポイントとする。
 
 ### システムプロンプト（骨子）
 ```
 あなたは通知担当エージェントです。
-受け取ったレコメンドを事業部責任者に Teams カードで送信し、
+受け取ったレコメンドを事業部責任者に Teams Workflows 経由の Adaptive Card で送信し、
 結果を通知ログとして返してください。
-優先度 high のアクションは @メンション付きで送信してください。
+優先度 high のアクションは Adaptive Card の mentions でアドレスサブを付けて送信してください。
 ```
 
 ### Microsoft Agent Framework 実装イメージ
@@ -199,9 +218,11 @@ Agent 3 が生成した事業部別レコメンドを、適切な担当者・チ
 AgentDefinition notificationAgent = new()
 {
     Name = "NotificationAgent",
-    Description = "Teams / M365 経由で担当者へ通知",
+    Description = "Teams Workflows 経由で担当者へ通知",
     Instructions = NotificationPrompts.SystemPrompt,
     ModelDeployment = "gpt-4o-mini",
-    Tools = [typeof(TeamsNotificationPlugin), typeof(Dynamics365Plugin), typeof(PublishPlugin)]
+    Temperature = 0.0f,
+    MaxOutputTokens = 2048,
+    Tools = [typeof(TeamsWorkflowsPlugin), typeof(MockDirectoryPlugin)]
 };
 ```

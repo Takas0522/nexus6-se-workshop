@@ -8,4 +8,7 @@
 - [Eコマース業務システムデータモデル](ecommerce-system-data-model.md)
 - [Fintech業務システムデータモデル](fintech-system-data-model.md)
 
+## デモデータ生成
+- [GitHub Copilot SDK を使用したデモデータ生成仕様](copilot-sdk-demo-data-generation.md)
+
 業種別シナリオは `docs/scenario` を参照してください。

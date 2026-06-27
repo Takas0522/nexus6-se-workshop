@@ -24,7 +24,7 @@
 graph TD
     SCOUT["Scout\nローカルPC → Blob アップロード"]
     BLOB["Azure Data Lake Storage Gen2\nskill-docs コンテナ"]
-    AISEARCH["Azure AI Search\nFoundry Knowledge インデックス"]
+    FILESEARCH["Foundry File Search\nKnowledge ベクトルストア"]
     SHORTCUT["OneLake Shortcut\nFabric から透過参照"]
 
     FOUNDRY_A2["Agent 2\nビジネスインパクト評価\n(Foundry)"]
@@ -32,19 +32,21 @@ graph TD
     FABRIC_NB["Fabric Notebook\n分析・Skill 参照"]
 
     SCOUT -->|Upload| BLOB
-    BLOB -->|インデックス登録\n自動クロール| AISEARCH
+    BLOB -->|データソースとして接続\n自動再インデクシング| FILESEARCH
     BLOB -->|Shortcut 経由で\nコピーなし参照| SHORTCUT
 
-    AISEARCH -->|RAG 検索\nシステムプロンプトへ注入| FOUNDRY_A2 & FOUNDRY_A3
+    FILESEARCH -->|File Search ツールで\nシステムプロンプトへ注入| FOUNDRY_A2 & FOUNDRY_A3
     SHORTCUT -->|透過アクセス| FABRIC_NB
 ```
 
 | 連携先 | ADLS Gen2 との接続方法 | メリット |
 |---|---|---|
 | **Scout** | Blob SDK / REST API でアップロード | シンプル・追加認証不要 |
-| **Azure AI Foundry** | AI Search が Blob をデータソースとして自動クロール | Foundry RAG の標準構成 |
+| **Azure AI Foundry** | File Search が Blob をデータソースとして自動インデクシング | Foundry Knowledge の標準構成 |
 | **Fabric** | OneLake Shortcut（ADLS Gen2 → OneLake）で透過参照 | データコピー不要・Fabric Notebook からそのまま読める |
 | **将来的な OneLake 移行** | ADLS Gen2 は OneLake の基盤技術と同一 | 構成変更が最小限 |
+
+> Demo 規模（Skill.md / DS.md 合計 100KB 以下）では Azure AI Search Basic は過剩のため使用せず、Foundry **File Search**（Knowledge ベクトルストア）に統一する。
 
 ### ストレージ構成
 
@@ -72,7 +74,7 @@ flowchart TD
         subgraph SK_path["Skill.md ルート"]
             SK["Skill.md\n業務判断ロジック・閾値・過去事例"]
             BLOB["ADLS Gen2\nskill-docs コンテナ"]
-            AISEARCH["Azure AI Search\nFoundry Knowledge Store"]
+            FILESEARCH["Foundry File Search\nKnowledge ベクトルストア"]
         end
 
         subgraph DS_path["DS.md ルート"]
@@ -86,10 +88,10 @@ flowchart TD
 
     VE -->|"Scout 経由または\n直接アップロード"| BLOB
     VE -->|作成| DS
-    BLOB -->|自動クロール・インデックス| AISEARCH
+    BLOB -->|自動再インデクシング| FILESEARCH
     DS -->|Lakehouse にアップロード| FAB
 
-    AISEARCH -->|"RAG 検索\n判断前にシステムプロンプトへ注入"| A2 & A3
+    FILESEARCH -->|"File Search ツールで\n判断前にシステムプロンプトへ注入"| A2 & A3
     FAB -->|"Fabric クエリ発行前に\nPlugin がシステムプロンプトへ注入"| A2 & A3
 ```
 
@@ -98,17 +100,17 @@ flowchart TD
 ## Skill.md の構成
 
 Skill.md は「**この事業のデータをどう読むか**」「**どういう状況でどう判断するか**」をベテランが言語化したファイル。  
-**ADLS Gen2** に配置後、**Azure AI Search** が自動クロールしてインデックス化。Agent 2・3 がビジネス影響を評価する際に RAG 検索でシステムプロンプトへ注入される。
+**ADLS Gen2** に配置後、Foundry **File Search** が自動再インデクシングしてベクトルストア化。Agent 2・3 がビジネス影響を評価する際に File Search ツールでシステムプロンプトへ注入される。
 
 ### 配置ルール
 
 | 項目 | ルール |
 |---|---|
 | 配置場所 | ADLS Gen2 `nexus6skillstore / skill-docs / {domain}/` |
-| インデックス | Azure AI Search（Blob データソースとして自動クロール・差分更新） |
-| 参照タイミング | Agent 2・3 の `RunAsync` 冒頭で、事業部・ニュースキーワードで RAG 検索して注入 |
+| ベクトルストア | Foundry File Search（ADLS Gen2 をデータソースとして自動再インデクシング） |
+| 参照タイミング | Agent 2・3 の推論中に `FoundryFileSearchTool` が事業部・ニュースキーワードで検索して注入 |
 | Fabric 連携 | OneLake Shortcut で `skill-docs` コンテナを透過参照（Notebook から読み取り可） |
-| 更新頻度 | 業務ルール・閾値変更時に随時更新（AI Search が自動再クロール） |
+| 更新頻度 | 業務ルール・閾値変更時に随時更新（File Search が自動再インデクシング） |
 
 ### ファイル構成テンプレート
 
@@ -387,7 +389,7 @@ ORDER BY rate_band;
 | 更新頻度 | 業務ルール・閾値変更時 | テーブル追加・KPI 定義変更時 |
 | レビュー | 事業部長が承認 | データオーナー（IT + 業務担当）が承認 |
 | バージョン管理 | ADLS Gen2 の Blob バージョニング | Fabric Files のバージョン履歴 |
-| AI への反映 | Blob 更新 → AI Search 自動クロール → Agent 2・3 が RAG 参照 | Lakehouse 配置後、Plugin がクエリ前に読み込み |
+| AI への反映 | Blob 更新 → File Search 自動再インデクシング → Agent 2・3 が File Search ツールで参照 | Lakehouse 配置後、Plugin がクエリ前に読み込み |
 | Fabric との連携 | OneLake Shortcut で透過参照（コピー不要） | Lakehouse ネイティブ |
 | Work IQ との関係 | **無関係**（Foundry エージェント専用） | **無関係**（Foundry エージェント専用） |
 
@@ -395,13 +397,13 @@ ORDER BY rate_band;
 
 | ファイル名 | 種別 | 配置場所 | 担当 | 優先度 |
 |---|---|---|---|---|
-| `mobile_skill_fx-impact.md` | Skill | ADLS Gen2 / AI Search | モバイル 財務担当 | 高 |
-| `mobile_skill_competitor-mnp.md` | Skill | ADLS Gen2 / AI Search | モバイル 営業企画 | 高 |
+| `mobile_skill_fx-impact.md` | Skill | ADLS Gen2 / File Search | モバイル 財務担当 | 高 |
+| `mobile_skill_competitor-mnp.md` | Skill | ADLS Gen2 / File Search | モバイル 営業企画 | 高 |
 | `ds_mobile.md` | DS | mobile_ai Lakehouse | モバイル IT | 高 |
-| `ecommerce_skill_point-competition.md` | Skill | ADLS Gen2 / AI Search | EC マーケティング | 高 |
-| `ecommerce_skill_cross-border-margin.md` | Skill | ADLS Gen2 / AI Search | EC 商品部 | 中 |
+| `ecommerce_skill_point-competition.md` | Skill | ADLS Gen2 / File Search | EC マーケティング | 高 |
+| `ecommerce_skill_cross-border-margin.md` | Skill | ADLS Gen2 / File Search | EC 商品部 | 中 |
 | `ds_ecommerce.md` | DS | ecommerce_ai Lakehouse | EC IT | 高 |
-| `fintech_skill_rate-hike-impact.md` | Skill | ADLS Gen2 / AI Search | Fintech リスク管理 | 高 |
-| `fintech_skill_fx-position-risk.md` | Skill | ADLS Gen2 / AI Search | Fintech トレーディング | 高 |
+| `fintech_skill_rate-hike-impact.md` | Skill | ADLS Gen2 / File Search | Fintech リスク管理 | 高 |
+| `fintech_skill_fx-position-risk.md` | Skill | ADLS Gen2 / File Search | Fintech トレーディング | 高 |
 | `ds_fintech.md` | DS | fintech_ai Lakehouse | Fintech IT | 高 |
 | `ds_common.md` | DS | nexus6-gold Lakehouse | 全社 IT | 中 |

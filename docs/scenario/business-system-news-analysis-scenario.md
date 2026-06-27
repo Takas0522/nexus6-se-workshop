@@ -33,3 +33,16 @@
 - [モバイル通信業務システムデータモデル](../usecase/mobile-telecom-system-data-model.md)
 - [Eコマース業務システムデータモデル](../usecase/ecommerce-system-data-model.md)
 - [Fintech業務システムデータモデル](../usecase/fintech-system-data-model.md)
+
+## Demo 入力源（ニュース記事プレビュー）
+
+Demo 実演時のニュース入力源として、`src/news-portal/` 配下に静的 HTML 記事を配置している。これは「外部ニュースが社内に届く」状況を可視化するための表示用 UI であり、Hosted Agent への入力は API 経由（記事本文テキスト）で行う。
+
+| ファイル | 想定シナリオ |
+|---|---|
+| `src/news-portal/index.html` | 記事一覧ページ |
+| `src/news-portal/article-fx1.html` | シナリオ1（為替急変） |
+| `src/news-portal/article-comp1.html` | シナリオ2（競合経済圏統合） |
+| `src/news-portal/article-boj1.html` | シナリオ3（日銀金融政策転換） |
+
+Demo フロー: ニュース閲覧 → 該当記事の本文を Hosted Agent の `/api/analyze` に POST → 4 Agent の結果を Teams / DevUI で確認。

@@ -8,149 +8,128 @@
 
 | 項目 | 値 |
 |---|---|
-| グループ会社規模 | 30,000 名 |
+| グループ会社規模 | 30,000 名想定 |
 | 対象期間 | 過去 6 ヶ月 |
 | 事業部 | モバイル通信・Eコマース・Fintech・共通（顧客統合ID） |
-| 更新頻度 | 日次バッチ（一部月次） |
-| データ形式（ソース） | RDBMS（SQL Server / PostgreSQL）/ CSV / REST API |
+| Demo 採用データ形式 | **合成 CSV ファイルのみ**（Bronze コンテナへ手動/スクリプトでアップロード） |
+| 更新頻度 | 手動（Demo 中は一回のみ） |
+
+> Demo スコープでは **本番用のソースシステム接続（SQL Server / PostgreSQL / REST API）・Data Pipeline / Dataflow Gen2 / オンプレ Gateway / 日次スケジュールは全て取り扱わない**。本明細は Demo で作る最小限のデータパイプラインに限定し、本番構成は「将来拡張」として脚注で参考示する。
 
 ---
 
-## OneLake アーキテクチャ（メダリオン構成）
+## OneLake アーキテクチャ（Demo 簡易メダリオン）
 
 ```mermaid
 graph TD
     subgraph OL["OneLake / nexus6-workspace"]
-        subgraph Bronze["🔶 Bronze Lakehouse（生データ・無加工保持 / 12ヶ月）"]
+        subgraph Bronze["🔶 Bronze Lakehouse（合成 CSV をそのまま取り込み）"]
             B1[mobile_raw]
             B2[ecommerce_raw]
             B3[fintech_raw]
             B4[common_raw]
         end
-        subgraph Silver["🥈 Silver Lakehouse（クレンジング・標準化済み / 6ヶ月）"]
+        subgraph Silver["🥈 Silver Lakehouse（PySpark Notebook でクレンジング）"]
             S1[mobile]
             S2[ecommerce]
             S3[fintech]
             S4[common]
         end
-        subgraph Gold["🥇 Gold Lakehouse（AI エージェント向け集計・KPI）"]
-            G1["kpi\nAgent 2 向け全社 KPI"]
-            G2["mobile_ai\nAgent 3 Mobile 向け"]
-            G3["ecommerce_ai\nAgent 3 EC 向け"]
-            G4["fintech_ai\nAgent 3 Fintech 向け"]
+        subgraph Gold["🥇 Gold Lakehouse（AI エージェント参照用 KPI）"]
+            G1["kpi.* （Agent 2）"]
+            G2["mobile_ai / ecommerce_ai / fintech_ai （Agent 3）"]
         end
     end
-    Bronze -->|"Dataflow Gen2 / Notebook\nクレンジング・型変換"| Silver
-    Silver -->|"Notebook PySpark\nKPI 集計・JPY 換算"| Gold
+    Bronze -->|"Notebook (PySpark)\n型変換・JPY換算・クレンジング"| Silver
+    Silver -->|"Notebook (PySpark)\nKPI 集計"| Gold
 ```
 
-| レイヤー | 目的 | 形式 | 保持期間 |
+| レイヤー | 目的 | 形式 | Demo での作り方 |
 |---|---|---|---|
-| Bronze | ソースの完全ミラー・監査ログ | Delta Table (Parquet) | 12 ヶ月 |
-| Silver | 品質保証済み・スキーマ統一済みデータ | Delta Table | 6 ヶ月 |
-| Gold | AI エージェントが直接クエリする集計テーブル | Delta Table | 最新 + 月次スナップ |
+| Bronze | 合成 CSV をそのまま保持 | Lakehouse Files または Delta Table | CSV を Lakehouse にアップロード |
+| Silver | 実データモデルに準拠したスキーマと型を付与 | Delta Table | `nb_bronze_to_silver` Notebook |
+| Gold | AI エージェントが T-SQL で参照する集計テーブル | Delta Table | `nb_silver_to_gold` Notebook |
 
 ---
 
-## データ取り込みパイプライン構成
+## データ取り込みパイプライン構成（Demo）
 
 ```mermaid
 flowchart TD
-    SRC["ソースシステム群\nSQL Server / PostgreSQL\nREST API / CSV"]
-    PL["Fabric Data Pipeline\n日次 02:00 JST スケジュール"]
-    BR["Bronze Lakehouse\nCOPY INTO / Streaming Ingestion\n差分キー: updated_at / created_at"]
-    DFG["Fabric Dataflow Gen2 / Notebook\nクレンジング・バリデーション\n型変換・NULL 補完・重複排除"]
-    SV["Silver Lakehouse\n品質保証済み・スキーマ統一済み\nJPY 換算列付加"]
-    NB["Fabric Notebook（PySpark）\nKPI 集計・事業部別サマリ生成"]
-    GD["Gold Lakehouse\nAI エージェント向けビュー\n読み取り専用（Service Principal）"]
+    SRC["合成 CSV ファイル\nscripts/seed-data/*.csv"]
+    UP["アップロード\n・ Fabric UI / azcopy / OneLake Explorer\n・ 手動もしくは一回限りのスクリプト"]
+    BR["Bronze Lakehouse\nFiles/<domain>/<table>.csv\nまたは Delta テーブルとして読み込み"]
+    NB1["Notebook ① nb_bronze_to_silver\nPySpark で型・NULL補完・JPY換算"]
+    SV["Silver Lakehouse\nデータモデル準拠テーブル"]
+    NB2["Notebook ② nb_silver_to_gold\nKPI/事業部サマリを集計"]
+    GD["Gold Lakehouse\nSQL Analytics Endpoint 経由で Agent 参照"]
 
-    SRC -->|"pl_ingest_*\n4ドメイン並列"| PL
-    PL --> BR
-    BR -->|"pl_transform_silver"| DFG
-    DFG --> SV
-    SV -->|"pl_aggregate_gold"| NB
-    NB --> GD
+    SRC --> UP --> BR --> NB1 --> SV --> NB2 --> GD
 ```
 
-### パイプライン一覧
+### スクリプト・ノートブック一覧
 
-| パイプライン名 | ソース | ターゲット | 頻度 |
-|---|---|---|---|
-| `pl_ingest_mobile` | Mobile DB (SQL Server) | Bronze `mobile_raw` | 日次 |
-| `pl_ingest_ecommerce` | EC DB (PostgreSQL) | Bronze `ecommerce_raw` | 日次 |
-| `pl_ingest_fintech` | Fintech DB (PostgreSQL) | Bronze `fintech_raw` | 日次 |
-| `pl_ingest_common` | 統合ID DB (SQL Server) | Bronze `common_raw` | 日次 |
-| `pl_transform_silver` | Bronze 全ドメイン | Silver 全ドメイン | 日次（Bronze 後） |
-| `pl_aggregate_gold` | Silver 全ドメイン | Gold 全テーブル | 日次（Silver 後） |
+| 名前 | 種別 | 用途 |
+|---|---|---|
+| `scripts/seed-data/generate_csv.py` | Python スクリプト | 合成 CSV（モバイル / EC / Fintech / 共通）を生成 |
+| `nb_bronze_to_silver` | Fabric Notebook (PySpark) | Bronze CSV → Silver Delta。型変換・重複排除・JPY 換算 |
+| `nb_silver_to_gold` | Fabric Notebook (PySpark) | Silver → Gold KPI 集計（`kpi.*` / `mobile_ai` / `ecommerce_ai` / `fintech_ai`） |
+
+> Demo では Data Pipeline / Dataflow Gen2 / スケジューラーは作成せず、Notebook を手動実行して 1 回だけ Silver/Gold を生成する。
 
 ---
 
-## Bronze 取り込み方式
+## Bronze 取り込み方式（Demo）
 
-### ① RDBMS ソース（SQL Server / PostgreSQL）
+### Demo: 合成 CSV の Bronze 取り込み
 
-Fabric Data Pipeline の **Copy Activity** を使用。
-
-```
-接続: Fabric Gateway 経由のオンプレミスDB、または Azure SQL
-モード: 差分取り込み（Incremental Load）
-差分キー: updated_at / created_at カラム
-完全リロード: 月次 1 回（マスタ系テーブル）
-```
-
-```json
-// Copy Activity 設定骨子
-{
-  "source": {
-    "type": "SqlServerSource",
-    "sqlReaderQuery": "SELECT * FROM contracts WHERE updated_at >= '@{variables('lastLoadTime')}'",
-    "partitionOption": "DynamicRange",
-    "partitionColumnName": "updated_at"
-  },
-  "sink": {
-    "type": "LakehouseTableSink",
-    "tableActionOption": "Append",
-    "partitionOption": "PartitionByKey",
-    "partitionKeys": ["_ingest_date"]
-  }
-}
-```
-
-### ② REST API ソース（Bing / 外部レート等）
-
-Fabric Notebook (Python) で HTTP 取得 → Bronze に書き込み。
+1. `scripts/seed-data/generate_csv.py` で以下の CSV を生成
+   - `mobile_contracts.csv`, `mobile_mnp_history.csv`, `mobile_device_costs.csv`
+   - `ecommerce_orders.csv`, `ecommerce_inventory.csv`, `ecommerce_campaign_reactions.csv`
+   - `fintech_fx_positions.csv`, `fintech_loan_balances.csv`, `fintech_credit_reviews.csv`
+   - `common_customers.csv`
+2. Bronze Lakehouse の `Files/<domain>/` 下にアップロード
+3. Notebook `nb_bronze_to_silver` で PySpark により `spark.read.csv(...)` → Silver へ書き込み
 
 ```python
-import requests
-import pandas as pd
-from delta import DeltaTable
+# nb_bronze_to_silver 例
+from pyspark.sql import functions as F
 
-def fetch_and_write(url: str, table_path: str):
-    resp = requests.get(url, headers={"Ocp-Apim-Subscription-Key": api_key})
-    df = pd.DataFrame(resp.json()["value"])
-    df["_ingest_date"] = pd.Timestamp.today().date()
-    df.to_parquet(f"{table_path}/_ingest_date={df['_ingest_date'].iloc[0]}/part-0.parquet")
+df = (spark.read.option("header", True).option("inferSchema", True)
+      .csv("Files/mobile/mobile_contracts.csv"))
+
+silver = (df
+    .withColumn("updated_at", F.to_timestamp("updated_at"))
+    .dropDuplicates(["contract_id"]))
+
+silver.write.mode("overwrite").saveAsTable("mobile.contracts")
 ```
 
-### ③ CSV / ファイル転送（レガシーシステム連携）
+### 将来拡張（Demo 対象外）
 
-Azure Blob Storage 経由の Fabric **Shortcut** を使用。
-- ソースが CSV を SFTP/Blob に出力
-- Shortcut でリンクを貼り、Notebook でパース → Bronze に書き込み
+以下は本番スコープに含まれるが Demo では **作成しない**。
+
+- RDBMS ソースとの Copy Activity（SQL Server / PostgreSQL への Fabric Data Pipeline）
+- REST API 取り込み Notebook
+- Azure Blob / SFTP への Shortcut
+- 日次 02:00 JST スケジュール
+- Fabric Gateway を介したオンプレ接続
 
 ---
 
-## Silver 変換ルール
+## Silver 変換ルール（Demo）
+
+Demo では `nb_bronze_to_silver` Notebook 1 本で以下を適用する。
 
 | 変換種別 | 内容 |
 |---|---|
-| スキーマ統一 | ソース側カラム名を Silver 定義名にリネーム |
+| スキーマ統一 | CSV カラム名を Silver テーブル定義名にリネーム |
 | 型変換 | 文字列日付 → `date` / `timestamp`、文字列数値 → `decimal` |
-| NULL 補完 | 必須項目が NULL の場合はデフォルト値またはエラーフラグ付与 |
-| 重複排除 | 同一主キーの重複行は `updated_at` 降順で最新を残す |
-| 文字コード | UTF-8 に統一 |
-| 金額通貨 | 原価・請求額は JPY 換算列（`*_jpy`）を付加（為替レートテーブル参照） |
-| パーティション | `year_month` (yyyy-MM) 列を付加してパーティション化 |
+| NULL 補完 | 必須項目が NULL の場合はデフォルト値・エラーフラグ付与 |
+| 重複排除 | 主キー重複行は `updated_at` 降順で最新を残す |
+| 金額通貨 | `*_jpy` 列を付与（為替レートは Notebook 内定数） |
+
+> Demo では `_error` テーブルへの隔離は行わず、入力 CSV が事前検査済みであることを前提とする。
 
 ---
 
@@ -171,7 +150,9 @@ Azure Blob Storage 経由の Fabric **Shortcut** を使用。
 
 ---
 
-## パイプライン障害対応
+## パイプライン障害対応（本番設計・Demo 対象外）
+
+以下は本番での推奨設計。Demo では Notebook を手動実行するため障害ハンドリングは実装しない。
 
 | 障害種別 | 対応 |
 |---|---|
@@ -186,14 +167,13 @@ Azure Blob Storage 経由の Fabric **Shortcut** を使用。
 
 | レイヤー | アクセス主体 | 権限 |
 |---|---|---|
-| Bronze | Fabric パイプライン / 管理者のみ | 書き込み / 読み取り |
+| Bronze | データエンジニア・管理者 | 書き込み / 読み取り |
 | Silver | データエンジニア・Notebook | 読み取り / 書き込み |
-| Gold | AI エージェント（Service Principal） | 読み取りのみ |
-| Gold | 各事業部データアナリスト | 読み取りのみ（事業部フィルタ） |
+| Gold | AI エージェントをホストする Container Apps の Managed Identity | 読み取りのみ |
 
 ```
-AI エージェント用 Service Principal:
-  名称: sp-nexus6-ai-agent
-  権限: Gold Lakehouse の Reader ロール
-  認証: Managed Identity（Hosted Agent の App Service / Container App）
+AI エージェント用 認証:
+  方式: System Assigned Managed Identity（Container Apps Consumption）
+  権限: Gold Lakehouse / SQL Analytics Endpoint の Reader ロール
+  接続: Microsoft.Data.SqlClient + DefaultAzureCredential
 ```

@@ -8,6 +8,8 @@
 
 外部ニュース（為替急変・競合統合・金融政策転換など）を受け取り、モバイル・Eコマース・Fintech の各事業部内部データと照合して、事業部別インサイトと Next Action を自動生成する。
 
+> 本仕様は **Demo 想定の最低限構成**。Microsoft Agent Framework for .NET の **Workflow + DevUI** を採用し、開発/デモ時の可視化と実行を両立する。
+
 ---
 
 ## エージェント構成
@@ -38,7 +40,7 @@ graph LR
 flowchart TD
     IN([入力: ニュース本文])
     HA[Hosted Agent 開始]
-    A1["Agent 1: Web情報収集\nBing Search / Web IQ で関連情報収集\n収集結果 → Context に追記"]
+    A1["Agent 1: Web情報収集\nFoundry Grounding with Bing Search で関連情報収集\n収集結果 → Context に追記"]
     A2["Agent 2: ビジネスインパクト評価\nOneLake / Fabric の全社経営データ参照\n3事業部への影響スコア・要因を出力"]
     subgraph A3["Agent 3: 事業部別レコメンド（並列実行）"]
         A3M["Mobile\n端末コスト・MNP・分割払い"]
@@ -56,18 +58,20 @@ flowchart TD
 
 ## コンテキスト伝播設計
 
-各エージェントは **共有コンテキストオブジェクト（`NewsAnalysisContext`）** を介してデータを受け渡す。Hosted Agent がこのオブジェクトの所有者となり、各ステップの出力を順次追記する。
+各エージェントは **共有コンテキストオブジェクト（`NewsAnalysisContext`）** を介してデータを受け渡す。Hosted Agent（= Workflow 実行ホスト）がこのオブジェクトの所有者となり、各ステップの出力を順次追記する。Workflow グラフの各ノードは `NewsAnalysisContext` を入出力とする。
 
 ```csharp
 public class NewsAnalysisContext
 {
-    public string OriginalNewsText { get; init; }       // 入力ニュース原文
-    public string WebResearchSummary { get; set; }      // Agent1 出力
-    public BusinessImpactResult ImpactResult { get; set; }  // Agent2 出力
-    public List<DivisionRecommendation> Recommendations { get; set; } // Agent3 出力
-    public NotificationResult NotificationResult { get; set; }       // Agent4 出力
+    public string OriginalNewsText { get; init; } = string.Empty;     // 入力ニュース原文
+    public WebResearchResult? WebResearchResult { get; set; }         // Agent1 出力
+    public BusinessImpactResult? ImpactResult { get; set; }           // Agent2 出力
+    public List<DivisionRecommendation> Recommendations { get; set; } = []; // Agent3 出力
+    public NotificationResult? NotificationResult { get; set; }       // Agent4 出力
 }
 ```
+
+> 詳細な Workflow / DevUI 構成は [03-hosted-agent-spec.md](03-hosted-agent-spec.md) を参照。
 
 ---
 

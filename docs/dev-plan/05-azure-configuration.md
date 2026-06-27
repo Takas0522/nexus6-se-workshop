@@ -8,15 +8,18 @@
 
 | サービス | 用途 | 必須/任意 |
 |---|---|---|
-| Azure AI Foundry (Azure OpenAI) | LLM 推論（GPT-4o） | 必須 |
-| Azure AI Search | Skill.md の RAG インデックス | 必須 |
-| ADLS Gen2 | Skill.md ファイル格納・OneLake Shortcut | 必須 |
-| Bing Search API / Grounding with Bing Search | Web 情報収集（Agent 1） | 必須 |
-| Microsoft Fabric / OneLake | 全社経営データ参照（Agent 2） | 必須 |
-| Dynamics 365 | 通知先担当者情報（Agent 4） | 必須 |
-| Microsoft Teams (Webhook) | レコメンド通知（Agent 4） | 必須 |
+| Azure AI Foundry (Azure OpenAI) | LLM 推論（GPT-4o / gpt-4o-mini）、File Search、Grounding with Bing Search | 必須 |
+| ADLS Gen2 | Skill.md ファイル格納・OneLake Shortcut 基盤 | 必須 |
+| Microsoft Fabric / OneLake | 全社経営データ参照（Agent 2・3） | 必須 |
+| Microsoft Teams (Workflows) | レコメンド通知（Agent 4） | 必須 |
+| Azure Container Apps (Consumption) | .NET 10 Hosted Agent ホスティング | 必須 |
+| Microsoft Entra ID | Managed Identity / Service Principal | 必須 |
 | Azure Monitor / App Insights | テレメトリ・ログ収集 | 推奨 |
-| Azure Key Vault | シークレット管理 | 推奨 |
+| Azure Key Vault | 外部サービスの API キー管理 | 推奨 |
+| Dynamics 365 | 本番時の担当者ディレクトリ（Agent 4） | **Demo は使わずモック** |
+| Azure AI Search | Skill.md 検索（将来拡張） | Demo では不要 |
+
+> Skill.md / DS.md の参照は Foundry **File Search**（Knowledge）を採用し、Azure AI Search はデモ構成から除外する。実データ量は 100KB 以下と見込まれ File Search で十分。
 
 ---
 
@@ -24,10 +27,12 @@
 
 ### セットアップ
 
-1. Azure ポータルで **Azure AI Foundry** リソースを作成
-2. `gpt-4o` モデルをデプロイ（デプロイ名を `appsettings.json` に設定）
-3. Foundry Project Endpoint と認証方式（Managed Identity または API キー）を設定
-4. Skill.md 用の Azure AI Search インデックス（`nexus6-skill-index`）を接続
+1. Azure ポータルで **Azure AI Foundry** リソースを作成（リージョンは `<既存環境に合わせる>`）
+2. `gpt-4o` ・ `gpt-4o-mini` モデルをデプロイ
+3. Foundry Project を作成し、Project Endpoint を `appsettings.json` に設定
+4. 認証は **Managed Identity に統一**（App / Container Apps の System Assigned MI に `Cognitive Services User` を付与）
+5. Skill.md / DS.md 参照用の **File Search**（Knowledge）ベクトルストアを作成し、ADLS Gen2 をデータソースとして接続
+6. Web 検索用に **Grounding with Bing Search** 接続を Foundry Project に追加
 
 ### 推奨モデル構成
 
@@ -43,7 +48,7 @@
 ### Microsoft Agent Framework / Foundry との接続
 
 ```csharp
-// Foundry Project Endpoint へ Managed Identity で接続する想定
+// Foundry Project Endpoint へ Managed Identity で接続
 services.AddSingleton(_ => new FoundryAgentClient(
     projectEndpoint: config["Foundry:ProjectEndpoint"]!,
     credential: new DefaultAzureCredential()));
@@ -51,18 +56,29 @@ services.AddSingleton(_ => new FoundryAgentClient(
 
 ---
 
-## Bing Search API / Grounding with Bing Search
+## Grounding with Bing Search（Foundry 組込）
 
 ### セットアップ
 
-1. Foundry の Grounding with Bing Search または Bing Search API を有効化
-2. API キーまたは接続情報を Key Vault に格納
-3. `BingSearchPlugin` / `WebSearchTool` に注入
+1. Foundry Portal で **Connections → Grounding with Bing Search** を追加
+2. Foundry Project に接続を関連づけ、Connection ID を `Foundry:GroundingBingConnectionId` として `appsettings` に保持
+3. Agent 1 の Tool として `GroundingBingSearchTool` を登録
 
-```csharp
-services.AddSingleton(_ => new BingSearchClient(config["BingSearch:ApiKey"]!));
-services.AddSingleton<WebSearchTool>();
-```
+> 独立の Bing Search v7 API は新規受付停止済。Demo / 本番とも Foundry 組込の Grounding with Bing Search に統一する。
+
+---
+
+## Skill.md 参照（Foundry File Search）
+
+### セットアップ
+
+1. ADLS Gen2 (`nexus6skillstore` / `skill-docs` コンテナ) に Skill.md を配置
+2. Foundry Project の **Knowledge → File Search** でベクトルストアを作成
+3. ADLS Gen2 をデータソースとして追加し、`skill-docs/**` をインデクシング
+4. Agent 2 / Agent 3 に `FoundryFileSearchTool` を登録し、ベクトルストア ID を `Foundry:FileSearchVectorStoreId` で参照
+5. Skill.md 更新時はファイルを ADLS にアップロード → Foundry が自動再インデクシングするため追加作業不要
+
+> Skill.md は 6 ファイル×5～10KB で合計 約 60KB、DS.md と合わせても 100KB 以下。この規模では Azure AI Search Basic は過剰のため Demo では使用しない。
 
 ---
 
@@ -70,9 +86,9 @@ services.AddSingleton<WebSearchTool>();
 
 ### セットアップ
 
-1. Fabric ワークスペースに各事業部データを格納した **Lakehouse** を作成
-2. OneLake への接続には **Azure Managed Identity** または **Service Principal** を使用
-3. Lakehouse SQL Analytics Endpoint で T-SQL 形式のクエリを実行
+1. Fabric ワークスペースに各事業部データを格納した **Lakehouse**（`nexus6-bronze` / `nexus6-silver` / `nexus6-gold`）を作成
+2. 接続は Managed Identity を使用し、Container Apps の MI に Fabric ワークスペースの Viewer ロールを付与
+3. Gold Lakehouse の **SQL Analytics Endpoint** に T-SQL でアクセス (`Microsoft.Data.SqlClient`)
 
 ### テーブル対応表
 
@@ -102,13 +118,15 @@ public sealed class FabricDataPlugin(FabricLakehouseClient client)
 
 ---
 
-## Microsoft Teams (Webhook)
+## Microsoft Teams（Workflows）
 
 ### セットアップ
 
-1. Teams チャネルで **Incoming Webhook** コネクタを設定
-2. Webhook URL を Key Vault に格納
-3. Agent 4 が Adaptive Card 形式で POST
+1. Teams チャネルで **Workflows**（Power Automate 「チャネルへメッセージを投稿」テンプレート）を追加
+2. 起動トリガーは「HTTP 要求を受信したとき」を選択し、Adaptive Card JSON を受け取るスキーマを定義
+3. 生成された HTTP URL を Key Vault に格納し、Agent 4 が POST する
+
+> Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo / 本番とも Workflows に統一する。
 
 ### Adaptive Card テンプレート（骨子）
 
@@ -128,14 +146,14 @@ public sealed class FabricDataPlugin(FabricLakehouseClient client)
 
 ---
 
-## Dynamics 365
+## Dynamics 365（Demo では使用せずモック）
 
 ### 用途
 
-- 通知先担当者（事業部責任者）の照会
-- レコメンド内容のレコード登録（Next Action 管理）
+- 本番: 通知先担当者の照会・レコメンドのレコード登録
+- **Demo: `MockDirectoryPlugin`（メモリ内の固定担当者一覧）で代替し、実エンティティ/カスタムエンティティは作成しない**
 
-### 接続
+### 将来　実コネクタを入れる際の接続例
 
 ```csharp
 // Microsoft.PowerPlatform.Dataverse.Client を使用
@@ -174,21 +192,16 @@ builder.Services.AddOpenTelemetry()
 
 ## Azure Key Vault
 
-本番環境では以下のシークレットを Key Vault で管理する。
+Demo / 本番とも、以下の「外部サービスの API キー」のみ Key Vault で管理する。Azure リソース（Foundry / Fabric / Container Apps / Key Vault / Azure Monitor）への認証は **Managed Identity に統一**し、API キーは保持しない。
 
-| シークレット名 | 内容 |
-|---|---|
-| `AzureOpenAI--ApiKey` | Azure OpenAI API キー |
-| `BingSearch--ApiKey` | Bing Search API キー |
-| `AzureAISearch--ApiKey` | Azure AI Search API キー |
-| `Teams--Mobile--WebhookUrl` | Teams Mobile チャネル Webhook |
-| `Teams--Ecommerce--WebhookUrl` | Teams EC チャネル Webhook |
-| `Teams--Fintech--WebhookUrl` | Teams Fintech チャネル Webhook |
-| `Dynamics365--ClientSecret` | Dynamics 365 認証シークレット |
-| `AzureMonitor--ConnectionString` | App Insights 接続文字列 |
+| シークレット名 | 内容 | 有効性 |
+|---|---|---|
+| `Teams--WorkflowsUrl` | Teams Workflows の HTTP トリガー URL | Demo 使用 |
+| `AzureMonitor--ConnectionString` | App Insights 接続文字列 | Demo 使用（推奨） |
+| `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | 本番のみ |
 
 ```csharp
-// Key Vault 統合（.NET 10 推奨パターン）
+// Key Vault 統合
 builder.Configuration.AddAzureKeyVault(
     new Uri($"https://{kvName}.vault.azure.net/"),
     new DefaultAzureCredential());
