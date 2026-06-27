@@ -231,7 +231,11 @@ public sealed class FabricDataPlugin(SqlConnection connection)
     "Database": "lh_nexus6_gold"
   },
   "Teams": {
-    "WorkflowsUrl": ""
+    "WorkflowsUrl": {
+      "Ecommerce": "",
+      "Mobile": "",
+      "Fintech": ""
+    }
   },
   "KeyVault": {
     "Uri": "https://kv-nexus6-swc.vault.azure.net/"
@@ -242,7 +246,7 @@ public sealed class FabricDataPlugin(SqlConnection connection)
 }
 ```
 
-> Demo は Managed Identity を採用するため API キー類は appsettings に保持しない。`Teams:WorkflowsUrl` は Key Vault のシークレット `Teams--WorkflowsUrl` から `DefaultAzureCredential` で取得する。Teams チャネル未確定時は空のまま起動でき、Agent 4 は `MockTeamsPlugin` にフォールバックする。
+> Demo は Managed Identity を採用するため API キー類は appsettings に保持しない。`Teams:WorkflowsUrl:<Division>` は Key Vault の `Teams--WorkflowsUrl--Ecommerce` / `--Mobile` / `--Fintech` シークレットから `DefaultAzureCredential` で取得する（各事業部チームの `Web Pulse Recommender` チャネル宛て）。未登録の事業部があっても起動でき、Agent 4 は該当事業部のみ `MockTeamsPlugin` にフォールバックする。
 
 ---
 

@@ -124,11 +124,21 @@ public sealed class FabricDataPlugin(FabricLakehouseClient client)
 
 ## Microsoft Teams（Workflows）
 
+### 通知先チーム / チャネル
+
+3 事業部分のチームと `Web Pulse Recommender` チャネルを作成済み（テナント `9e575763-d389-4aa8-b0a9-a64ba4cc1029`）。Agent 4 は各事業部のチャネルへ Adaptive Card を投稿する。
+
+| 事業部 | Teams チーム | チャネル | Key Vault シークレット |
+|---|---|---|---|
+| `ecommerce` | EC チーム (`54e63170-bad8-42b3-959b-cb1cdaad5b6d`) | `Web Pulse Recommender` (`19:e5c7a76a0e6e400ab94a0c2c1f3052b6@thread.tacv2`) | `Teams--WorkflowsUrl--Ecommerce` |
+| `mobile` | モバイルチーム (`da1f375e-ab3f-45bd-a8c5-027b1f82a8dc`) | `Web Pulse Recommender` (`19:8e4127ee9079478d8b9ae900c9d96454@thread.tacv2`) | `Teams--WorkflowsUrl--Mobile` |
+| `fintech` | 金融チーム (`c0b91401-532b-4092-93d8-1a5850de6027`) | `Web Pulse Recommender` (`19:1499aad7b2ea4d838495bc731fb8824b@thread.tacv2`) | `Teams--WorkflowsUrl--Fintech` |
+
 ### セットアップ
 
-1. Teams チャネルで **Workflows**（Power Automate 「チャネルへメッセージを投稿」テンプレート）を追加
+1. 各チームの `Web Pulse Recommender` チャネルで **Workflows**（Power Automate 「チャネルへメッセージを投稿」テンプレート）を追加
 2. 起動トリガーは「HTTP 要求を受信したとき」を選択し、Adaptive Card JSON を受け取るスキーマを定義
-3. 生成された HTTP URL を Key Vault に格納し、Agent 4 が POST する
+3. 生成された HTTP URL を Key Vault の対応するシークレット（`Teams--WorkflowsUrl--Ecommerce` / `--Mobile` / `--Fintech`）に格納し、Agent 4 が POST する
 
 > Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo / 本番とも Workflows に統一する。
 
@@ -200,7 +210,9 @@ Demo / 本番とも、以下の「外部サービスの API キー」のみ Key 
 
 | シークレット名 | 内容 | 有効性 |
 |---|---|---|
-| `Teams--WorkflowsUrl` | Teams Workflows の HTTP トリガー URL | Demo 使用 |
+| `Teams--WorkflowsUrl--Ecommerce` | EC チーム `Web Pulse Recommender` の Workflows URL | Demo 使用 |
+| `Teams--WorkflowsUrl--Mobile` | モバイルチーム `Web Pulse Recommender` の Workflows URL | Demo 使用 |
+| `Teams--WorkflowsUrl--Fintech` | 金融チーム `Web Pulse Recommender` の Workflows URL | Demo 使用 |
 | `AzureMonitor--ConnectionString` | App Insights 接続文字列 | Demo 使用（推奨） |
 | `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | 本番のみ |
 

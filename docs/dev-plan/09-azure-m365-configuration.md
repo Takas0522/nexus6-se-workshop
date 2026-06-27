@@ -246,14 +246,29 @@ Hosted Agent への起動契機を提供する Foundry 側コンポーネント�
 | 項目 | 設定値 |
 |---|---|
 | 接続方式 | Power Automate Workflows（「チャネルへメッセージを投稿」テンプレート + HTTP トリガー） |
-| チャネル構成 | **未作成**（Demo 当日までに発行予定。`#mobile-ai-recommend`, `#ecommerce-ai-recommend`, `#fintech-ai-recommend` を想定） |
-| URL の供給方法 | Key Vault シークレット `Teams--WorkflowsUrl`（後でセットアップ）。Agent 4 は `DefaultAzureCredential` 経由で取得するため、**コード変更なしで URL すげ替え可能** |
+| テナント | `9e575763-d389-4aa8-b0a9-a64ba4cc1029`（Azure 管理テナントと同一） |
+| チャネル構成 | **作成済み**。各事業部チームの `Web Pulse Recommender` チャネルへ Agent 4 が通知（下表参照） |
+| URL の供給方法 | Key Vault シークレット `Teams--WorkflowsUrl--<Division>`（事業部単位に 3 本）。Agent 4 は `DefaultAzureCredential` 経由で取得するため、**コード変更なしで URL すげ替え可能** |
 | カード形式 | Adaptive Card v1.5 |
 | @メンション | 優先度 HIGH のアクションは担当者をメンション（Workflow 内で設定） |
-| Demo 暫定動作 | Key Vault に URL が未登録の場合、Agent 4 は `MockTeamsPlugin` にフォールバックしコンソールへ通知ログを出力 |
+| Demo 暫定動作 | Key Vault に該当事業部の URL が未登録の場合、Agent 4 は当該事業部分のみ `MockTeamsPlugin` にフォールバックしコンソールへ通知ログを出力 |
+
+#### 通知先チーム / チャネル一覧
+
+| 事業部 (Division) | Teams チーム名 | Team ID (groupId) | チャネル名 | Channel ID | Key Vault シークレット |
+|---|---|---|---|---|---|
+| `ecommerce` | EC チーム | `54e63170-bad8-42b3-959b-cb1cdaad5b6d` | `Web Pulse Recommender` | `19:e5c7a76a0e6e400ab94a0c2c1f3052b6@thread.tacv2` | `Teams--WorkflowsUrl--Ecommerce` |
+| `mobile` | モバイルチーム | `da1f375e-ab3f-45bd-a8c5-027b1f82a8dc` | `Web Pulse Recommender` | `19:8e4127ee9079478d8b9ae900c9d96454@thread.tacv2` | `Teams--WorkflowsUrl--Mobile` |
+| `fintech` | 金融チーム | `c0b91401-532b-4092-93d8-1a5850de6027` | `Web Pulse Recommender` | `19:1499aad7b2ea4d838495bc731fb8824b@thread.tacv2` | `Teams--WorkflowsUrl--Fintech` |
+
+各チャネルのディープリンク（参照用）:
+
+- EC チーム / Web Pulse Recommender: <https://teams.cloud.microsoft/l/channel/19%3Ae5c7a76a0e6e400ab94a0c2c1f3052b6%40thread.tacv2/Web%20Pulse%20Recommender?groupId=54e63170-bad8-42b3-959b-cb1cdaad5b6d&tenantId=9e575763-d389-4aa8-b0a9-a64ba4cc1029>
+- モバイルチーム / Web Pulse Recommender: <https://teams.cloud.microsoft/l/channel/19%3A8e4127ee9079478d8b9ae900c9d96454%40thread.tacv2/Web%20Pulse%20Recommender?groupId=da1f375e-ab3f-45bd-a8c5-027b1f82a8dc&tenantId=9e575763-d389-4aa8-b0a9-a64ba4cc1029>
+- 金融チーム / Web Pulse Recommender: <https://teams.cloud.microsoft/l/channel/19%3A1499aad7b2ea4d838495bc731fb8824b%40thread.tacv2/Web%20Pulse%20Recommender?groupId=c0b91401-532b-4092-93d8-1a5850de6027&tenantId=9e575763-d389-4aa8-b0a9-a64ba4cc1029>
 
 > Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo ・ 本番とも Workflows で統一する。
-> 通知先 Teams チャネル / Workflows URL は Demo 環境構築の後段で追加する想定。Key Vault シークレット差し替えのみで切替可能とする。
+> Teams チャネルは作成済み。残作業は各チャネルでの Power Automate Workflows（HTTP トリガー）作成と、生成された URL を上記の Key Vault シークレットへ登録する 1 ステップのみ。
 
 ### Dynamics 365（Demo ではモック）
 
@@ -308,11 +323,13 @@ Azure リソースへの認証は Managed Identity に統一し、Key Vault に�
 
 | シークレット名 | 内容 | 参照箱所 | 有効性 |
 |---|---|---|---|
-| `Teams--WorkflowsUrl` | Teams Workflows の HTTP トリガー URL | Agent 4 | Demo 使用 |
+| `Teams--WorkflowsUrl--Ecommerce` | EC チーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
+| `Teams--WorkflowsUrl--Mobile` | モバイルチーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
+| `Teams--WorkflowsUrl--Fintech` | 金融チーム / `Web Pulse Recommender` チャネルの Teams Workflows HTTP トリガー URL | Agent 4 | Demo 使用 |
 | `AzureMonitor--ConnectionString` | App Insights 接続文字列 | ホスト全体 | Demo 使用（推奨） |
 | `Dynamics365--ClientSecret` | Dynamics 365 Service Principal シークレット | Agent 4 | 本番のみ |
 
-> Foundry / Fabric / Key Vault への認証は Managed Identity で行うため API キーは保持しない。古いシークレット (`AzureOpenAI--ApiKey` / `BingSearch--ApiKey` / `AzureAISearch--ApiKey` / `Teams--*--WebhookUrl`) は本設計では採用しない。
+> Foundry / Fabric / Key Vault への認証は Managed Identity で行うため API キーは保持しない。古いシークレット (`AzureOpenAI--ApiKey` / `BingSearch--ApiKey` / `AzureAISearch--ApiKey` / `Teams--*--WebhookUrl` / 単一の `Teams--WorkflowsUrl`) は本設計では採用しない。
 
 ---
 
@@ -334,9 +351,9 @@ flowchart TD
     S10["⑪ 代表 CSV を Bronze へ手動配置\nNotebook 2 本を手動実行"]
     S11["⑫ ACR / Container Apps 環境作成\ncrnexus6swc / cae-nexus6-swc"]
     S12["⑬ Hosted Agent デプロイ\nca-nexus6-hosted-agent (System Assigned MI)"]
-    S13["⑭ ロール付与・Key Vault シークレット登録\n(Teams URL は未登録のままで可)"]
+    S13["⑭ ロール付与・Key Vault シークレット登録\n(Teams Workflows URL は後追い登録可)"]
     S14["⑮ App Insights / 監視ダッシュボード設定"]
-    S15["⑯ (後追加) Teams チャネル作成\nWorkflows URL を kv-nexus6-swc に登録"]
+    S15["⑯ (後追加) 各 Teams `Web Pulse Recommender` チャネルで\nWorkflows 作成 → URL を kv-nexus6-swc に登録"]
 
     S0 --> S1 --> S2 --> S3 --> S4
     S1 --> S5 --> S6 --> S7
@@ -349,7 +366,7 @@ flowchart TD
 ```
 
 > Dynamics 365 / オンプレデータゲートウェイ は Demo では作成しない。
-> Teams チャネルが未確定でも Demo 完走可能（Agent 4 は `MockTeamsPlugin` にフォールバック）。
+> Teams チームとチャネル（EC / モバイル / 金融の各 `Web Pulse Recommender`）は作成済み。Workflows URL が未登録でも Demo 完走可能（Agent 4 は未登録事業部のみ `MockTeamsPlugin` にフォールバック）。
 
 ---
 
@@ -385,7 +402,7 @@ flowchart TD
 | 1 | ADLS Gen2 ストレージアカウント名（Skill 用） | `stnexus6skill<NNNN>` | グローバル一意になる 4 桁の数値を決定 |
 | 2 | ADLS Gen2 ストレージアカウント名（News Portal 用） | `stnexus6portal<NNNN>` | 同上 |
 | 3 | Foundry File Search ベクトルストア名 | `vs_nexus6_skilldocs`（提案） | Foundry Portal 作成時に最終決定 |
-| 4 | Teams Workflows URL | 未発行 | Teams チャネル作成後に Power Automate で生成し `Teams--WorkflowsUrl` シークレットに登録 |
-| 5 | Teams チャネル 3 つ | 未作成 | mobile/ecommerce/fintech 各事業部チャネルを Demo 直前に作成 |
+| 4 | Teams Workflows URL × 3 | 未発行 | 各事業部チームの `Web Pulse Recommender` チャネルで Power Automate Workflows を作成し、生成 URL を `Teams--WorkflowsUrl--Ecommerce` / `--Mobile` / `--Fintech` シークレットに登録 |
+| 5 | Teams チャネル 3 つ | **作成済み** | EC / モバイル / 金融チームに `Web Pulse Recommender` チャネルを設置済み（Team / Channel ID は「通知先チーム / チャネル一覧」参照） |
 
 > 既存リソース（`fd-PartnerIQ` / `proj-PartnerIQ` / `iq-knowledge-source` / `fabricswedencu001` / `fabric_seworkshop_ws1`）は値が確定済み。
