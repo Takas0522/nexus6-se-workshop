@@ -72,3 +72,33 @@ ORDER BY year_month, business_domain, kpi_name;
 - テーブル追加時は本 DS.md の対象テーブルと KPI 定義を更新する。
 - Skill.md と関連する KPI 名は表記をそろえる。
 - 更新後は ADLS の `skill-docs/ds-docs/` にアップロードする。
+
+## 物理項目 ↔ 論理項目（日本語ラベル）対応
+
+| 物理列名 | 論理名 (ja) | 単位 | 説明 |
+|---|---|---|---|
+| year_month | 対象年月 | yyyy-MM | 月次集計の対象月。 |
+| business_domain | 事業ドメイン | - | mobile / ecommerce / fintech の横断区分。 |
+| division | 事業部 | - | 月次収益テーブルで使う事業部区分。 |
+| kpi_name | KPI名 | - | 集計済み指標の名称。表示では日本語名を使う。 |
+| kpi_value | KPI値 | 指標依存 | KPI の数値。単位列または DS 定義に従う。 |
+| revenue_jpy | 売上 | 円 | 返品控除後の売上。 |
+| gross_revenue_jpy | 月次売上 | 円 | 事業部別の総売上。 |
+| total_cost_jpy | 総コスト | 円 | 売上に対応する原価・費用の合計。 |
+| gross_margin_jpy | 粗利 | 円 | 売上から原価を控除した利益。 |
+| gross_margin_rate | 粗利率 | % | 売上に対する粗利の割合。 |
+| risk_loss_jpy | リスク損失 | 円 | 信用・市場・運用リスクによる損失額。 |
+| campaign_cost_jpy | 施策費 | 円 | ポイント原資や販促費を含む施策費。 |
+| fx_exposure_usd | USD為替エクスポージャー | USD | USD 建ての為替リスク量。 |
+| fx_exposure_other_jpy | その他通貨為替エクスポージャー | 円 | USD 以外の通貨リスクを JPY 換算した額。 |
+| active_customer_count | アクティブ顧客数 | 人 | 対象月に有効な顧客数。 |
+| churned_customer_count | 離脱顧客数 | 人 | 対象月に離脱した顧客数。 |
+| impact_id | 影響判定ID | - | Agent 2・3 の判定ログ識別子。 |
+| impact_level | 影響レベル | - | none / watch / action / urgent の判定。 |
+| cost_type | コスト種別 | - | 月次コスト詳細の分類。device_cost / cost_of_goods / risk_loss など。 |
+| currency | 通貨 | - | 為替感応度テーブルの対象通貨。 |
+| avg_rate | 平均為替レート | 円/外貨 | 対象年月の平均為替レート。 |
+| exposure_amount | エクスポージャー額 | USD | 為替感応度算出に使う外貨エクスポージャー。 |
+| metric_name | KPI物理名 | - | 月次 KPI サマリの KPI 名。表示では日本語論理名を使う。 |
+| metric_unit | KPI単位 | 指標依存 | KPI 値の単位。JPY は円、件数は件、比率は % に正規化する。 |
+| description | KPI説明 | - | KPI の業務説明。 |

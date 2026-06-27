@@ -35,6 +35,9 @@
 | [23-foundry-fix.md](23-foundry-fix.md) | Foundry gpt-5.4 Chat Completions BadRequest の原因・修正・再 E2E 検証結果 |
 | [24-teams-graph.md](24-teams-graph.md) | Teams 通知の Microsoft Graph + Managed Identity 設計変更・AppRole blocked 記録 |
 | [25-teams-delegated.md](25-teams-delegated.md) | Teams Graph Delegated + Device Code Flow 方式・Key Vault refresh token 管理 |
+| [26-skill-filesearch.md](26-skill-filesearch.md) | Agent 2/3 の Foundry Assistants file_search 統合・E2E 検証記録 |
+| [27-readability-improvements.md](27-readability-improvements.md) | Teams 投稿の物理列名・Skill ファイル名・dataReferences 可読性改善 |
+| [28-card-polish.md](28-card-polish.md) | Adaptive Card の数値整形・NextActions 構造化・mock URL 排除 |
 
 ## 技術スタック
 

@@ -81,3 +81,39 @@ GROUP BY p.category;
 - テーブル追加時は本 DS.md の対象テーブルと KPI 定義を更新する。
 - Skill.md と関連する KPI 名は表記をそろえる。
 - 更新後は ADLS の `skill-docs/ds-docs/` にアップロードする。
+
+## 物理項目 ↔ 論理項目（日本語ラベル）対応
+
+| 物理列名 | 論理名 (ja) | 単位 | 説明 |
+|---|---|---|---|
+| order_id | 注文ID | - | 受注明細の識別子。表示時は注文件数等に集計する。 |
+| member_id | 会員ID | - | 会員単位の内部キー。個人を特定しない粒度で扱う。 |
+| sku | SKU | - | 商品単位の識別子。 |
+| order_date | 注文日 | 日付 | 売上・需要変化を見る日付。 |
+| quantity | 注文数量 | 個 | 商品の販売数量。 |
+| order_amount | 注文金額 | 円 | 返品控除前後の売上金額。 |
+| product_name | 商品名 | - | 商品表示名。 |
+| category | 商品カテゴリ | - | 需要・粗利を見る分類。 |
+| procurement_currency | 仕入通貨 | - | 外貨仕入の判定に使う通貨。 |
+| cost_price | 仕入原価 | 円/外貨 | 商品原価。JPY 換算値があれば優先する。 |
+| selling_price | 販売価格 | 円 | 販売単価。 |
+| inventory_id | 在庫ID | - | 在庫明細の識別子。 |
+| stock_qty | 在庫数量 | 個 | 倉庫別の在庫数。 |
+| arrival_date | 入荷日 | 日付 | 仕入時点の為替条件を確認する日付。 |
+| import_currency | 輸入通貨 | - | 輸入在庫の元通貨。 |
+| point_rate | ポイント還元率 | % | キャンペーン時の付与率。 |
+| campaign_budget | キャンペーン予算 | 円 | 販促・ポイント原資の予算。 |
+| event_type | 会員行動種別 | - | 閲覧、カート、購入、離脱などの行動。 |
+| cart_abandon_count | カート離脱件数 | 件 | カート投入後に購入へ進まなかった件数。 |
+| cross_border_cost | 越境 EC 仕入コスト | 円 | 越境 SKU の仕入・為替影響コスト。 |
+| crossborder_fx_cost_jpy | 越境EC為替コスト | 円 | 外貨仕入の JPY 換算コスト増減。 |
+| campaign_roi | キャンペーンROI | 倍 | 販促費に対する売上・粗利効果。 |
+| cross_border_flag | 越境取引フラグ | 真偽値 | 海外セラー・越境 SKU の判定。 |
+| year_month | 対象年月 | yyyy-MM | Gold リスクサマリの集計対象月。 |
+| metric_name | KPI物理名 | - | `ecommerce_ai.risk_summary` の KPI 名。表示では本表の論理名に変換する。 |
+| metric_value | KPI値 | 指標依存 | `metric_name` に対応する数値。`metric_unit` と本表の単位に従って表示する。 |
+| metric_unit | KPI単位 | 指標依存 | KPI 値の単位。JPY は円、件数は件、比率は % に正規化する。 |
+| description | KPI説明 | - | KPI の業務説明。 |
+| gross_margin_rate | 粗利率 | % | 売上に対する粗利の割合。 |
+| point_cost | ポイント還元コスト | point | 付与・還元されたポイント原資の合計。 |
+| campaign_reactions | キャンペーン反応件数 | 件 | キャンペーンに対する反応イベント件数。 |

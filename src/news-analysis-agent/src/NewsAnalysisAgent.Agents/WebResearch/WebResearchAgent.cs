@@ -83,7 +83,9 @@ public sealed class WebResearchAgent(
                 ? summaryElement.GetString() ?? string.Empty
                 : string.Empty;
             var keyFactors = ReadStringArray(root, "key_factors").Take(10).ToArray();
-            var sourceUrls = ReadStringArray(root, "source_urls").ToArray();
+            var sourceUrls = ReadStringArray(root, "source_urls")
+                .Where(ReferenceCatalog.IsAllowedWebReference)
+                .ToArray();
 
             return new WebResearchResult(TrimSummary(summary), keyFactors, sourceUrls);
         }
@@ -164,7 +166,8 @@ public sealed class WebResearchAgent(
             case JsonValueKind.String:
                 var value = element.GetString();
                 if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-                    (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+                    ReferenceCatalog.IsAllowedWebReference(uri.ToString()))
                 {
                     yield return uri.ToString();
                 }

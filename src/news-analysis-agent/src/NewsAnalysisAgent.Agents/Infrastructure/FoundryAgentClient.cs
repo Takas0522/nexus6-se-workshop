@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace NewsAnalysisAgent.Agents.Infrastructure;
 
+[Obsolete("Use FoundryAssistantsClient for Agent 2/3 Skill/DS file_search integration. This chat-completions client remains for WebResearch and fallback compatibility.")]
 public sealed class FoundryAgentClient(
     IConfiguration configuration,
     IHttpClientFactory httpClientFactory,

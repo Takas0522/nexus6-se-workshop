@@ -15,6 +15,8 @@
 
 > どちらも **Azure AI Foundry 上で動く .NET Microsoft Agent Framework エージェント（Agent 2・3）** が消費する。  
 > Work IQ（Copilot Studio）や SharePoint とは独立したルートで管理する。
+>
+> 2026-06-27 時点で Agent 2/3 は `FoundryAssistantsClient` により Foundry Assistants API + `file_search` で `vs_EN0WyOWKa7aVn0STee8oFhZ7` を参照する。実装・検証結果は [26 章](26-skill-filesearch.md) を参照。
 
 ---
 
@@ -181,7 +183,20 @@ NULL が業務上正常なケース・除外すべき行の条件・集計時の
 ## 推奨クエリパターン
 分析で頻出するクエリ骨子をコメント付きで記述する。
 AI がクエリを生成する際のテンプレートとして機能する。
+
+## 物理項目 ↔ 論理項目（日本語ラベル）対応
+| 物理列名 | 論理名 (ja) | 単位 | 説明 |
+|---|---|---|---|
+| loan_balance | ローン残高 | 円 | Teams などの利用者向け表示では論理名を使う。 |
 ```
+
+### 物理↔論理マッピング規約
+
+- 各 DS.md には `物理項目 ↔ 論理項目（日本語ラベル）対応` セクションを必ず置く。
+- `物理列名` は Fabric SQL / Gold KPI の実列名、`論理名 (ja)` は Teams 投稿・Agent 応答で使う日本語名にする。
+- 金額は原則 `円`、比率は `%`、件数は `件` のように単位を明示する。
+- Agent 2/3 は Fabric KPI を説明する際、本文では物理列名を出さず論理名と単位付き値で記述する。
+- 新しい KPI 列を追加した場合は DS.md、`ReferenceCatalog`、必要に応じて `docs/skills/skill-manifest.json` を同時に更新する。
 
 ---
 

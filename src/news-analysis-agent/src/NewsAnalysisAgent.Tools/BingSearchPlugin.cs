@@ -70,11 +70,7 @@ public sealed class MockBingSearchPlugin : IBingSearchPlugin
         {
             query,
             summary = "mock bing search result",
-            source_urls = new[] { "https://example.com/mock-news", "https://example.com/mock-market" },
-            results = new[]
-            {
-                new { title = "Mock market background", url = "https://example.com/mock-news" },
-                new { title = "Mock competitor trend", url = "https://example.com/mock-market" }
-            }
+            source_urls = Array.Empty<string>(),
+            results = Array.Empty<object>()
         }));
 }

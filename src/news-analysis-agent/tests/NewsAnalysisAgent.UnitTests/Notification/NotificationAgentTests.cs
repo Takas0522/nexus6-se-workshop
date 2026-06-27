@@ -127,16 +127,51 @@ public sealed class NotificationAgentTests
     public void AdaptiveCardTemplate_IncludesRequiredTeamsWorkflowEnvelopeAndCardElements()
     {
         var card = AdaptiveCardTemplates.Build(
-            new DivisionRecommendation(DivisionKind.Mobile, "headline", ["action"], ["data"]),
+            new DivisionRecommendation(DivisionKind.Mobile, "headline loan_balance", [new NextAction("action loan_balance", "26325000.0000 JPY を確認")], ["mobile_skill_competitor-mnp.md"])
+            {
+                SourceFiles = ["mobile_skill_competitor-mnp.md"],
+                KpiReferences = [new KpiReference("loan_balance", "", "26325", "JPY", "fintech_ai.loan_balances")]
+            },
             "high");
 
         AssertAdaptiveCardShape(card);
         using var document = JsonDocument.Parse(card);
         var content = document.RootElement.GetProperty("attachments")[0].GetProperty("content");
         Assert.Contains("headline", content.GetRawText());
+        Assert.DoesNotContain("loan_balance", content.GetRawText());
         Assert.Contains("action", content.GetRawText());
-        Assert.Contains("data", content.GetRawText());
+        var textValues = CollectTextValues(content);
+        Assert.Contains(textValues, text => text.Contains("26,325 円", StringComparison.Ordinal));
+        Assert.Contains(textValues, text => text.Contains("26,325,000 円", StringComparison.Ordinal));
+        Assert.DoesNotContain("mobile_skill_competitor-mnp.md", content.GetRawText());
+        Assert.Contains("Table", content.GetRawText());
         Assert.Contains("high", content.GetRawText());
+    }
+
+    [Fact]
+    public void AdaptiveCardTemplate_FiltersMockWebReferencesAndFormatsPercentAndCounts()
+    {
+        var card = AdaptiveCardTemplates.Build(
+            new DivisionRecommendation(DivisionKind.Fintech, "headline", [new NextAction("利上げ確認", "平均貸出金利 0.0500 % と 2.0000 件を確認")], [])
+            {
+                CategorizedReferences = new CategorizedReferences(
+                    [
+                        new KpiReference("avg_interest_rate", "", "0.0500", "%", "fintech_ai.risk_summary"),
+                        new KpiReference("negative_credit_reviews", "", "2.0000", "件", "fintech_ai.risk_summary")
+                    ],
+                    [],
+                    [new WebReference("mock", "https://example.com/mock-news")],
+                    [])
+            },
+            "high");
+
+        using var document = JsonDocument.Parse(card);
+        var raw = document.RootElement.GetRawText();
+        var textValues = CollectTextValues(document.RootElement);
+        Assert.Contains(textValues, text => text.Contains("5.00 %", StringComparison.Ordinal));
+        Assert.Contains(textValues, text => text.Contains("2 件", StringComparison.Ordinal));
+        Assert.DoesNotContain("example.com", raw);
+        Assert.Contains("Container", raw);
     }
 
     private static NewsAnalysisContext CreateContext() => new()
@@ -152,9 +187,9 @@ public sealed class NotificationAgentTests
             [DivisionKind.Mobile, DivisionKind.Fintech, DivisionKind.Ecommerce]),
         Recommendations =
         [
-            new DivisionRecommendation(DivisionKind.Mobile, "Mobile headline", ["Mobile action"], ["mobile-data"]),
-            new DivisionRecommendation(DivisionKind.Ecommerce, "Ecommerce headline", ["Ecommerce action"], ["ecommerce-data"]),
-            new DivisionRecommendation(DivisionKind.Fintech, "Fintech headline", ["Fintech action"], ["fintech-data"])
+            new DivisionRecommendation(DivisionKind.Mobile, "Mobile headline", [new NextAction("Mobile action", "")], ["mobile-data"]),
+            new DivisionRecommendation(DivisionKind.Ecommerce, "Ecommerce headline", [new NextAction("Ecommerce action", "")], ["ecommerce-data"]),
+            new DivisionRecommendation(DivisionKind.Fintech, "Fintech headline", [new NextAction("Fintech action", "")], ["fintech-data"])
         ]
     };
 
@@ -188,7 +223,10 @@ public sealed class NotificationAgentTests
     }
 
     private static string SampleCard() => AdaptiveCardTemplates.Build(
-        new DivisionRecommendation(DivisionKind.Mobile, "headline", ["action"], ["data"]),
+        new DivisionRecommendation(DivisionKind.Mobile, "headline", [new NextAction("action", "")], ["mobile_skill_competitor-mnp.md"])
+        {
+            SourceFiles = ["mobile_skill_competitor-mnp.md"]
+        },
         "high");
 
     private static void AssertAdaptiveCardShape(string payloadJson)
@@ -202,6 +240,36 @@ public sealed class NotificationAgentTests
         Assert.Equal("1.5", content.GetProperty("version").GetString());
         Assert.True(content.GetProperty("body").GetArrayLength() > 0);
         Assert.True(content.GetProperty("actions").GetArrayLength() > 0);
+    }
+
+    private static IReadOnlyList<string> CollectTextValues(JsonElement element)
+    {
+        var values = new List<string>();
+        Collect(element, values);
+        return values;
+    }
+
+    private static void Collect(JsonElement element, List<string> values)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            if (element.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
+            {
+                values.Add(text.GetString() ?? string.Empty);
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                Collect(property.Value, values);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                Collect(item, values);
+            }
+        }
     }
 
     private sealed class CapturingTeamsPlugin : ITeamsNotificationPlugin

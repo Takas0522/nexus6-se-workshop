@@ -121,9 +121,8 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
             var headline = root.TryGetProperty("headline", out var headlineElement)
                 ? headlineElement.GetString() ?? string.Empty
                 : string.Empty;
-            var nextActions = ReadStringArray(root, "next_actions")
-                .Concat(ReadActionTitles(root, "recommended_actions"))
-                .Where(value => !string.IsNullOrWhiteSpace(value))
+            var nextActions = ReadNextActions(root, "next_actions")
+                .Concat(ReadNextActions(root, "recommended_actions"))
                 .Take(5)
                 .ToArray();
             var dataReferences = ReadStringArray(root, "data_references")
@@ -131,13 +130,28 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+            var sourceFiles = ReadStringArray(root, "source_files")
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var kpiReferences = ReadKpiReferences(root).ToArray();
 
             if (string.IsNullOrWhiteSpace(headline) || nextActions.Length == 0)
             {
                 return FallbackRecommendation();
             }
 
-            return new DivisionRecommendation(Division, headline, nextActions, dataReferences);
+            return new DivisionRecommendation(
+                Division,
+                ReferenceCatalog.LocalizeText(headline),
+                nextActions.Select(action => new NextAction(
+                    ReferenceCatalog.LocalizeText(action.Title),
+                    ReferenceCatalog.LocalizeText(action.Body))).ToArray(),
+                dataReferences)
+            {
+                SourceFiles = sourceFiles,
+                KpiReferences = kpiReferences
+            };
         }
         catch (JsonException)
         {
@@ -146,7 +160,7 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
     }
 
     private DivisionRecommendation FallbackRecommendation() =>
-        new(Division, "(LLM parse failed)", ["KPI を再確認"], [$"{RecommendPrompts.DivisionToken(Division)}_ai.risk_summary"]);
+        new(Division, "(LLM parse failed)", [new NextAction("KPI を再確認", "対象 KPI と Skill/DS 根拠を再確認する。")], [$"{RecommendPrompts.DivisionToken(Division)}_ai.risk_summary"]);
 
     private IReadOnlyList<KnowledgeSnippet> FilterKnowledge(IReadOnlyList<KnowledgeSnippet> snippets)
     {
@@ -172,7 +186,7 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
             .Where(value => !string.IsNullOrWhiteSpace(value))!;
     }
 
-    private static IEnumerable<string> ReadActionTitles(JsonElement root, string propertyName)
+    private static IEnumerable<NextAction> ReadNextActions(JsonElement root, string propertyName)
     {
         if (!root.TryGetProperty(propertyName, out var array) || array.ValueKind != JsonValueKind.Array)
         {
@@ -183,16 +197,57 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
         {
             if (item.ValueKind == JsonValueKind.String)
             {
-                return item.GetString();
+                return NextAction.FromText(item.GetString() ?? string.Empty);
             }
 
-            if (item.ValueKind == JsonValueKind.Object && item.TryGetProperty("title", out var title))
+            if (item.ValueKind == JsonValueKind.Object)
             {
-                return title.GetString();
+                var title = ReadString(item, "title") ?? ReadString(item, "summary") ?? string.Empty;
+                var body = ReadString(item, "body") ?? ReadString(item, "detail") ?? ReadString(item, "description") ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(body))
+                {
+                    return NextAction.FromText(body);
+                }
+
+                return new NextAction(title.Trim(), body.Trim());
             }
 
             return null;
-        }).Where(value => !string.IsNullOrWhiteSpace(value))!;
+        }).Where(value => value is not null && (!string.IsNullOrWhiteSpace(value.Title) || !string.IsNullOrWhiteSpace(value.Body)))!;
+    }
+
+    private static IEnumerable<KpiReference> ReadKpiReferences(JsonElement root)
+    {
+        if (!root.TryGetProperty("kpi_references", out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (var item in array.EnumerateArray().Where(static item => item.ValueKind == JsonValueKind.Object))
+        {
+            var physicalName = ReadString(item, "physical_name") ?? ReadString(item, "name");
+            if (string.IsNullOrWhiteSpace(physicalName))
+            {
+                continue;
+            }
+
+            yield return ReferenceCatalog.LocalizeKpi(new KpiReference(
+                physicalName,
+                LogicalNameJa: ReadString(item, "logical_name_ja") ?? string.Empty,
+                Value: ReadString(item, "value"),
+                Unit: ReadString(item, "unit"),
+                Table: ReadString(item, "table")));
+        }
+    }
+
+    private static string? ReadString(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var element))
+        {
+            return null;
+        }
+
+        return element.ValueKind == JsonValueKind.String ? element.GetString() : element.ToString();
     }
 
     private static string ExtractJsonObject(string text)

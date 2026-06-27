@@ -13,8 +13,16 @@ public sealed class NotificationAgent(
 
     public async Task RunAsync(NewsAnalysisContext ctx, CancellationToken ct)
     {
-        var notifications = ctx.Recommendations
+        var enrichedRecommendations = ctx.Recommendations
             .OrderBy(recommendation => recommendation.Division)
+            .Select(recommendation => recommendation with
+            {
+                CategorizedReferences = ReferenceCatalog.BuildCategorized(recommendation, ctx.WebResearchResult)
+            })
+            .ToArray();
+        ctx.Recommendations = enrichedRecommendations.ToList();
+
+        var notifications = enrichedRecommendations
             .Select(recommendation => new NotificationPayload(
                 recommendation.Division.ToString(),
                 AdaptiveCardTemplates.Build(recommendation, ResolveRiskLevel(ctx, recommendation.Division))))

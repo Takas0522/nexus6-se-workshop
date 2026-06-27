@@ -42,7 +42,11 @@ builder.Services.AddSingleton<MockFoundryAgentClient>();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Foundry:ProjectEndpoint"]) &&
     !string.IsNullOrWhiteSpace(builder.Configuration["Foundry:DefaultModelDeployment"]))
 {
-    builder.Services.AddSingleton<IFoundryAgentClient, FoundryAgentClient>();
+#pragma warning disable CS0618
+    builder.Services.AddSingleton<FoundryAgentClient>();
+    builder.Services.AddSingleton<FoundryAssistantsClient>();
+    builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<FoundryAgentClient>());
+#pragma warning restore CS0618
 }
 else
 {
@@ -64,8 +68,18 @@ builder.Services.AddSingleton<IDynamics365Plugin, Dynamics365Plugin>();
 builder.Services.AddSingleton<IKnowledgeProvider, LocalFolderKnowledgeProvider>();
 
 builder.Services.AddSingleton<WebResearchAgent>();
-builder.Services.AddSingleton<BusinessImpactAgent>();
-builder.Services.AddSingleton<IDivisionRecommendAgentFactory, DivisionRecommendAgentFactory>();
+builder.Services.AddSingleton(sp => new BusinessImpactAgent(
+    (IFoundryAgentClient?)sp.GetService<FoundryAssistantsClient>() ?? sp.GetRequiredService<MockFoundryAgentClient>(),
+    sp.GetRequiredService<IFabricDataPlugin>(),
+    sp.GetRequiredService<IKnowledgeProvider>(),
+    sp.GetRequiredService<ILogger<BusinessImpactAgent>>()));
+builder.Services.AddSingleton<IDivisionRecommendAgentFactory>(sp => new DivisionRecommendAgentFactory(
+    sp.GetRequiredService<IMobileDataPlugin>(),
+    sp.GetRequiredService<IEcommerceDataPlugin>(),
+    sp.GetRequiredService<IFintechDataPlugin>(),
+    (IFoundryAgentClient?)sp.GetService<FoundryAssistantsClient>() ?? sp.GetRequiredService<MockFoundryAgentClient>(),
+    sp.GetRequiredService<IKnowledgeProvider>(),
+    sp.GetRequiredService<ILogger<DivisionRecommendAgent>>()));
 builder.Services.AddSingleton<NotificationAgent>();
 builder.Services.AddSingleton<WorkflowExecutionStore>();
 builder.Services.AddSingleton<NewsAnalysisWorkflowBuilder>();

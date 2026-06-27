@@ -29,7 +29,7 @@ public sealed class CoreWorkflowTests
                 [new ImpactScore(DivisionKind.Mobile, 4.5, "high")],
                 ["reason"],
                 [DivisionKind.Mobile]),
-            Recommendations = [new DivisionRecommendation(DivisionKind.Mobile, "headline", ["act"], ["data"])],
+            Recommendations = [new DivisionRecommendation(DivisionKind.Mobile, "headline", [new NextAction("act", "")], ["data"])],
             NotificationResult = new NotificationResult(true, ["mock"], "{}")
         };
 

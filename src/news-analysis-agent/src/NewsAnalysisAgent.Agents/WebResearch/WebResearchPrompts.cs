@@ -9,6 +9,7 @@ public static class WebResearchPrompts
 - 国内競合他社の動向
 - 業界トレンドとマクロ経済指標
 出力は JSON 形式（summary / key_factors / source_urls）で返してください。
+source_urls は確実に参照した実在 URL のみを入れ、不確実な URL や example.com は出力しないでください。
 """;
 
     public const string OutputJsonSchema = """

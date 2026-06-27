@@ -77,7 +77,7 @@ public sealed class DivisionRecommendAgentTests
         var recommendation = Assert.Single(context.Recommendations);
         Assert.Equal(DivisionKind.Mobile, recommendation.Division);
         Assert.Equal("(LLM parse failed)", recommendation.Headline);
-        Assert.Equal(["KPI を再確認"], recommendation.NextActions);
+        Assert.Equal("KPI を再確認", recommendation.NextActions.Single().Title);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class DivisionRecommendAgentTests
             {
                 division,
                 headline = $"{division} headline",
-                next_actions = new[] { $"{division} action" },
+                next_actions = new[] { new { title = $"{division} action", body = "数値根拠を確認する。" } },
                 data_references = new[] { $"{division}_ai.risk_summary" }
             }));
         }

@@ -79,3 +79,41 @@ GROUP BY loan_type;
 - テーブル追加時は本 DS.md の対象テーブルと KPI 定義を更新する。
 - Skill.md と関連する KPI 名は表記をそろえる。
 - 更新後は ADLS の `skill-docs/ds-docs/` にアップロードする。
+
+## 物理項目 ↔ 論理項目（日本語ラベル）対応
+
+| 物理列名 | 論理名 (ja) | 単位 | 説明 |
+|---|---|---|---|
+| account_id | 口座ID | - | 口座単位の内部キー。表示では口座数等に集計する。 |
+| user_id | ユーザーID | - | 顧客単位の内部キー。個人特定を避けて扱う。 |
+| account_type | 口座種別 | - | 普通、投資、決済などの口座区分。 |
+| balance | 口座残高 | 円 | 口座残高。 |
+| transaction_id | 決済ID | - | カード決済明細の識別子。 |
+| transaction_date | 決済日 | 日付 | 決済発生日。 |
+| amount | 決済金額 | 円/外貨 | カード決済額。 |
+| overseas_flag | 海外決済フラグ | 真偽値 | 海外加盟店または外貨決済の判定。 |
+| position_amount | ポジション金額 | 円/外貨 | FX・証券等の保有額。 |
+| pnl_amount | 評価損益 | 円/外貨 | ポジションの損益。JPY 換算を優先する。 |
+| market_currency | 市場通貨 | - | ポジションが参照する通貨。 |
+| fee_revenue | 手数料収益 | 円 | 決済・取引等から得る手数料収益。 |
+| interest_revenue | 金利収益 | 円 | 貸出等から得る金利収益。 |
+| fx_revenue | 為替収益 | 円 | 為替取引・換算から得る収益。 |
+| risk_loss | リスク損失 | 円 | 与信・市場リスクに伴う損失。 |
+| loan_id | ローンID | - | ローン契約の識別子。 |
+| loan_type | ローン種別 | - | 住宅ローン、カードローン、リボ払い等。 |
+| principal_balance | ローン元本残高 | 円 | ローンの元本残高。 |
+| loan_balance | ローン残高 | 円 | ローン元本残高または集計済み残高。 |
+| interest_rate | 貸出金利 | % | ローン契約の適用金利。 |
+| avg_interest_rate | 平均貸出金利 | % | 対象ローン群の加重平均金利。 |
+| monthly_payment | 月額返済額 | 円 | ローンの毎月返済額。 |
+| overdue_flag | 延滞フラグ | 真偽値 | 現在延滞中かどうか。 |
+| fx_position_usd | USD建てFXポジション | USD | USD 建て市場リスク量。 |
+| loan_delinquency_rate | ローン延滞率 | % | ローン件数に対する延滞割合。 |
+| year_month | 対象年月 | yyyy-MM | Gold リスクサマリの集計対象月。 |
+| metric_name | KPI物理名 | - | `fintech_ai.risk_summary` の KPI 名。表示では本表の論理名に変換する。 |
+| metric_value | KPI値 | 指標依存 | `metric_name` に対応する数値。`metric_unit` と本表の単位に従って表示する。 |
+| metric_unit | KPI単位 | 指標依存 | KPI 値の単位。JPY は円、件数は件、比率は % に正規化する。 |
+| description | KPI説明 | - | KPI の業務説明。 |
+| fx_position_pnl | FXポジション損益合計 | 円 | FX ポジションの JPY 換算評価損益合計。 |
+| overseas_card_amount | 海外カード決済額 | 円 | 海外フラグ付きカード決済額の JPY 換算合計。 |
+| negative_credit_reviews | 否認・保留審査件数 | 件 | 与信審査で否認または保留となった件数。 |

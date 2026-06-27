@@ -53,11 +53,11 @@ public static class AdaptiveCardTemplates
                   {{nextActions}},
                   {
                     "type": "TextBlock",
-                    "text": "Data References",
+                    "text": "参照データ",
                     "weight": "Bolder",
                     "spacing": "Medium"
                   },
-                  {{dataReferences}}
+                  {{categorizedReferences}}
                 ],
                 "actions": [
                   {
@@ -81,11 +81,11 @@ public static class AdaptiveCardTemplates
         return Template
             .Replace("{{divisionTitle}}", JsonSerializer.Serialize($"{division} Web Pulse Recommendation"), StringComparison.Ordinal)
             .Replace("{{headerColor}}", JsonSerializer.Serialize(HeaderColor(recommendation.Division)), StringComparison.Ordinal)
-            .Replace("{{headline}}", JsonSerializer.Serialize(recommendation.Headline), StringComparison.Ordinal)
+            .Replace("{{headline}}", JsonSerializer.Serialize(ReferenceCatalog.LocalizeText(recommendation.Headline)), StringComparison.Ordinal)
             .Replace("{{riskLevel}}", JsonSerializer.Serialize(riskLevel), StringComparison.Ordinal)
             .Replace("{{division}}", JsonSerializer.Serialize(division), StringComparison.Ordinal)
-            .Replace("{{nextActions}}", BuildTextBlocks(recommendation.NextActions), StringComparison.Ordinal)
-            .Replace("{{dataReferences}}", BuildTextBlocks(recommendation.DataReferences), StringComparison.Ordinal);
+            .Replace("{{nextActions}}", BuildNextActionContainers(recommendation.NextActions), StringComparison.Ordinal)
+            .Replace("{{categorizedReferences}}", BuildCategorizedReferenceBlocks(recommendation), StringComparison.Ordinal);
     }
 
     private static string HeaderColor(DivisionKind division) => division switch
@@ -96,15 +96,204 @@ public static class AdaptiveCardTemplates
         _ => "Default"
     };
 
-    private static string BuildTextBlocks(IReadOnlyCollection<string> values)
+    private static string BuildNextActionContainers(IReadOnlyCollection<NextAction> actions)
     {
-        var items = values.Count == 0 ? ["（なし）"] : values;
-        return string.Join(",\n              ", items.Select(value => $$"""
+        if (actions.Count == 0)
+        {
+            return """
             {
               "type": "TextBlock",
-              "text": {{JsonSerializer.Serialize($"• {value}")}},
+              "text": "（なし）",
               "wrap": true
+            }
+            """;
+        }
+
+        return string.Join(",\n              ", actions.Select((action, index) => $$"""
+            {
+              "type": "Container",
+              "spacing": "Small",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": {{JsonSerializer.Serialize($"{ToCircledNumber(index + 1)} {ReferenceCatalog.LocalizeText(action.Title)}")}},
+                  "weight": "Bolder",
+                  "color": "Accent",
+                  "wrap": true
+                },
+                {
+                  "type": "TextBlock",
+                  "text": {{JsonSerializer.Serialize(ReferenceCatalog.LocalizeText(action.Body))}},
+                  "spacing": "Small",
+                  "wrap": true
+                }
+              ]
             }
             """));
     }
+
+    private static string BuildCategorizedReferenceBlocks(DivisionRecommendation recommendation)
+    {
+        var references = recommendation.CategorizedReferences ?? new CategorizedReferences(
+            recommendation.KpiReferences.Select(ReferenceCatalog.LocalizeKpi).ToArray(),
+            recommendation.SourceFiles.Select(ReferenceCatalog.ResolveSkill).Where(item => item is not null).Select(item => item!).ToArray(),
+            [],
+            recommendation.DataReferences.Where(value => value.Contains("ds_", StringComparison.OrdinalIgnoreCase)).ToArray());
+
+        var blocks = new[]
+        {
+            BuildFabricKpiTable(references.FabricKpi),
+            BuildSkillTable(references.Skill),
+            BuildWebTable(references.Web.Where(item => ReferenceCatalog.IsAllowedWebReference(item.Url)).ToArray()),
+            BuildDsFactSet(references.Ds)
+        }.Where(static block => !string.IsNullOrWhiteSpace(block));
+
+        return string.Join(",\n              ", blocks);
+    }
+
+    private static string BuildFabricKpiTable(IReadOnlyCollection<KpiReference> kpis)
+    {
+        if (kpis.Count == 0)
+        {
+            return BuildEmptyReferenceBlock("参照データ (Fabric KPI)");
+        }
+
+        return $$"""
+            {
+              "type": "TextBlock",
+              "text": "参照データ (Fabric KPI)",
+              "weight": "Bolder",
+              "spacing": "Small",
+              "wrap": true
+            },
+            {
+              "type": "Table",
+              "columns": [
+                { "width": 2 },
+                { "width": 1 }
+              ],
+              "rows": [
+                {{BuildTableRow(["論理名", "値"], header: true)}},
+                {{string.Join(",\n                ", kpis.Select(kpi => BuildTableRow([
+                    kpi.LogicalNameJa,
+                    KpiValueFormatter.Format(kpi)
+                ])))}}
+              ]
+            }
+            """;
+    }
+
+    private static string BuildSkillTable(IReadOnlyCollection<SkillReference> skills)
+    {
+        if (skills.Count == 0)
+        {
+            return BuildEmptyReferenceBlock("根拠 (Source)");
+        }
+
+        return $$"""
+            {
+              "type": "TextBlock",
+              "text": "根拠 (Source)",
+              "weight": "Bolder",
+              "spacing": "Small",
+              "wrap": true
+            },
+            {
+              "type": "Table",
+              "columns": [
+                { "width": 2 },
+                { "width": 1 }
+              ],
+              "rows": [
+                {{BuildTableRow(["日本語タイトル", "担当"], header: true)}},
+                {{string.Join(",\n                ", skills.Select(skill => BuildTableRow([skill.TitleJa, skill.Owner])))}}
+              ]
+            }
+            """;
+    }
+
+    private static string BuildWebTable(IReadOnlyCollection<WebReference> webReferences)
+    {
+        if (webReferences.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return $$"""
+            {
+              "type": "TextBlock",
+              "text": "Web リファレンス",
+              "weight": "Bolder",
+              "spacing": "Small",
+              "wrap": true
+            },
+            {
+              "type": "Table",
+              "columns": [
+                { "width": 1 }
+              ],
+              "rows": [
+                {{BuildTableRow(["タイトル/URL"], header: true)}},
+                {{string.Join(",\n                ", webReferences.Select(item => BuildTableRow([string.IsNullOrWhiteSpace(item.Title) ? item.Url : item.Title])))}}
+              ]
+            }
+            """;
+    }
+
+    private static string BuildDsFactSet(IReadOnlyCollection<string> dsReferences)
+    {
+        if (dsReferences.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return $$"""
+            {
+              "type": "TextBlock",
+              "text": "DS 定義",
+              "weight": "Bolder",
+              "spacing": "Small",
+              "wrap": true
+            },
+            {
+              "type": "FactSet",
+              "facts": [
+                {{string.Join(",\n                ", dsReferences.Select(item => $$"""{ "title": "DS.md", "value": {{JsonSerializer.Serialize(item)}} }"""))}}
+              ]
+            }
+            """;
+    }
+
+    private static string BuildEmptyReferenceBlock(string title) => $$"""
+            {
+              "type": "TextBlock",
+              "text": {{JsonSerializer.Serialize($"{title}: （なし）")}},
+              "wrap": true,
+              "spacing": "Small"
+            }
+            """;
+
+    private static string BuildTableRow(IReadOnlyList<string> values, bool header = false) => $$"""
+            {
+              "type": "TableRow",
+              "cells": [
+                {{string.Join(",\n                ", values.Select(value => $$"""
+                {
+                  "type": "TableCell",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": {{JsonSerializer.Serialize(value)}},
+                      "wrap": true{{(header ? ",\n                      \"weight\": \"Bolder\"" : string.Empty)}}
+                    }
+                  ]
+                }
+                """))}}
+              ]
+            }
+            """;
+
+    private static string ToCircledNumber(int value) => value is >= 1 and <= 10
+        ? char.ConvertFromUtf32(0x245F + value)
+        : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

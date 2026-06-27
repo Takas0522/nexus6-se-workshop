@@ -27,7 +27,7 @@ public sealed class WebResearchAgentTests
         Assert.NotNull(context.WebResearchResult);
         Assert.Equal("Mock web research summary for local execution.", context.WebResearchResult!.Summary);
         Assert.Equal(3, context.WebResearchResult.KeyFactors.Length);
-        Assert.Equal(["https://example.com/mock-news", "https://example.com/mock-market"], context.WebResearchResult.SourceUrls);
+        Assert.Empty(context.WebResearchResult.SourceUrls);
     }
 
     [Fact]

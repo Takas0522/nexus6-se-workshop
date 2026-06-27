@@ -82,7 +82,22 @@ public sealed class BusinessImpactAgent(
                 reasons = scores.Select(score => $"{ToJsonDivision(score.Division)}: LLM score {score.Score:0.0} ({score.RiskLevel}).").ToArray();
             }
 
-            return new BusinessImpactResult(scores, reasons, scores.Select(static score => score.Division).ToArray());
+            var dataReferences = ReadStringArray(root, "data_references")
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var sourceFiles = ReadStringArray(root, "source_files")
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var kpiReferences = ReadKpiReferences(root).ToArray();
+
+            return new BusinessImpactResult(scores, reasons, scores.Select(static score => score.Division).ToArray())
+            {
+                DataReferences = dataReferences,
+                SourceFiles = sourceFiles,
+                KpiReferences = kpiReferences
+            };
         }
         catch (JsonException ex)
         {
@@ -220,6 +235,40 @@ public sealed class BusinessImpactAgent(
             .Where(static item => item.ValueKind == JsonValueKind.String)
             .Select(static item => item.GetString())
             .Where(static value => !string.IsNullOrWhiteSpace(value))!;
+    }
+
+    private static IEnumerable<KpiReference> ReadKpiReferences(JsonElement root)
+    {
+        if (!root.TryGetProperty("kpi_references", out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (var item in array.EnumerateArray().Where(static item => item.ValueKind == JsonValueKind.Object))
+        {
+            var physicalName = ReadString(item, "physical_name") ?? ReadString(item, "name");
+            if (string.IsNullOrWhiteSpace(physicalName))
+            {
+                continue;
+            }
+
+            yield return ReferenceCatalog.LocalizeKpi(new KpiReference(
+                physicalName,
+                LogicalNameJa: ReadString(item, "logical_name_ja") ?? string.Empty,
+                Value: ReadString(item, "value"),
+                Unit: ReadString(item, "unit"),
+                Table: ReadString(item, "table")));
+        }
+    }
+
+    private static string? ReadString(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var element))
+        {
+            return null;
+        }
+
+        return element.ValueKind == JsonValueKind.String ? element.GetString() : element.ToString();
     }
 
     private static object SafeJson(string json)

@@ -79,3 +79,40 @@ GROUP BY currency, vendor_region;
 - テーブル追加時は本 DS.md の対象テーブルと KPI 定義を更新する。
 - Skill.md と関連する KPI 名は表記をそろえる。
 - 更新後は ADLS の `skill-docs/ds-docs/` にアップロードする。
+
+## 物理項目 ↔ 論理項目（日本語ラベル）対応
+
+| 物理列名 | 論理名 (ja) | 単位 | 説明 |
+|---|---|---|---|
+| contract_id | 契約ID | - | 契約単位の集計キー。カード表示では件数集計名に言い換える。 |
+| customer_id | 顧客ID | - | 顧客単位の内部キー。個人特定を避け、セグメント集計で扱う。 |
+| plan_id | 料金プランID | - | 契約中プランの識別子。 |
+| device_type | 端末種別 | - | SIMのみ、スマートフォン等の区分。 |
+| update_month | 更新月 | yyyy-MM | MNP・解約リスクが高まる契約更新月。 |
+| subsidy_amount | 端末補助額 | 円 | 端末割引・補助の原資。 |
+| usage_date | 利用日 | 日付 | 利用・請求実績の日付。 |
+| voice_usage | 音声利用量 | 分 | 音声通話の利用量。 |
+| data_usage | データ利用量 | GB | データ通信の利用量。 |
+| monthly_charge | 月額請求額 | 円 | 月次 ARPU 算出に使う請求額。 |
+| currency | 取引通貨 | - | 端末・設備コストの元通貨。 |
+| unit_cost | 単価 | 円/外貨 | 調達単価。JPY 換算値があればそちらを優先する。 |
+| procurement_date | 調達日 | 日付 | 端末・設備の仕入タイミング。 |
+| vendor_region | 仕入先地域 | - | 為替・地政学リスクの対象地域。 |
+| mnp_type | MNP種別 | - | 転出・転入の区分。 |
+| trigger_reason | MNP理由 | - | 競合キャンペーン等の転出入理由。 |
+| total_amount | 分割払い総額 | 円 | 端末分割払いの元本総額。 |
+| monthly_payment | 月額分割支払額 | 円 | 契約者の月次支払負担。 |
+| remaining_months | 残支払回数 | 月 | 分割払いの残期間。 |
+| interest_rate | 分割払い金利 | % | 変動金利影響を見るための金利。 |
+| mnp_out_rate | MNP転出率 | % | 契約母集団に対する MNP 転出割合。 |
+| device_fx_cost_jpy | 海外端末仕入コスト | 円 | 為替影響を受ける端末仕入コスト。 |
+| overseas_procurement_cost | 海外調達コスト | 円 | 海外由来の端末・設備調達コスト。 |
+| year_month | 対象年月 | yyyy-MM | Gold リスクサマリの集計対象月。 |
+| metric_name | KPI物理名 | - | `mobile_ai.risk_summary` の KPI 名。表示では本表の論理名に変換する。 |
+| metric_value | KPI値 | 指標依存 | `metric_name` に対応する数値。`metric_unit` と本表の単位に従って表示する。 |
+| metric_unit | KPI単位 | 指標依存 | KPI 値の単位。JPY は円、件数は件、比率は % に正規化する。 |
+| description | KPI説明 | - | KPI の業務説明。 |
+| device_subsidy | 端末補助額合計 | 円 | 端末購入補助・割引原資の合計。 |
+| mnp_out_count | MNP転出件数 | 件 | MNP 種別が転出の件数。 |
+| installment_payment | 分割払い月額合計 | 円 | 端末分割払いの月額支払合計。 |
+| cancel_ticket_count | 解約問い合わせ件数 | 件 | 解約意向を含む問い合わせ件数。 |

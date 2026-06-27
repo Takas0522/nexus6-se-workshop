@@ -17,8 +17,14 @@ public sealed class MockFoundryAgentClient : IFoundryAgentClient
             {
                 division,
                 headline = $"{division} mock recommendation based on KPI and Skill/DS.",
-                next_actions = new[] { "KPI を再確認", "高優先リスクの対応案を事業部でレビュー" },
-                data_references = new[] { $"{division}_ai.risk_summary", "mock-skill-ds" }
+                next_actions = new[]
+                {
+                    new { title = "KPI を再確認", body = "参照 KPI と Skill/DS のしきい値を担当者が確認する。" },
+                    new { title = "対応案をレビュー", body = "高優先リスクの施策案を事業部でレビューする。" }
+                },
+                data_references = new[] { $"{division}_ai.risk_summary", $"{division}_skill_mock.md", $"ds_{division}_ai.md" },
+                source_files = new[] { $"{division}_skill_mock.md" },
+                kpi_references = new[] { new { physical_name = "gross_revenue_jpy", value = "1000000", unit = "JPY", table = $"{division}_ai.risk_summary" } }
             });
             return Task.FromResult(recommendationJson);
         }
@@ -27,7 +33,7 @@ public sealed class MockFoundryAgentClient : IFoundryAgentClient
         {
             summary = "Mock web research summary for local execution.",
             key_factors = new[] { "為替・金融市場の変動", "国内競合他社の動向", "業界トレンドの変化" },
-            source_urls = new[] { "https://example.com/mock-news", "https://example.com/mock-market" }
+            source_urls = Array.Empty<string>()
         });
         return Task.FromResult(json);
     }
