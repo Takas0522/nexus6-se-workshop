@@ -42,33 +42,44 @@ azd auth login
 | [Git](https://git-scm.com/) | 2.x 以上 | バージョン管理 |
 | [GitHub Copilot CLI](https://docs.github.com/copilot/using-github-copilot/using-github-copilot-in-the-command-line) | 最新 | DemoDataGenerator の Copilot SDK ランタイム（CLI が自動バンドルされるため通常は別途不要だが、ローカル動作確認に使用） |
 
-### Azure・クラウドリソース（必須）
+### Azure・クラウドリソース（既存利用 / RG: `SEWorkShopC12` / Sweden Central）
 
-| サービス | SKU / ティア | 用途 |
+| サービス | リソース名 | SKU | 用途 |
+|---|---|---|---|
+| **Azure AI Foundry** | `fd-PartnerIQ` | S0 (AIServices) | LLM 推論（`gpt-5.4`）・File Search・Grounding with Bing Search |
+| **Foundry Project** | `proj-PartnerIQ` | - | Agent 実行 / Knowledge 管理 |
+| **Azure AI Search** | `iq-knowledge-source` | Standard | Foundry File Search のバックエンドとして共用 |
+| **Microsoft Fabric Capacity** | `fabricswedencu001` | F4 | Fabric の容量ライセンス |
+| **Microsoft Fabric Workspace** | `fabric_seworkshop_ws1` | - | Lakehouse / SQL Database / Notebook を配置 |
+
+### Azure・クラウドリソース（新規作成 / RG: `rg-nexus6-swc` / Sweden Central）
+
+| サービス | リソース名（案） | SKU | 用途 |
+|---|---|---|---|
+| **ADLS Gen2**（Skill.md 用） | `stnexus6skill<NNNN>` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
+| **Storage Static Website**（News Portal 用） | `stnexus6portal<NNNN>` | Standard LRS | 静的 HTML ホスト（Public + `robots.txt` で検索除外） |
+| **Azure Key Vault** | `kv-nexus6-swc` | Standard | Teams Workflows URL 等の外部 API キー |
+| **Azure Container Apps Env** | `cae-nexus6-swc` | Consumption | Hosted Agent 実行環境 |
+| **Azure Container App** | `ca-nexus6-hosted-agent` | Consumption | .NET 10 Hosted Agent ホスティング |
+| **Azure Container Registry** | `crnexus6swc` | Basic | コンテナイメージ管理 |
+| **Application Insights** | `appi-nexus6-swc` | Pay-as-you-go | エージェント実行ログ・トークン使用量監視 |
+
+### M365 / Identity
+
+| サービス | 状態 | 用途 |
 |---|---|---|
-| **Azure AI Foundry** | Standard | LLM 推論（GPT-4o / gpt-4o-mini）・File Search・Grounding with Bing Search |
-| **Microsoft Fabric** | F2 以上 | OneLake・Lakehouse（Bronze/Silver/Gold）・業務システムデータ格納 |
-| **Azure Container Apps** | Consumption | .NET 10 Hosted Agent ホスティング |
-| **ADLS Gen2** | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
 | **Microsoft Entra ID** | 既存テナント | Managed Identity（全サービス認証の統一基盤） |
-| **Azure Key Vault** | Standard | Teams Workflows URL 等、外部サービスの API キーのみ管理 |
-| **Microsoft Teams (Workflows)** | M365 既存ライセンス | Agent 4 の Adaptive Card 通知 |
+| **Microsoft Teams (Workflows)** | **後追い構築**（チャネル未作成） | Agent 4 の Adaptive Card 通知。URL は Key Vault シークレットですげ替え可能 |
 
-### Azure・クラウドリソース（推奨）
-
-| サービス | SKU / ティア | 用途 |
-|---|---|---|
-| **Azure Monitor / App Insights** | Pay-as-you-go | エージェント実行ログ・トークン使用量監視 |
-| **Azure Container Registry** | Basic | コンテナイメージ管理 |
-
-> **認証方針**: Azure リソースへの認証は Container Apps の **System Assigned Managed Identity** に統一。API キー・サービスプリンシパルシークレットは原則 Key Vault 管理とし、コードやリポジトリに含めない。
+> **認証方針**: Azure リソースへの認証は Container Apps の **System Assigned Managed Identity** に統一。API キー・サービスプリンシパルシークレットは原則 Key Vault 管理とし、コードやリポジトリに含めない。ローカル / Codespaces 実行時は `az login` 認証情報（`DefaultAzureCredential` の `AzureCliCredential` チェーン）を使用する。
 
 ### デモデータ生成（DemoDataGenerator）追加依存
 
 | 項目 | 内容 |
 |---|---|
 | **GitHub Copilot サブスクリプション** | Copilot SDK の実行に必要（または BYOK 設定） |
-| **Fabric SQL Database × 16** | 業務システム単位のDB（common 1 + mobile 5 + ecommerce 5 + fintech 5） |
+| **Fabric SQL Database × 16** | 業務システム単位のDB（common 1 + mobile 5 + ecommerce 5 + fintech 5）。`fabric_seworkshop_ws1` 内に作成 |
+| **代表 CSV 1 ファイル** | `scripts/seed-data/scenario_seed.csv`（手動配置） |
 | 環境変数 `GITHUB_TOKEN` | `dotnet user-secrets` で管理・コミット禁止 |
 
 ## ディレクトリ構成

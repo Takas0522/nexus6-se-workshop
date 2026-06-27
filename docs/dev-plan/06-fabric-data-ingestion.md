@@ -11,68 +11,84 @@
 | グループ会社規模 | 30,000 名想定 |
 | 対象期間 | 過去 6 ヶ月 |
 | 事業部 | モバイル通信・Eコマース・Fintech・共通（顧客統合ID） |
-| Demo 採用データ形式 | **合成 CSV ファイルのみ**（Bronze コンテナへ手動/スクリプトでアップロード） |
-| 更新頻度 | 手動（Demo 中は一回のみ） |
+| Demo 採用データ生成方式 | **代表 CSV 1 ファイルのみ手動配置** + **`DemoDataGenerator`（Copilot SDK + EF Core）で Fabric SQL Database × 16 に書き込み**（OneLake に自動同期） |
+| 更新頻度 | DemoDataGenerator はシナリオ切替時にオンデマンド実行 |
 
 > Demo スコープでは **本番用のソースシステム接続（SQL Server / PostgreSQL / REST API）・Data Pipeline / Dataflow Gen2 / オンプレ Gateway / 日次スケジュールは全て取り扱わない**。本明細は Demo で作る最小限のデータパイプラインに限定し、本番構成は「将来拡張」として脚注で参考示する。
 
 ---
 
-## OneLake アーキテクチャ（Demo 簡易メダリオン）
+## OneLake アーキテクチャ（Demo メダリオン + Fabric SQL DB）
 
 ```mermaid
 graph TD
-    subgraph OL["OneLake / fabric_seworkshop_ws1"]
-        subgraph Bronze["🔶 Bronze Lakehouse（合成 CSV をそのまま取り込み）"]
-            B1[mobile_raw]
-            B2[ecommerce_raw]
-            B3[fintech_raw]
-            B4[common_raw]
+    DEMOGEN["DemoDataGenerator\n.NET + Copilot SDK + EF Core\nローカル/Codespaces 実行"]
+    CSV["代表 CSV 1 ファイル\n(例: scenario_seed.csv)\n手動配置"]
+
+    subgraph OL["OneLake / fabric_seworkshop_ws1 (F4)"]
+        subgraph SQLDB["Fabric SQL Database × 16"]
+            SQ1[sqldb_common_01]
+            SQ2[sqldb_mobile_01..05]
+            SQ3[sqldb_ecommerce_01..05]
+            SQ4[sqldb_fintech_01..05]
         end
-        subgraph Silver["🥈 Silver Lakehouse（PySpark Notebook でクレンジング）"]
-            S1[mobile]
-            S2[ecommerce]
-            S3[fintech]
-            S4[common]
+        subgraph Bronze["🔶 Bronze Lakehouse (lh_nexus6_bronze)"]
+            B1[manual_seed_csv]
+            B2[SQL DB ミラー\n(domain_raw テーブル群)]
         end
-        subgraph Gold["🥇 Gold Lakehouse（AI エージェント参照用 KPI）"]
-            G1["kpi.* （Agent 2）"]
-            G2["mobile_ai / ecommerce_ai / fintech_ai （Agent 3）"]
+        subgraph Silver["🥈 Silver Lakehouse (lh_nexus6_silver)"]
+            S1[mobile / ecommerce / fintech / common]
+        end
+        subgraph Gold["🥇 Gold Lakehouse (lh_nexus6_gold)"]
+            G1["kpi.*（Agent 2）"]
+            G2["mobile_ai / ecommerce_ai / fintech_ai（Agent 3）"]
         end
     end
-    Bronze -->|"Notebook (PySpark)\n型変換・JPY換算・クレンジング"| Silver
-    Silver -->|"Notebook (PySpark)\nKPI 集計"| Gold
+
+    DEMOGEN -->|EF Core 書き込み| SQLDB
+    CSV -->|手動アップロード| Bronze
+    SQLDB -.->|OneLake 自動同期| Bronze
+    Bronze -->|nb_bronze_to_silver\n型変換・JPY換算・クレンジング| Silver
+    Silver -->|nb_silver_to_gold\nKPI 集計| Gold
 ```
 
 | レイヤー | 目的 | 形式 | Demo での作り方 |
 |---|---|---|---|
-| Bronze | 合成 CSV をそのまま保持 | Lakehouse Files または Delta Table | CSV を Lakehouse にアップロード |
+| **Fabric SQL DB × 16** | リレーショナル形式の生データ。EF Core から書き込み可能 | T-SQL テーブル | `DemoDataGenerator` がオンデマンド生成 |
+| Bronze | 代表 CSV 1 つ + SQL DB ミラーデータを保持 | Lakehouse Files / Delta Table | CSV 手動 + Fabric 自動ミラー |
 | Silver | 実データモデルに準拠したスキーマと型を付与 | Delta Table | `nb_bronze_to_silver` Notebook |
 | Gold | AI エージェントが T-SQL で参照する集計テーブル | Delta Table | `nb_silver_to_gold` Notebook |
 
 ---
 
-## データ取り込みパイプライン構成（Demo）
+## データ生成・取り込みパイプライン構成（Demo）
 
 ```mermaid
 flowchart TD
-    SRC["合成 CSV ファイル\nscripts/seed-data/*.csv"]
-    UP["アップロード\n・ Fabric UI / azcopy / OneLake Explorer\n・ 手動もしくは一回限りのスクリプト"]
-    BR["Bronze Lakehouse\nFiles/<domain>/<table>.csv\nまたは Delta テーブルとして読み込み"]
-    NB1["Notebook ① nb_bronze_to_silver\nPySpark で型・NULL補完・JPY換算"]
-    SV["Silver Lakehouse\nデータモデル準拠テーブル"]
-    NB2["Notebook ② nb_silver_to_gold\nKPI/事業部サマリを集計"]
-    GD["Gold Lakehouse\nSQL Analytics Endpoint 経由で Agent 参照"]
+    DEV["開発者 (ローカル/Codespaces)"]
+    DG["DemoDataGenerator\n(Copilot SDK + EF Core)\n.NET 10 Worker"]
+    SQLDB16["Fabric SQL Database × 16\n(common 1 + mobile 5 + ec 5 + fintech 5)"]
+    SEED["代表 CSV 1 ファイル\nscripts/seed-data/scenario_seed.csv"]
+    BR["Bronze Lakehouse\nlh_nexus6_bronze"]
+    NB1["Notebook nb_bronze_to_silver"]
+    SV["Silver Lakehouse\nlh_nexus6_silver"]
+    NB2["Notebook nb_silver_to_gold"]
+    GD["Gold Lakehouse\nlh_nexus6_gold\nSQL Analytics Endpoint"]
 
-    SRC --> UP --> BR --> NB1 --> SV --> NB2 --> GD
+    DEV -->|シナリオ指定で実行| DG
+    DG -->|EF Core insert/update| SQLDB16
+    SQLDB16 -.->|OneLake 自動同期| BR
+    SEED -->|手動アップロード（1回のみ）| BR
+    BR --> NB1 --> SV --> NB2 --> GD
 ```
 
 ### スクリプト・ノートブック一覧
 
 | 名前 | 種別 | 用途 |
 |---|---|---|
-| `scripts/seed-data/generate_csv.py` | Python スクリプト | 合成 CSV（モバイル / EC / Fintech / 共通）を生成 |
-| `nb_bronze_to_silver` | Fabric Notebook (PySpark) | Bronze CSV → Silver Delta。型変換・重複排除・JPY 換算 |
+| `scripts/seed-data/scenario_seed.csv` | 静的 CSV（1 ファイル） | デモシナリオの起点となる代表データ。手動で Bronze にアップロード |
+| `src/DemoDataGenerator/` | .NET 10 Worker | Copilot SDK + EF Core で Fabric SQL DB × 16 に動的データ生成。シナリオ別の波及を表現 |
+| `nb_bronze_to_silver` | Fabric Notebook (PySpark) | Bronze 全テーブル → Silver Delta。型変換・重複排除・JPY 換算 |
 | `nb_silver_to_gold` | Fabric Notebook (PySpark) | Silver → Gold KPI 集計（`kpi.*` / `mobile_ai` / `ecommerce_ai` / `fintech_ai`） |
 
 > Demo では Data Pipeline / Dataflow Gen2 / スケジューラーは作成せず、Notebook を手動実行して 1 回だけ Silver/Gold を生成する。
@@ -81,24 +97,39 @@ flowchart TD
 
 ## Bronze 取り込み方式（Demo）
 
-### Demo: 合成 CSV の Bronze 取り込み
+### 1. 代表 CSV の手動配置（1 ファイルのみ）
 
-1. `scripts/seed-data/generate_csv.py` で以下の CSV を生成
-   - `mobile_contracts.csv`, `mobile_mnp_history.csv`, `mobile_device_costs.csv`
-   - `ecommerce_orders.csv`, `ecommerce_inventory.csv`, `ecommerce_campaign_reactions.csv`
-   - `fintech_fx_positions.csv`, `fintech_loan_balances.csv`, `fintech_credit_reviews.csv`
-   - `common_customers.csv`
-2. Bronze Lakehouse の `Files/<domain>/` 下にアップロード
+シナリオの起点となる「手作りの代表データ」を 1 ファイルだけ用意し、デモ実演時のリアリティと再現性を確保する。
+
+1. `scripts/seed-data/scenario_seed.csv` を手動編集（例: 注目顧客 20 件と取引履歴）
+2. Bronze Lakehouse の `Files/manual_seed/` 直下にアップロード（Fabric UI / azcopy / OneLake Explorer）
 3. Notebook `nb_bronze_to_silver` で PySpark により `spark.read.csv(...)` → Silver へ書き込み
 
+### 2. DemoDataGenerator による動的生成（残り全部）
+
+シナリオ（為替急変 / 競合統合 / 利上げ）に応じた波及データを Copilot SDK が生成し、EF Core で Fabric SQL DB × 16 に書き込む。詳細は [usecase/copilot-sdk-demo-data-generation.md](../usecase/copilot-sdk-demo-data-generation.md) を参照。
+
+```bash
+# DemoDataGenerator 実行例
+cd src/DemoDataGenerator
+dotnet run -- --scenario fx-shock --customers 30000 --months 6
+```
+
+書き込み後、Fabric SQL DB は自動的に OneLake にミラーされるため、Bronze Lakehouse からはミラーテーブル経由でアクセスできる。
+
 ```python
-# nb_bronze_to_silver 例
+# nb_bronze_to_silver 例（CSV と SQL DB ミラーの両方を読む）
 from pyspark.sql import functions as F
 
-df = (spark.read.option("header", True).option("inferSchema", True)
-      .csv("Files/mobile/mobile_contracts.csv"))
+# 手動配置 CSV
+df_seed = (spark.read.option("header", True).option("inferSchema", True)
+           .csv("Files/manual_seed/scenario_seed.csv"))
 
-silver = (df
+# Fabric SQL DB のミラーテーブル（OneLake 同期されたもの）
+df_contracts = spark.read.table("sqldb_mobile_01.dbo.contracts")
+
+silver = (df_contracts
+    .unionByName(df_seed, allowMissingColumns=True)
     .withColumn("updated_at", F.to_timestamp("updated_at"))
     .dropDuplicates(["contract_id"]))
 

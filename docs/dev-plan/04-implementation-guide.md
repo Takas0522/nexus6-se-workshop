@@ -226,18 +226,21 @@ public sealed class FabricDataPlugin(SqlConnection connection)
 ```json
 {
   "Foundry": {
-    "ProjectEndpoint": "https://fd-pathneriq.services.ai.azure.com/api/projects/<要確認: プロジェクト名>",
-    "DefaultModelDeployment": "gpt-4o",
-    "NotificationModelDeployment": "gpt-4o-mini",
+    "ProjectEndpoint": "https://fd-partneriq.services.ai.azure.com/api/projects/proj-PartnerIQ",
+    "DefaultModelDeployment": "gpt-5.4",
+    "NotificationModelDeployment": "gpt-5.4",
     "FileSearchVectorStoreId": "<vector-store-id>",
     "GroundingBingConnectionId": "<bing-grounding-connection-id>"
   },
   "Fabric": {
     "SqlEndpoint": "fabric_seworkshop_ws1.datawarehouse.fabric.microsoft.com",
-    "Database": "<要確認: Gold Lakehouse 名>"
+    "Database": "lh_nexus6_gold"
   },
   "Teams": {
-    "WorkflowsUrl": "<Power Automate Workflow の HTTP トリガー URL>"
+    "WorkflowsUrl": ""
+  },
+  "KeyVault": {
+    "Uri": "https://kv-nexus6-swc.vault.azure.net/"
   },
   "AzureMonitor": {
     "ConnectionString": ""
@@ -245,7 +248,7 @@ public sealed class FabricDataPlugin(SqlConnection connection)
 }
 ```
 
-> Demo は Managed Identity を採用するため API キー類は appsettings に保持しない。外部サービスで API キーが必要なもののみ Azure Key Vault に格納し、`DefaultAzureCredential` で取得する。
+> Demo は Managed Identity を採用するため API キー類は appsettings に保持しない。`Teams:WorkflowsUrl` は Key Vault のシークレット `Teams--WorkflowsUrl` から `DefaultAzureCredential` で取得する。Teams チャネル未確定時は空のまま起動でき、Agent 4 は `MockTeamsPlugin` にフォールバックする。
 
 ---
 
@@ -273,10 +276,11 @@ dotnet run
 ```bash
 # コンテナイメージを ACR または GHCR に push 後、Container Apps へデプロイ
 az containerapp up \
-  --resource-group <要確認: リソースグループ名> \
-  --name <要確認: Container Apps アプリ名> \
-  --image <registry>/nexus6-hosted-agent:latest \
-  --environment <要確認: Container Apps 環境名> \
+  --resource-group rg-nexus6-swc \
+  --name ca-nexus6-hosted-agent \
+  --image crnexus6swc.azurecr.io/nexus6-hosted-agent:latest \
+  --environment cae-nexus6-swc \
+  --location swedencentral \
   --ingress external --target-port 8080 \
   --system-assigned
 ```

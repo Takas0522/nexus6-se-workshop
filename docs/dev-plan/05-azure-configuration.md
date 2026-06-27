@@ -8,7 +8,7 @@
 
 | サービス | 用途 | 必須/任意 |
 |---|---|---|
-| Azure AI Foundry (Azure OpenAI) | LLM 推論（GPT-4o / gpt-4o-mini）、File Search、Grounding with Bing Search | 必須 |
+| Azure AI Foundry (Azure OpenAI) | LLM 推論（gpt-5.4）、File Search、Grounding with Bing Search | 必須 |
 | ADLS Gen2 | Skill.md ファイル格納・OneLake Shortcut 基盤 | 必須 |
 | Microsoft Fabric / OneLake | 全社経営データ参照（Agent 2・3） | 必須 |
 | Microsoft Teams (Workflows) | レコメンド通知（Agent 4） | 必須 |
@@ -27,23 +27,25 @@
 
 ### セットアップ
 
-1. Azure ポータルで **Azure AI Foundry** リソース `fd-PathnerIQ` を確認（リージョン: `<要確認>`）
-2. `gpt-4o` ・ `gpt-4o-mini` モデルをデプロイ
-3. Foundry Project を作成し、Project Endpoint を `appsettings.json` に設定
+1. Azure ポータルで **Azure AI Foundry** リソース `fd-PartnerIQ`（リソースグループ `SEWorkShopC12` / リージョン `Sweden Central`）を確認
+2. デプロイ済モデル `gpt-5.4`（GlobalStandard / 容量 500）と `text-embedding-3-large`（容量 120）を全エージェントで共有
+3. Foundry Project `proj-PartnerIQ` の Project Endpoint `https://fd-partneriq.services.ai.azure.com/api/projects/proj-PartnerIQ` を `appsettings.json` に設定
 4. 認証は **Managed Identity に統一**（App / Container Apps の System Assigned MI に `Cognitive Services User` を付与）
 5. Skill.md / DS.md 参照用の **File Search**（Knowledge）ベクトルストアを作成し、ADLS Gen2 をデータソースとして接続
 6. Web 検索用に **Grounding with Bing Search** 接続を Foundry Project に追加
 
 ### 推奨モデル構成
 
+Foundry 既存環境で `gpt-5.4` のみが利用可能なため、全エージェントを同一モデルで運用する（温度・最大トークンのみエージェント別に調整）。
+
 | エージェント | モデル | 最大トークン | 温度 |
 |---|---|---|---|
-| Agent 1 (Web収集) | gpt-4o | 4,096 | 0.3 |
-| Agent 2 (インパクト評価) | gpt-4o | 8,192 | 0.1 |
-| Agent 3 (レコメンド) | gpt-4o | 8,192 | 0.2 |
-| Agent 4 (通知) | gpt-4o-mini | 2,048 | 0.0 |
+| Agent 1 (Web収集) | gpt-5.4 | 4,096 | 0.3 |
+| Agent 2 (インパクト評価) | gpt-5.4 | 8,192 | 0.1 |
+| Agent 3 (レコメンド) | gpt-5.4 | 8,192 | 0.2 |
+| Agent 4 (通知) | gpt-5.4 | 2,048 | 0.0 |
 
-> Agent 4 は構造化出力のみのため、コスト効率の良い mini モデルを推奨。
+> 将来 `gpt-5-mini` 等の安価モデルがデプロイされた場合、Agent 4 をそちらに切り替え可能（`Foundry:NotificationModelDeployment` 設定で差し替え）。
 
 ### Microsoft Agent Framework / Foundry との接続
 
@@ -68,17 +70,18 @@ services.AddSingleton(_ => new FoundryAgentClient(
 
 ---
 
-## Skill.md 参照（Foundry File Search）
+## Skill.md 参照（Foundry File Search + 既存 Azure AI Search 活用）
 
 ### セットアップ
 
-1. ADLS Gen2 (`<要確認: ADLS アカウント名>` / `skill-docs` コンテナ) に Skill.md を配置
-2. Foundry Project の **Knowledge → File Search** でベクトルストアを作成
-3. ADLS Gen2 をデータソースとして追加し、`skill-docs/**` をインデクシング
+1. ADLS Gen2 (`stnexus6skill<NNNN>` / `skill-docs` コンテナ) を **新規 RG `rg-nexus6-swc`（Sweden Central）** に作成し、Skill.md を配置
+2. Foundry Project `proj-PartnerIQ` の **Knowledge → File Search** でベクトルストアを作成
+   - Foundry File Search は内部的に Azure AI Search を使用する。本環境では **既存の `iq-knowledge-source`（RG `SEWorkShopC12`）を再利用** することで AI Search リソースの追加コストを発生させない
+3. ADLS Gen2 をデータソースとして追加し、`skill-docs/**` をインデクシング（ベクトル化には Foundry の `text-embedding-3-large` を使用）
 4. Agent 2 / Agent 3 に `FoundryFileSearchTool` を登録し、ベクトルストア ID を `Foundry:FileSearchVectorStoreId` で参照
 5. Skill.md 更新時はファイルを ADLS にアップロード → Foundry が自動再インデクシングするため追加作業不要
 
-> Skill.md は 6 ファイル×5～10KB で合計 約 60KB、DS.md と合わせても 100KB 以下。この規模では Azure AI Search Basic は過剰のため Demo では使用しない。
+> Skill.md は 6 ファイル×5～10KB で合計 約 60KB、DS.md と合わせても 100KB 以下。既存の `iq-knowledge-source` を Foundry File Search のバックエンドとして共用することで、専用 AI Search を追加新設する必要はない。
 
 ---
 
@@ -86,9 +89,10 @@ services.AddSingleton(_ => new FoundryAgentClient(
 
 ### セットアップ
 
-1. Fabric ワークスペース `fabric_seworkshop_ws1` に各事業部データを格納した **Lakehouse**（`<要確認: Bronze>`  / `<要確認: Silver>` / `<要確認: Gold>`）を作成
+1. Fabric ワークスペース `fabric_seworkshop_ws1`（Capacity `fabricswedencu001` / F4 / Sweden Central）に各事業部データを格納した **Lakehouse**（`lh_nexus6_bronze` / `lh_nexus6_silver` / `lh_nexus6_gold`）を作成
 2. 接続は Managed Identity を使用し、Container Apps の MI に Fabric ワークスペースの Viewer ロールを付与
 3. Gold Lakehouse の **SQL Analytics Endpoint** に T-SQL でアクセス (`Microsoft.Data.SqlClient`)
+4. デモデータ生成の書き込み先は別途 **Fabric SQL Database × 16**（共通 1 + mobile 5 + ecommerce 5 + fintech 5）を作成し、`DemoDataGenerator`（Copilot SDK + EF Core）から書き込む。詳細は [Fabric データ取り込み設計](06-fabric-data-ingestion.md) 参照。
 
 ### テーブル対応表
 

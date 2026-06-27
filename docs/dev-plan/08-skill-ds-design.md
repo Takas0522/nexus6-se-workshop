@@ -51,7 +51,7 @@ graph TD
 ### ストレージ構成
 
 ```
-ADLS Gen2 ストレージアカウント: <要確認: ADLS アカウント名>
+ADLS Gen2 ストレージアカウント: stnexus6skill<NNNN>
 └── コンテナ: skill-docs/
     ├── mobile/
     │   ├── mobile_skill_fx-impact.md
@@ -106,7 +106,7 @@ Skill.md は「**この事業のデータをどう読むか**」「**どうい�
 
 | 項目 | ルール |
 |---|---|
-| 配置場所 | ADLS Gen2 `<要確認: ADLS アカウント名> / skill-docs / {domain}/` |
+| 配置場所 | ADLS Gen2 `stnexus6skill<NNNN> / skill-docs / {domain}/` |
 | ベクトルストア | Foundry File Search（ADLS Gen2 をデータソースとして自動再インデクシング） |
 | 参照タイミング | Agent 2・3 の推論中に `FoundryFileSearchTool` が事業部・ニュースキーワードで検索して注入 |
 | Fabric 連携 | OneLake Shortcut で `skill-docs` コンテナを透過参照（Notebook から読み取り可） |
@@ -406,4 +406,4 @@ ORDER BY rate_band;
 | `fintech_skill_rate-hike-impact.md` | Skill | ADLS Gen2 / File Search | Fintech リスク管理 | 高 |
 | `fintech_skill_fx-position-risk.md` | Skill | ADLS Gen2 / File Search | Fintech トレーディング | 高 |
 | `ds_fintech.md` | DS | fintech_ai Lakehouse | Fintech IT | 高 |
-| `ds_common.md` | DS | Gold Lakehouse（`<要確認>`） | 全社 IT | 中 |
+| `ds_common.md` | DS | Gold Lakehouse (`lh_nexus6_gold`) | 全社 IT | 中 |

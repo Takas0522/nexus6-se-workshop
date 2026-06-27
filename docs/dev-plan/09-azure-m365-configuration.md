@@ -13,22 +13,36 @@ graph TD
         D365["Dynamics 365\n本番のみ使用\n(Demo: MockDirectoryPlugin)"]
     end
 
-    subgraph FABRIC["Microsoft Fabric"]
+    subgraph FABRIC["Microsoft Fabric (fabric_seworkshop_ws1 / F4)"]
         ONELAKE["OneLake"]
-        BRZ["Bronze Lakehouse"]
-        SLV["Silver Lakehouse"]
-        GLD["Gold Lakehouse"]
+        SQLDB["Fabric SQL Database × 16\n(common×1 / mobile×5 / ec×5 / fintech×5)"]
+        BRZ["Bronze Lakehouse\n(lh_nexus6_bronze)\n初期 1 CSV 手動配置"]
+        SLV["Silver Lakehouse\n(lh_nexus6_silver)"]
+        GLD["Gold Lakehouse\n(lh_nexus6_gold)"]
         NB["Notebook (PySpark)\nbronze→silver→gold"]
     end
 
-    subgraph AZURE["Azure"]
-        FOUNDRY["Azure AI Foundry\nGPT-4o / gpt-4o-mini\n+ File Search (Knowledge)\n+ Grounding with Bing Search"]
-        ADLS["ADLS Gen2\nskill-docs コンテナ"]
-        KV["Azure Key Vault\n外部 API キーのみ"]
-        MON["Azure Monitor\nApp Insights"]
-        HOST["Container Apps (Consumption)\n.NET 10 Hosted Agent\nSystem Assigned MI"]
-        ENTRA["Microsoft Entra ID\nManaged Identity"]
+    subgraph AZURE_EXIST["Azure 既存 RG: SEWorkShopC12 (Sweden Central)"]
+        FOUNDRY["Azure AI Foundry\nfd-PartnerIQ\nProject: proj-PartnerIQ\nModel: gpt-5.4"]
+        SEARCH["Azure AI Search\niq-knowledge-source\n(Foundry File Search のバックエンド)"]
     end
+
+    subgraph AZURE_NEW["Azure 新規 RG: rg-nexus6-swc (Sweden Central)"]
+        ADLS["ADLS Gen2\nstnexus6skill*\nskill-docs コンテナ"]
+        STSITE["Storage Static Website\nstnexus6portal*\nNews Portal ホスト\n(Public + robots.txt)"]
+        KV["Azure Key Vault\nkv-nexus6-swc\nTeams URL 他"]
+        ACR["Azure Container Registry\ncrnexus6swc"]
+        MON["App Insights"]
+        HOST["Container Apps\nca-nexus6-hosted-agent\nSystem Assigned MI"]
+    end
+
+    subgraph IDENTITY["Microsoft Entra ID（既存テナント）"]
+        ENTRA["Managed Identity"]
+    end
+
+    DEMOGEN["DemoDataGenerator\n(.NET + Copilot SDK + EF Core)\nローカル / Codespaces 実行"]
+    DEMOGEN -->|EF Core 書き込み| SQLDB
+    SQLDB -.->|OneLake ミラー 自動同期| ONELAKE
 
     HOST -->|LLM 推論 / File Search / Grounding| FOUNDRY
     HOST -->|Fabric クエリ Agent2・3| GLD
@@ -37,44 +51,55 @@ graph TD
     HOST -->|外部キー取得| KV
     HOST -->|テレメトリ| MON
 
+    FOUNDRY -.->|内部利用| SEARCH
     FOUNDRY -->|File Search がデータソースとして参照| ADLS
     ADLS -->|OneLake Shortcut| ONELAKE
 
     BRZ --> NB --> SLV --> NB --> GLD
     ONELAKE --- BRZ & SLV & GLD
 
-    ENTRA -->|MI 認証| HOST & FOUNDRY & FABRIC & KV
+    ENTRA -->|MI 認証| HOST & FOUNDRY & FABRIC & KV & SEARCH & ADLS
 ```
 
 ---
 
 ## Azure サービス一覧
 
-### 必須サービス
+### 既存利用リソース（RG: `SEWorkShopC12` / Sweden Central）
 
-| サービス | SKU / ティア | 用途 | 参照エージェント |
+| サービス | リソース名 | SKU | 用途 |
 |---|---|---|---|
-| **Azure AI Foundry** | Standard（リソース名: `fd-PathnerIQ` / リージョン: `<要確認>`） | LLM 推論（GPT-4o / gpt-4o-mini）、File Search (Knowledge)、Grounding with Bing Search | 全エージェント |
-| **ADLS Gen2** | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 | Agent 2・3 / Fabric |
-| **Microsoft Fabric** | F2～F4 | データレイク / OneLake / Notebook | Agent 2・3 |
-| **Azure Key Vault** | Standard | 外部サービス API キーのみ | Agent 4 他 |
-| **Azure Container Apps** | Consumption | .NET 10 Hosted Agent のホスティング（System Assigned MI） | - |
-| **Microsoft Entra ID** | 既存テナント | Managed Identity | 全サービス |
+| **Azure AI Foundry** | `fd-PartnerIQ` | S0 (AIServices) | LLM 推論（`gpt-5.4`）、File Search、Grounding with Bing Search |
+| **Foundry Project** | `proj-PartnerIQ` | - | Agent 実行 / Knowledge 管理 |
+| **モデルデプロイ** | `gpt-5.4` (GlobalStandard / 500) | - | 全エージェントで共用 |
+| **モデルデプロイ** | `text-embedding-3-large` (Standard / 120) | - | File Search のベクトル化 |
+| **Azure AI Search** | `iq-knowledge-source` | Standard | Foundry File Search のバックエンドとして共用 |
+| **Microsoft Fabric Capacity** | `fabricswedencu001` | F4 | 全 Fabric リソースの容量 |
+| **Microsoft Fabric Workspace** | `fabric_seworkshop_ws1` | - | Lakehouse / SQL DB / Notebook を配置 |
 
-### 推奨サービス
+### 新規作成リソース（新規 RG: `rg-nexus6-swc` / Sweden Central）
 
-| サービス | SKU / ティア | 用途 |
-|---|---|---|
-| **Azure Monitor / App Insights** | Pay-as-you-go | エージェント実行ログ・トークン使用量・レイテンシ監視 |
-| **Azure Container Registry** | Basic | .NET 10 コンテナイメージ管理 |
+| サービス | リソース名（案） | SKU | 用途 |
+|---|---|---|---|
+| **ADLS Gen2** | `stnexus6skill<NNNN>` | Standard LRS | Skill.md ファイル格納・OneLake Shortcut 基盤 |
+| **Storage Static Website** | `stnexus6portal<NNNN>` | Standard LRS | News Portal ホスト（Public + `robots.txt` で検索除外） |
+| **Azure Key Vault** | `kv-nexus6-swc` | Standard | Teams Workflows URL 等の外部 API キー |
+| **Azure Container Apps Env** | `cae-nexus6-swc` | Consumption | Hosted Agent 実行環境 |
+| **Azure Container App** | `ca-nexus6-hosted-agent` | Consumption | .NET 10 Hosted Agent（System Assigned MI） |
+| **Azure Container Registry** | `crnexus6swc` | Basic | コンテナイメージ管理 |
+| **Application Insights** | `appi-nexus6-swc` | Pay-as-you-go | テレメトリ・ログ |
+| **Fabric SQL Database × 16** | `sqldb_<domain>_<NN>` | - | DemoDataGenerator 書き込み先（`fabric_seworkshop_ws1` 内に作成） |
+| **Fabric Lakehouse × 3** | `lh_nexus6_bronze` / `lh_nexus6_silver` / `lh_nexus6_gold` | - | Bronze/Silver/Gold（`fabric_seworkshop_ws1` 内） |
+| **Fabric Notebook × 2** | `nb_bronze_to_silver` / `nb_silver_to_gold` | - | PySpark で変換実行 |
 
 ### Demo では使用しないサービス
 
 | サービス | 理由 |
 |---|---|
-| **Azure AI Search** | Skill.md / DS.md の総量が 100KB 未満のため Basic SKU でも過剩。Foundry **File Search** に統一 |
 | **Bing Search v7 API（単体）** | 新規受付停止。Foundry 組込の Grounding with Bing Search を使用 |
-| **App Service （P1v3）** | Container Apps Consumption と重複。Demo は使用時のみ課金の Consumption に統一 |
+| **App Service （P1v3）** | Container Apps Consumption と重複 |
+| **専用 Azure AI Search の新規作成** | 既存の `iq-knowledge-source` を Foundry File Search のバックエンドとして共用 |
+| **Dynamics 365** | Demo は `MockDirectoryPlugin` で代替 |
 
 ---
 
@@ -82,23 +107,31 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| リソース名 | `fd-PathnerIQ` |
-| リージョン | `<要確認>` |
-| モデルデプロイ 1 | `gpt-4o`（Agent 1・2・3 用） |
-| モデルデプロイ 2 | `gpt-4o-mini`（Agent 4 用） |
-| Knowledge / File Search | `<要確認: ベクトルストア名>`（Skill.md / DS.md 参照） |
+| リソース名 | `fd-PartnerIQ` |
+| リージョン | `Sweden Central` |
+| リソースグループ | `SEWorkShopC12`（既存） |
+| Project 名 | `proj-PartnerIQ` |
+| Project Endpoint | `https://fd-partneriq.services.ai.azure.com/api/projects/proj-PartnerIQ` |
+| OpenAI Endpoint (legacy) | `https://fd-partneriq.openai.azure.com/` |
+| モデルデプロイ | `gpt-5.4`（GlobalStandard / 容量 500）※全エージェント共通 |
+| 埋め込みモデル | `text-embedding-3-large`（Standard / 容量 120） |
+| Knowledge / File Search | `vs_nexus6_skilldocs`（新規ベクトルストア。バックエンドは既存 `iq-knowledge-source`） |
 | Grounding with Bing Search 接続 | Foundry Connections で追加し Connection ID を保持 |
 | Fabric 接続 | OneLake / SQL Analytics Endpoint（Gold Lakehouse） |
 | 認証 | Container Apps の System Assigned MI に `Cognitive Services User` を付与 |
 
 ### モデル設定
 
+Foundry で `gpt-5.4` のみがデプロイされているため、全エージェントを同一モデルで運用し、温度・最大トークンのみ差別化する。
+
 | エージェント | デプロイ名 | 最大トークン | 温度 |
 |---|---|---|---|
-| Agent 1 (Web収集) | `gpt-4o` | 4,096 | 0.3 |
-| Agent 2 (インパクト評価) | `gpt-4o` | 8,192 | 0.1 |
-| Agent 3 (レコメンド × 3事業部) | `gpt-4o` | 8,192 | 0.2 |
-| Agent 4 (通知) | `gpt-4o-mini` | 2,048 | 0.0 |
+| Agent 1 (Web収集) | `gpt-5.4` | 4,096 | 0.3 |
+| Agent 2 (インパクト評価) | `gpt-5.4` | 8,192 | 0.1 |
+| Agent 3 (レコメンド × 3事業部) | `gpt-5.4` | 8,192 | 0.2 |
+| Agent 4 (通知) | `gpt-5.4` | 2,048 | 0.0 |
+
+> 将来 `gpt-5-mini` 等が利用可能になった場合、Agent 4 のみ差し替え可能（`appsettings.json` の `Foundry:NotificationModelDeployment` で切替）。
 
 ---
 
@@ -106,8 +139,10 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| ベクトルストア名 | `<要確認: Foundry Portal で作成したベクトルストア名>` |
-| データソース | ADLS Gen2 `<要確認: ADLS アカウント名> / skill-docs` |
+| ベクトルストア名 | `vs_nexus6_skilldocs` |
+| バックエンド（Azure AI Search） | 既存 `iq-knowledge-source`（RG `SEWorkShopC12` / Sweden Central）を共用 |
+| データソース | ADLS Gen2 `stnexus6skill<NNNN> / skill-docs` |
+| 埋め込みモデル | `text-embedding-3-large` |
 | 再インデクシング | Foundry が Blob 変更を検知して自動実行 |
 | チャンク分割 | デフォルト（1024 tokens 目安） |
 | Agent 2・3 での利用 | `FoundryFileSearchTool`、Vector Store ID を `Foundry:FileSearchVectorStoreId` で供給 |
@@ -118,7 +153,9 @@ graph TD
 
 | 項目 | 設定値 |
 |---|---|
-| アカウント名 | `<要確認: ADLS Gen2 ストレージアカウント名>` |
+| アカウント名 | `stnexus6skill<NNNN>`（グローバル一意の数値サフィックス） |
+| リソースグループ | `rg-nexus6-swc`（新規） |
+| リージョン | `Sweden Central` |
 | 冗長性 | LRS（デモ用途） |
 | コンテナ名 | `skill-docs` |
 | ディレクトリ構成 | `mobile/`, `ecommerce/`, `fintech/` |
@@ -127,19 +164,43 @@ graph TD
 
 ---
 
+## News Portal Static Hosting
+
+Demo 実演時に「外部ニュースを検索エンジン経由で見つけた」体験を再現するための静的サイトホスティング。
+
+| 項目 | 設定値 |
+|---|---|
+| ホスト方式 | **Azure Storage Static Website**（`$web` コンテナ） |
+| アカウント名 | `stnexus6portal<NNNN>` |
+| リソースグループ | `rg-nexus6-swc`（新規） |
+| リージョン | `Sweden Central` |
+| 公開範囲 | Public（Foundry の Web Browsing Tool が URL fetch するため） |
+| 検索エンジン除外 | `robots.txt` で `Disallow: /` を設定し外部クローラーをブロック |
+| デプロイ対象 | `src/news-portal/` 配下の静的 HTML（`index.html` / `article-*.html`） |
+| Foundry からの利用 | Grounding with Bing Search に URL を直接指定して「検索結果からの導線」を疑似再現 |
+
+> 厳密な Private 制御（IP 制限・Private Endpoint）は Demo スコープ外。`robots.txt` で検索インデックス除外し、URL 共有も限定範囲に留める運用で対応する。
+
+---
+
 ## Microsoft Fabric 構成一覧
+
+すべて既存ワークスペース `fabric_seworkshop_ws1`（Capacity `fabricswedencu001` / F4 / Sweden Central）内に作成する。
 
 | リソース | 名称 | 用途 |
 |---|---|---|
-| Workspace | `fabric_seworkshop_ws1` | 全 Fabric リソースの管理単位 |
-| Bronze Lakehouse | `<要確認>` | 合成 CSV をそのまま取り込み |
-| Silver Lakehouse | `<要確認>` | クレンジング・型整備済みデータ |
-| Gold Lakehouse | `<要確認>` | AI エージェント向け集計テーブル |
+| Workspace | `fabric_seworkshop_ws1`（既存） | 全 Fabric リソースの管理単位 |
+| Fabric SQL Database × 16 | `sqldb_common_01`、`sqldb_mobile_01`〜`05`、`sqldb_ecommerce_01`〜`05`、`sqldb_fintech_01`〜`05` | DemoDataGenerator（Copilot SDK + EF Core）の書き込み先 |
+| Bronze Lakehouse | `lh_nexus6_bronze` | 手動配置の代表 CSV + Fabric SQL DB からの OneLake ミラーを集約 |
+| Silver Lakehouse | `lh_nexus6_silver` | クレンジング・型整備済みデータ |
+| Gold Lakehouse | `lh_nexus6_gold` | AI エージェント向け集計テーブル |
 | Notebook | `nb_bronze_to_silver` | Bronze → Silver 変換（PySpark） |
 | Notebook | `nb_silver_to_gold` | Silver → Gold KPI 集計（PySpark） |
 | OneLake Shortcut | `skill-docs` | ADLS Gen2 の Skill.md を透過参照 |
+| DataAgent | `seworkshop-data-agent`（既存） | 当初検証用。本構成では不使用 |
 
 > Demo では Data Pipeline / Dataflow Gen2 / スケジューラーは作成せず Notebook を手動実行する。オンプレデータゲートウェイも不要。
+> Fabric SQL Database → OneLake への同期は Fabric が自動的に行うため、追加のパイプライン定義は不要。
 
 ---
 
@@ -156,11 +217,14 @@ graph TD
 | 項目 | 設定値 |
 |---|---|
 | 接続方式 | Power Automate Workflows（「チャネルへメッセージを投稿」テンプレート + HTTP トリガー） |
-| チャネル構成 | `#mobile-ai-recommend`, `#ecommerce-ai-recommend`, `#fintech-ai-recommend` |
+| チャネル構成 | **未作成**（Demo 当日までに発行予定。`#mobile-ai-recommend`, `#ecommerce-ai-recommend`, `#fintech-ai-recommend` を想定） |
+| URL の供給方法 | Key Vault シークレット `Teams--WorkflowsUrl`（後でセットアップ）。Agent 4 は `DefaultAzureCredential` 経由で取得するため、**コード変更なしで URL すげ替え可能** |
 | カード形式 | Adaptive Card v1.5 |
 | @メンション | 優先度 HIGH のアクションは担当者をメンション（Workflow 内で設定） |
+| Demo 暫定動作 | Key Vault に URL が未登録の場合、Agent 4 は `MockTeamsPlugin` にフォールバックしコンソールへ通知ログを出力 |
 
 > Incoming Webhook コネクターは段階的に廃止予定のため未採用。Demo ・ 本番とも Workflows で統一する。
+> 通知先 Teams チャネル / Workflows URL は Demo 環境構築の後段で追加する想定。Key Vault シークレット差し替えのみで切替可能とする。
 
 ### Dynamics 365（Demo ではモック）
 
@@ -181,21 +245,29 @@ Demo は `MockDirectoryPlugin`（メモリ内の担当者一覧）で代替す�
 
 | 項目 | 設定値 |
 |---|---|
-| アイデンティティ | Container Apps `<要確認: Container Apps アプリ名>` の **System Assigned Managed Identity** |
-| 用途 | Foundry / Fabric / Key Vault へのアクセス |
+| アイデンティティ | Container Apps `ca-nexus6-hosted-agent` の **System Assigned Managed Identity** |
+| 用途 | Foundry / Fabric / Key Vault / ADLS / AI Search へのアクセス |
 | 認証コード | `DefaultAzureCredential`（.NET 10） |
 
 > Demo では Service Principal シークレットや API キーを使わず、Container Apps の System Assigned MI を Azure リソースの認証に統一する。
+> ローカル / Codespaces 実行時は開発者の `az login` 認証情報（`DefaultAzureCredential` の `AzureCliCredential` チェーン）を使用する。
 
 ### ロール割り当て一覧
 
 | リソース | ロール | 付与対象 |
 |---|---|---|
-| Azure AI Foundry | Cognitive Services User | Container Apps MI |
-| ADLS Gen2 (`<要確認: ADLS アカウント名>`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
+| Azure AI Foundry (`fd-PartnerIQ`) | Cognitive Services User | Container Apps MI / 開発者 |
+| Azure AI Search (`iq-knowledge-source`) | Search Index Data Reader | Foundry MI（File Search のクエリ実行用） |
+| ADLS Gen2 (`stnexus6skill<NNNN>`) | Storage Blob Data Reader | Container Apps MI / Foundry File Search |
+| ADLS Gen2 (`stnexus6skill<NNNN>`) | Storage Blob Data Contributor | 開発者（Skill.md 配置のため） |
+| Storage (`stnexus6portal<NNNN>`) | Storage Blob Data Contributor | 開発者（News Portal デプロイ） |
 | Fabric Workspace `fabric_seworkshop_ws1` | Viewer | Container Apps MI |
-| Key Vault (`<要確認: Key Vault 名>`) | Key Vault Secrets User | Container Apps MI |
-| Azure Monitor (App Insights) | Monitoring Metrics Publisher | Container Apps MI |
+| Fabric Workspace `fabric_seworkshop_ws1` | Contributor | DemoDataGenerator 実行者（開発者） |
+| Key Vault (`kv-nexus6-swc`) | Key Vault Secrets User | Container Apps MI |
+| Key Vault (`kv-nexus6-swc`) | Key Vault Secrets Officer | 開発者（シークレット登録用） |
+| App Insights (`appi-nexus6-swc`) | Monitoring Metrics Publisher | Container Apps MI |
+| ACR (`crnexus6swc`) | AcrPull | Container Apps MI |
+| ACR (`crnexus6swc`) | AcrPush | 開発者 / GitHub Actions（任意） |
 
 ---
 
@@ -217,27 +289,34 @@ Azure リソースへの認証は Managed Identity に統一し、Key Vault に�
 
 ```mermaid
 flowchart TD
-    S1["① Microsoft Entra ID\nContainer Apps System Assigned MI を有効化"]
-    S2["② Azure Key Vault\nリソース作成・外部キーのみ登録"]
-    S3["③ ADLS Gen2\nストレージアカウント・コンテナ作成"]
-    S4["④ Azure AI Foundry\nリソース作成・モデルデプロイ"]
-    S5["⑤ Foundry File Search\nベクトルストア作成・ADLS 接続"]
-    S6["⑥ Foundry Grounding with Bing Search\n接続追加"]
-    S7["⑦ Microsoft Fabric\nワークスペース・Lakehouse 作成"]
-    S8["⑧ Fabric Shortcut\nADLS Gen2 → OneLake 接続"]
-    S9["⑨ 合成 CSV アップロード\nNotebook 2 本を手動実行"]
-    S10["⑩ Teams Workflows\nHTTP トリガー作成・URL を Key Vault へ"]
-    S11["⑪ Container Apps\nHosted Agent デプロイ・MI ロール付与"]
-    S12["⑫ Azure Monitor\n監視ダッシュボード設定"]
+    S0["① 既存リソース確認\nfd-PartnerIQ / fabric_seworkshop_ws1 / iq-knowledge-source"]
+    S1["② 新規 RG 作成\nrg-nexus6-swc (Sweden Central)"]
+    S2["③ Azure Key Vault 作成\nkv-nexus6-swc"]
+    S3["④ ADLS Gen2 作成\nstnexus6skill* / skill-docs コンテナ"]
+    S4["⑤ Foundry 構成\nFile Search ベクトルストア\n(バックエンド iq-knowledge-source 共用)\nGrounding with Bing Search 接続"]
+    S5["⑥ Fabric Lakehouse × 3 作成\nlh_nexus6_bronze/silver/gold"]
+    S6["⑦ Fabric SQL Database × 16 作成\nsqldb_<domain>_<NN>"]
+    S7["⑧ Fabric Shortcut\nADLS Gen2 → OneLake 接続"]
+    S8["⑨ Storage Static Website 作成\nstnexus6portal* / News Portal デプロイ"]
+    S9["⑩ DemoDataGenerator 実行\nCopilot SDK で SQL DB に書き込み"]
+    S10["⑪ 代表 CSV を Bronze へ手動配置\nNotebook 2 本を手動実行"]
+    S11["⑫ ACR / Container Apps 環境作成\ncrnexus6swc / cae-nexus6-swc"]
+    S12["⑬ Hosted Agent デプロイ\nca-nexus6-hosted-agent (System Assigned MI)"]
+    S13["⑭ ロール付与・Key Vault シークレット登録\n(Teams URL は未登録のままで可)"]
+    S14["⑮ App Insights / 監視ダッシュボード設定"]
+    S15["⑯ (後追加) Teams チャネル作成\nWorkflows URL を kv-nexus6-swc に登録"]
 
-    S1 --> S2 --> S3 --> S4 --> S5
-    S4 --> S6
-    S3 --> S7 --> S8 --> S9
-    S1 --> S10
-    S5 & S6 & S9 & S10 --> S11 --> S12
+    S0 --> S1 --> S2 --> S3 --> S4
+    S1 --> S5 --> S6 --> S7
+    S1 --> S8
+    S6 --> S9
+    S5 --> S10
+    S1 --> S11 --> S12 --> S13 --> S14
+    S13 -.->|後追い| S15
 ```
 
 > Dynamics 365 / オンプレデータゲートウェイ は Demo では作成しない。
+> Teams チャネルが未確定でも Demo 完走可能（Agent 4 は `MockTeamsPlugin` にフォールバック）。
 
 ---
 
@@ -245,42 +324,35 @@ flowchart TD
 
 | サービス | 想定コスト帯 | 備考 |
 |---|---|---|
-| Azure AI Foundry (GPT-4o / mini) | $200～$500 | デモ頻度・トークン数による |
+| Azure AI Foundry (`fd-PartnerIQ` / gpt-5.4) | $300～$600 | 既存リソース。gpt-5.4 単一構成。トークン数による |
+| Azure AI Search (`iq-knowledge-source`) | $0 | 既存リソース。Foundry File Search 共用のため追加コスト無し |
 | Foundry Grounding with Bing Search | $10～$30 | クエリ数・未使用月は $0 |
-| ADLS Gen2 | $5 以下 | Skill.md は小容量 |
-| Azure Container Apps (Consumption) | $0～$30 | リクエスト時のみ課金。デモ未実行時は $0 |
-| Azure Container Registry (Basic) | $5 | 固定 |
-| Azure Key Vault | $1 以下 | シークレット数件 |
-| Azure Monitor | $10～$30 | ログ量による |
-| Microsoft Fabric (F2～F4) | $250～$500 | Fabric 容量ライセンス（テナント単位で一括課金） |
+| ADLS Gen2 (`stnexus6skill*`) | $5 以下 | 新規 / Skill.md は小容量 |
+| Storage Static Website (`stnexus6portal*`) | $1 以下 | 新規 / 数 KB の HTML 数本 |
+| Azure Container Apps (Consumption) | $0～$30 | 新規 / リクエスト時のみ課金 |
+| Azure Container Registry (Basic) | $5 | 新規 / 固定 |
+| Azure Key Vault | $1 以下 | 新規 / シークレット数件 |
+| Application Insights | $10～$30 | 新規 / ログ量による |
+| Microsoft Fabric Capacity (`fabricswedencu001` / F4) | $500 前後 | 既存 / 共用 |
 | Dynamics 365 | $0 | Demo では使わずモック |
 | Microsoft 365 (Teams Workflows) | 既存ライセンス内 | 追加コストなし |
-| **合計目安** | **$481～$1,101 / 月** | Fabric 容量を含む |
-| **Fabric 除く合計** | **$231～$601 / 月** | 既存 Fabric テナントを利用する場合 |
+| **合計目安（新規分のみ）** | **$30～$100 / 月** | 既存リソース除く |
+| **既存リソース利用分** | **$800～$1,130 / 月** | Foundry + Fabric F4 |
 
-> Azure AI Search Basic（$75/月）を廃止し Foundry File Search に統一したこと、Container Apps Consumption を採用したことで App Service (P1v3 / $70) を削減している。
-> リージョンは `fd-PathnerIQ` の既存リージョンに合わせる（`<要確認>`）。
+> 既存リソース（`fd-PartnerIQ` / `iq-knowledge-source` / `fabricswedencu001`）の費用は既存環境で発生済みのため、本プロジェクト追加コストは Container Apps・Key Vault・Storage 等で約 **$30〜$100/月** に収まる見込み。
 
 ---
 
 ## 要確認の設定値一覧
 
-ドキュメント内の `<要確認>` マーカーを実際の値に置き換える前に、以下を確認・決定してください。
+ドキュメント内に残った `<NNNN>` 等のサフィックスは、グローバル一意名の調整用です。実構築時に以下を決定してください。
 
-| No. | 項目 | 現在の仮名 / プレースホルダー | 確認方法 |
+| No. | 項目 | 現在の値 | 確認・決定方法 |
 |---|---|---|---|
-| 1 | **Azure AI Foundry リージョン** | `<要確認>` | Azure Portal → `fd-PathnerIQ` リソースの「概要」 |
-| 2 | **Foundry Project 名** | `<project-name>` | Azure AI Foundry Portal → プロジェクト一覧 |
-| 3 | **Foundry Project Endpoint URL** | `https://fd-pathneriq.services.ai.azure.com/api/projects/<project-name>` | Foundry Portal → プロジェクト → 概要 → エンドポイント |
-| 4 | **Fabric Gold Lakehouse 名** | `<要確認>` | Fabric ワークスペース `fabric_seworkshop_ws1` のアイテム一覧 |
-| 5 | **Fabric Silver Lakehouse 名** | `<要確認>` | 同上 |
-| 6 | **Fabric Bronze Lakehouse 名** | `<要確認>` | 同上 |
-| 7 | **Fabric SQL Analytics Endpoint** | `fabric_seworkshop_ws1.datawarehouse.fabric.microsoft.com` | Gold Lakehouse → SQL Analytics Endpoint → 接続文字列 |
-| 8 | **ADLS Gen2 アカウント名** | `<要確認>` | Azure Portal → ストレージアカウント一覧（または新規作成） |
-| 9 | **Foundry File Search ベクトルストア名** | `<要確認>` | Foundry Portal → Knowledge |
-| 10 | **Azure Key Vault 名** | `<要確認>` | Azure Portal → Key Vault（または新規作成） |
-| 11 | **Container Apps リソースグループ名** | `<要確認>` | Azure Portal → リソースグループ一覧 |
-| 12 | **Container Apps 環境名** | `<要確認>` | Azure Portal → Container Apps 環境（または新規作成） |
-| 13 | **Container Apps アプリ名** | `<要確認>` | 新規作成時に決定 |
+| 1 | ADLS Gen2 ストレージアカウント名（Skill 用） | `stnexus6skill<NNNN>` | グローバル一意になる 4 桁の数値を決定 |
+| 2 | ADLS Gen2 ストレージアカウント名（News Portal 用） | `stnexus6portal<NNNN>` | 同上 |
+| 3 | Foundry File Search ベクトルストア名 | `vs_nexus6_skilldocs`（提案） | Foundry Portal 作成時に最終決定 |
+| 4 | Teams Workflows URL | 未発行 | Teams チャネル作成後に Power Automate で生成し `Teams--WorkflowsUrl` シークレットに登録 |
+| 5 | Teams チャネル 3 つ | 未作成 | mobile/ecommerce/fintech 各事業部チャネルを Demo 直前に作成 |
 
-> **既に存在するリソース**（`fd-PathnerIQ`・`fabric_seworkshop_ws1`）に合わせて、他のリソース名・リージョンを決定することを推奨します。
+> 既存リソース（`fd-PartnerIQ` / `proj-PartnerIQ` / `iq-knowledge-source` / `fabricswedencu001` / `fabric_seworkshop_ws1`）は値が確定済み。
