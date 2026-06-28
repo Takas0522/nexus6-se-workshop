@@ -105,10 +105,13 @@ var monitorConnectionString =
     builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
 if (!string.IsNullOrWhiteSpace(monitorConnectionString))
 {
-  builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
-  {
-    options.ConnectionString = monitorConnectionString;
-  });
+  builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor(options =>
+    {
+      options.ConnectionString = monitorConnectionString;
+      options.SamplingRatio = 1.0f;
+    })
+    .WithTracing(tracing => tracing.AddSource(GenAITelemetry.SourceName));
 }
 
 var storageAccount = builder.Configuration["Storage:Account"];

@@ -51,8 +51,9 @@ public sealed class FoundryAssistantsClient(
             }
 
             var api = ResolveApi(projectEndpoint);
+            var foundryAgentId = ResolveFoundryAgentId(kind);
             var assistantId = await EnsureAssistantAsync(kind, instructions, api, deployment, vectorStoreId, ct);
-            return await RunAssistantAsync(assistantId, instructions, userMessage, api, ct);
+            return await RunAssistantAsync(assistantId, foundryAgentId, deployment, instructions, userMessage, api, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -104,6 +105,8 @@ public sealed class FoundryAssistantsClient(
 
     private async Task<string> RunAssistantAsync(
         string assistantId,
+        string foundryAgentId,
+        string model,
         string instructions,
         string userMessage,
         FoundryAssistantsApi api,
@@ -130,6 +133,7 @@ public sealed class FoundryAssistantsClient(
             api,
             ct);
         var runId = GetRequiredString(run, "id");
+        var latestRun = run;
         var status = run.TryGetProperty("status", out var initialStatus) ? initialStatus.GetString() : "queued";
         var stopwatch = Stopwatch.StartNew();
         var maxWait = TimeSpan.FromSeconds(configuration.GetValue("Foundry:Assistant:RunMaxWaitSeconds", 30));
@@ -142,13 +146,13 @@ public sealed class FoundryAssistantsClient(
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            var polled = await SendAsync(
+            latestRun = await SendAsync(
                 HttpMethod.Get,
                 BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/runs/{Uri.EscapeDataString(runId)}"),
                 content: null,
                 api,
                 ct);
-            status = polled.TryGetProperty("status", out var statusElement) ? statusElement.GetString() : null;
+            status = latestRun.TryGetProperty("status", out var statusElement) ? statusElement.GetString() : null;
         }
 
         if (status != "completed")
@@ -169,14 +173,55 @@ public sealed class FoundryAssistantsClient(
             throw new InvalidOperationException($"Foundry Assistant run {runId} completed without assistant content.");
         }
 
+        var (inputTokens, outputTokens) = ExtractUsageTokens(latestRun);
         logger.LogInformation(
-            "Foundry Assistant run {RunId} completed. AssistantId={AssistantId}; file_search_used={FileSearchUsed}; sources={Sources}.",
+            "Foundry Assistant run {RunId} completed. AssistantId={AssistantId}; FoundryAgentId={FoundryAgentId}; file_search_used={FileSearchUsed}; sources={Sources}; input_tokens={InputTokens}; output_tokens={OutputTokens}.",
             runId,
             assistantId,
+            foundryAgentId,
             fileSearchUsed,
-            string.Join(",", message.SourceFileNames));
+            string.Join(",", message.SourceFileNames),
+            inputTokens,
+            outputTokens);
+        GenAITelemetry.RecordChat(
+            agentName: foundryAgentId,
+            model: model,
+            assistantId: foundryAgentId,
+            runId: runId,
+            instructions: instructions,
+            userMessage: userMessage,
+            assistantContent: message.Content,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens);
         return MergeDataReferences(message.Content, message.SourceFileNames);
     }
+
+    private string ResolveAssistantName(AssistantKind kind) =>
+        configuration[$"Foundry:Assistant:{AssistantNameKey(kind)}"] ?? DefaultAssistantName(kind);
+
+    private string ResolveFoundryAgentId(AssistantKind kind) =>
+        configuration[$"Foundry:Operate:{kind}AgentId"] ?? DefaultFoundryAgentId(kind);
+
+    private static (long? Input, long? Output) ExtractUsageTokens(JsonElement run)
+    {
+        if (!run.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object)
+        {
+            return (null, null);
+        }
+        long? input = usage.TryGetProperty("prompt_tokens", out var pt) && pt.ValueKind == JsonValueKind.Number ? pt.GetInt64() : null;
+        long? output = usage.TryGetProperty("completion_tokens", out var ct) && ct.ValueKind == JsonValueKind.Number ? ct.GetInt64() : null;
+        return (input, output);
+    }
+
+    private static string DefaultFoundryAgentId(AssistantKind kind) => kind switch
+    {
+        AssistantKind.WebResearch => "web-ag:1",
+        AssistantKind.Impact => "impact-ag:2",
+        AssistantKind.MobileRecommend => "sub-mobile-ag:2",
+        AssistantKind.EcommerceRecommend => "sub-internet-ag:2",
+        AssistantKind.FintechRecommend => "sub-fintech-ag:2",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
 
     private async Task<bool> TryLogFileSearchAsync(FoundryAssistantsApi api, string threadId, string runId, CancellationToken ct)
     {

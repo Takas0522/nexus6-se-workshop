@@ -319,3 +319,30 @@ AppGenAIContent
 
 - Hosted Agent 名が未表示でも、クエリ1-3が正常なら実行パスは正常とみなす。
 - `AppGenAIContent` への統一は中期対応（計測経路の統一）として扱う。
+
+## 中期対応（GenAI セマンティクスで `AppGenAIContent` に統合）
+
+Hosted Agent から GenAI セマンティクスに沿った OpenTelemetry の `Activity` を発行し、`AppGenAIContent` に `AgentName` / `InputMessages` / `OutputMessages` を投入する。
+
+### 実装
+
+- `ActivitySource` 名: `Nexus6.NewsAnalysisAgent.GenAI`
+- 発行箇所: `FoundryAssistantsClient.RunAssistantAsync` で run 完了直後
+- 発行属性: `gen_ai.system="az.ai.openai"`, `gen_ai.operation.name="chat"`, `gen_ai.request.model` / `gen_ai.response.model` / `gen_ai.response.id` / `gen_ai.agent.id` / `gen_ai.agent.name`
+- 発行内容: `gen_ai.input.messages` (developer + user), `gen_ai.output.messages` (assistant)
+- 登録: `Program.cs` の `AddOpenTelemetry().UseAzureMonitor(...).WithTracing(t => t.AddSource(GenAITelemetry.SourceName))`
+
+### 確認クエリ
+
+```kusto
+AppGenAIContent
+| where TimeGenerated > ago(2h)
+| summarize Count=count(), LastSeen=max(TimeGenerated) by AgentName, AppRoleName
+| order by LastSeen desc
+```
+
+判定:
+
+- `AppRoleName` に `ca-nexus6-hosted-agent` が現れ、`AgentName` に WebResearch / Impact / 各 DivisionRecommend 系の名前が並ぶこと。
+- `AppTraces`（短期運用案）と件数が概ね対応すること。
+
