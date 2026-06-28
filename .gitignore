@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 appsettings.Development.json
+local.settings.json
 
 # Dependencies
 node_modules/
@@ -12,6 +13,11 @@ dist/
 build/
 bin/
 obj/
+publish/
+*.publish.zip
+
+# Function app deployment artifacts
+src/news-trigger-function/publish.zip
 
 # Logs and temporary files
 *.log

@@ -108,6 +108,7 @@ nexus6-se-workshop/
 ├── knowledge/             # Skill.md / DS.md など業務ナレッジ
 └── src/
     ├── news-portal/       # Demo 入力源：静的 HTML ニュースポータル
+    ├── news-trigger-function/ # Timer Trigger で News Portal を巡回し Queue に投入
     ├── news-analysis-agent/   # ニュース分析エージェント本体
     │   ├── src/           # Agent 1〜4・Orchestration・Tools・Models
     │   └── tests/
