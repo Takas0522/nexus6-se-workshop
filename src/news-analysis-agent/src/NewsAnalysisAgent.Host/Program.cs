@@ -29,14 +29,14 @@ builder.Services.AddHttpClient("bing-grounding", client => client.Timeout = Time
 builder.Services.AddHttpClient<IWebPageFetchPlugin, WebPageFetchPlugin>(client => client.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
-        AllowAutoRedirect = true,
-        MaxAutomaticRedirections = 3
+      AllowAutoRedirect = true,
+      MaxAutomaticRedirections = 3
     });
 
 var keyVaultUri = builder.Configuration["KeyVault:Uri"];
 if (!string.IsNullOrWhiteSpace(keyVaultUri))
 {
-    builder.Services.AddSingleton(sp => new SecretClient(new Uri(keyVaultUri), sp.GetRequiredService<TokenCredential>()));
+  builder.Services.AddSingleton(sp => new SecretClient(new Uri(keyVaultUri), sp.GetRequiredService<TokenCredential>()));
 }
 
 builder.Services.AddSingleton<MockFoundryAgentClient>();
@@ -44,14 +44,14 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Foundry:ProjectEndpoint"])
     !string.IsNullOrWhiteSpace(builder.Configuration["Foundry:DefaultModelDeployment"]))
 {
 #pragma warning disable CS0618
-    builder.Services.AddSingleton<FoundryAgentClient>();
-    builder.Services.AddSingleton<FoundryAssistantsClient>();
-    builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<FoundryAgentClient>());
+  builder.Services.AddSingleton<FoundryAgentClient>();
+  builder.Services.AddSingleton<FoundryAssistantsClient>();
+  builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<FoundryAgentClient>());
 #pragma warning restore CS0618
 }
 else
 {
-    builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<MockFoundryAgentClient>());
+  builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<MockFoundryAgentClient>());
 }
 builder.Services.AddSingleton<MockBingSearchPlugin>();
 builder.Services.AddSingleton<IBingSearchPlugin, BingSearchPlugin>();
@@ -68,7 +68,11 @@ builder.Services.AddSingleton<ITeamsNotificationPlugin, GraphTeamsPlugin>();
 builder.Services.AddSingleton<IDynamics365Plugin, Dynamics365Plugin>();
 builder.Services.AddSingleton<IKnowledgeProvider, LocalFolderKnowledgeProvider>();
 
-builder.Services.AddSingleton<WebResearchAgent>();
+builder.Services.AddSingleton(sp => new WebResearchAgent(
+  (IFoundryAgentClient?)sp.GetService<FoundryAssistantsClient>() ?? sp.GetRequiredService<IFoundryAgentClient>(),
+  sp.GetRequiredService<IBingSearchPlugin>(),
+  sp.GetRequiredService<IWebPageFetchPlugin>(),
+  sp.GetRequiredService<ILogger<WebResearchAgent>>()));
 builder.Services.AddSingleton(sp => new BusinessImpactAgent(
     (IFoundryAgentClient?)sp.GetService<FoundryAssistantsClient>() ?? sp.GetRequiredService<MockFoundryAgentClient>(),
     sp.GetRequiredService<IFabricDataPlugin>(),
@@ -88,35 +92,37 @@ builder.Services.AddSingleton(sp => sp.GetRequiredService<NewsAnalysisWorkflowBu
 
 builder.Services.AddResiliencePipeline("agent-retry", pipeline =>
 {
-    pipeline.AddRetry(new Polly.Retry.RetryStrategyOptions
-    {
-        MaxRetryAttempts = 1,
-        Delay = TimeSpan.FromSeconds(2),
-        BackoffType = DelayBackoffType.Exponential
-    });
+  pipeline.AddRetry(new Polly.Retry.RetryStrategyOptions
+  {
+    MaxRetryAttempts = 1,
+    Delay = TimeSpan.FromSeconds(2),
+    BackoffType = DelayBackoffType.Exponential
+  });
 });
 
-var monitorConnectionString = builder.Configuration["AzureMonitor:ConnectionString"];
+var monitorConnectionString =
+    builder.Configuration["AzureMonitor:ConnectionString"] ??
+    builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
 if (!string.IsNullOrWhiteSpace(monitorConnectionString))
 {
-    builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
-    {
-        options.ConnectionString = monitorConnectionString;
-    });
+  builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
+  {
+    options.ConnectionString = monitorConnectionString;
+  });
 }
 
 var storageAccount = builder.Configuration["Storage:Account"];
 if (string.IsNullOrWhiteSpace(storageAccount))
 {
-    builder.Services.AddSingleton<IQueueClientFactory, DisabledQueueClientFactory>();
+  builder.Services.AddSingleton<IQueueClientFactory, DisabledQueueClientFactory>();
 }
 else
 {
-    builder.Services.AddSingleton(sp => new QueueServiceClient(
-        new Uri($"https://{storageAccount}.queue.core.windows.net"),
-        sp.GetRequiredService<TokenCredential>(),
-        new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 }));
-    builder.Services.AddSingleton<IQueueClientFactory, AzureQueueClientFactory>();
+  builder.Services.AddSingleton(sp => new QueueServiceClient(
+      new Uri($"https://{storageAccount}.queue.core.windows.net"),
+      sp.GetRequiredService<TokenCredential>(),
+      new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 }));
+  builder.Services.AddSingleton<IQueueClientFactory, AzureQueueClientFactory>();
 }
 
 builder.Services.AddHostedService<QueueBackgroundService>();
@@ -139,28 +145,28 @@ app.MapGet("/devui", (WorkflowExecutionStore store) => Results.Content($$"""
 
 app.MapGet("/devui/logs", (WorkflowExecutionStore store) => Results.Ok(new
 {
-    store.LatestRun,
-    store.LatestContext
+  store.LatestRun,
+  store.LatestContext
 }));
 
 var manualTriggerEnabled = app.Configuration.GetValue<bool>("DevUi:EnableManualTrigger");
 if (manualTriggerEnabled)
 {
-    app.MapPost("/devui/run", async (ManualRunRequest request, IWorkflow<NewsAnalysisContext> workflow, CancellationToken ct) =>
+  app.MapPost("/devui/run", async (ManualRunRequest request, IWorkflow<NewsAnalysisContext> workflow, CancellationToken ct) =>
+  {
+    if (string.IsNullOrWhiteSpace(request.OriginalNewsText))
     {
-        if (string.IsNullOrWhiteSpace(request.OriginalNewsText))
-        {
-            return Results.BadRequest(new { error = "originalNewsText is required." });
-        }
+      return Results.BadRequest(new { error = "originalNewsText is required." });
+    }
 
-        var context = new NewsAnalysisContext
-        {
-            OriginalNewsText = request.OriginalNewsText,
-            SearchHints = request.SearchHints ?? []
-        };
-        var result = await workflow.RunAsync(context, ct);
-        return Results.Ok(result);
-    });
+    var context = new NewsAnalysisContext
+    {
+      OriginalNewsText = request.OriginalNewsText,
+      SearchHints = request.SearchHints ?? []
+    };
+    var result = await workflow.RunAsync(context, ct);
+    return Results.Ok(result);
+  });
 }
 
 app.Run();
@@ -171,10 +177,10 @@ public partial class Program;
 
 public partial class Program
 {
-    private static string RenderDevUi(WorkflowRunLog? run, NewsAnalysisContext? context)
-    {
-        var html = new StringBuilder();
-        html.Append("""
+  private static string RenderDevUi(WorkflowRunLog? run, NewsAnalysisContext? context)
+  {
+    var html = new StringBuilder();
+    html.Append("""
 <style>
   :root { color-scheme: light; }
   body { font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; background: #f5f7fb; color: #182230; }
@@ -231,7 +237,7 @@ public partial class Program
     <p>Workflow の進行状況、最新実行、参照データをまとめて確認できます。</p>
   </div>
 """);
-        html.Append("""
+    html.Append("""
 <div class="card" style="margin-bottom:18px">
   <h2>Workflow</h2>
   <div class="workflow">
@@ -249,13 +255,13 @@ public partial class Program
 </div>
 """);
 
-        if (run is null)
-        {
-            html.Append("<div class=\"card\"><div class=\"empty\">No workflow has run yet.</div></div></div>");
-            return html.ToString();
-        }
+    if (run is null)
+    {
+      html.Append("<div class=\"card\"><div class=\"empty\">No workflow has run yet.</div></div></div>");
+      return html.ToString();
+    }
 
-        html.Append($"""
+    html.Append($"""
 <div class="grid">
   <div class="card">
     <h2>Latest execution</h2>
@@ -269,29 +275,29 @@ public partial class Program
   </div>
 """);
 
-        html.Append("""
+    html.Append("""
   <div class="card">
     <h2>Context summary</h2>
     <div class="metric-grid">
 """);
-        if (context is not null)
-        {
-            html.Append($"      <div class=\"metric\"><div class=\"k\">Search hints</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.SearchHints))}</div></div>\n");
-            html.Append($"      <div class=\"metric\"><div class=\"k\">Impact divisions</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.ImpactResult?.ImpactScores.Select(s => s.Division.ToString()) ?? []))}</div></div>\n");
-            html.Append($"      <div class=\"metric\"><div class=\"k\">Recommendations</div><div class=\"v\">{context.Recommendations.Count}</div></div>\n");
-            html.Append($"      <div class=\"metric\"><div class=\"k\">Notification</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.NotificationResult?.Channels ?? []))}</div></div>\n");
-        }
-        else
-        {
-            html.Append("<div class=\"metric\"><div class=\"k\">Context</div><div class=\"v\" style=\"font-size:14px\">No latest context</div></div>");
-        }
-        html.Append("""
+    if (context is not null)
+    {
+      html.Append($"      <div class=\"metric\"><div class=\"k\">Search hints</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.SearchHints))}</div></div>\n");
+      html.Append($"      <div class=\"metric\"><div class=\"k\">Impact divisions</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.ImpactResult?.ImpactScores.Select(s => s.Division.ToString()) ?? []))}</div></div>\n");
+      html.Append($"      <div class=\"metric\"><div class=\"k\">Recommendations</div><div class=\"v\">{context.Recommendations.Count}</div></div>\n");
+      html.Append($"      <div class=\"metric\"><div class=\"k\">Notification</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.NotificationResult?.Channels ?? []))}</div></div>\n");
+    }
+    else
+    {
+      html.Append("<div class=\"metric\"><div class=\"k\">Context</div><div class=\"v\" style=\"font-size:14px\">No latest context</div></div>");
+    }
+    html.Append("""
     </div>
   </div>
 </div>
 """);
 
-        html.Append("""
+    html.Append("""
 <div class="card" style="margin-top:18px">
   <h2>Step timeline</h2>
   <table>
@@ -308,25 +314,25 @@ public partial class Program
     <tbody>
 """);
 
-        foreach (var step in run.Steps.OrderBy(s => s.StartedAt))
-        {
-            html.Append("<tr>");
-            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StepName)}</td>");
-            html.Append($"<td>{(step.Succeeded ? "<span class=\"status-ok\">Success</span>" : "<span class=\"status-ng\">Failed</span>")}</td>");
-            html.Append($"<td align=\"right\">{step.DurationMilliseconds:N0}</td>");
-            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StartedAt.ToString("u"))}</td>");
-            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.CompletedAt.ToString("u"))}</td>");
-            html.Append($"<td class=\"muted\">{System.Net.WebUtility.HtmlEncode(step.ErrorMessage ?? string.Empty)}</td>");
-            html.Append("</tr>");
-        }
+    foreach (var step in run.Steps.OrderBy(s => s.StartedAt))
+    {
+      html.Append("<tr>");
+      html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StepName)}</td>");
+      html.Append($"<td>{(step.Succeeded ? "<span class=\"status-ok\">Success</span>" : "<span class=\"status-ng\">Failed</span>")}</td>");
+      html.Append($"<td align=\"right\">{step.DurationMilliseconds:N0}</td>");
+      html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StartedAt.ToString("u"))}</td>");
+      html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.CompletedAt.ToString("u"))}</td>");
+      html.Append($"<td class=\"muted\">{System.Net.WebUtility.HtmlEncode(step.ErrorMessage ?? string.Empty)}</td>");
+      html.Append("</tr>");
+    }
 
-        html.Append("""
+    html.Append("""
     </tbody>
   </table>
 </div>
 </div>
 """);
 
-        return html.ToString();
-    }
+    return html.ToString();
+  }
 }

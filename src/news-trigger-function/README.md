@@ -5,7 +5,7 @@
 ## 実行タイミング
 
 - `DailyRunCron`（NCRONTAB）で指定
-- JST 12:00 を毎日実行する場合: `0 0 3 * * *`（UTC 03:00）
+- JST 14:55 を毎日実行する場合: `0 55 5 * * *`（UTC 05:55）
 
 ## 必須設定
 
@@ -13,6 +13,7 @@
 - `Storage__QueueName`（既定: `news-analysis-jobs`）
 - `NewsPortal__BaseUrl`
 - `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`
+- Queue 送信は `Base64` エンコード前提
 
 ## ローカル
 

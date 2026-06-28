@@ -1,4 +1,4 @@
-# 29. Azure Functions Cron Trigger（JST 12:00）導入
+# 29. Azure Functions Cron Trigger（JST 14:55）導入
 
 関連: [開発計画 README](README.md) | [Foundry Trigger 引継ぎ](16-foundry-trigger-wiring.md) | [未解決 TODO](19-open-items.md)
 
@@ -32,8 +32,8 @@ Foundry Scheduled Trigger の API スキーマが不安定で自動作成でき�
 ## スケジュール設定
 
 - 設定キー: `DailyRunCron`
-- 設定値: `0 0 3 * * *`
-- 意味: **毎日 UTC 03:00 = 日本時間 12:00**
+- 設定値: `0 55 5 * * *`
+- 意味: **毎日 UTC 05:55 = 日本時間 14:55**
 
 > Azure Functions の Timer Trigger は UTC 基準で運用し、JST 変換は cron 値で吸収する。
 
@@ -71,9 +71,11 @@ Function App の System Assigned Managed Identity に以下を付与:
 - Function App の主要設定を確認:
   - `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`
   - `FUNCTIONS_EXTENSION_VERSION=~4`
-  - `DailyRunCron=0 0 3 * * *`
+  - `DailyRunCron=0 55 5 * * *`
   - `Storage__Account=stnexus6skill1t2i`
   - `Storage__QueueName=news-analysis-jobs`
+
+  Queue 送信は `QueueClientOptions.MessageEncoding=Base64` を前提に、Hosted Agent 側の受信設定と揃える。
 
 ---
 

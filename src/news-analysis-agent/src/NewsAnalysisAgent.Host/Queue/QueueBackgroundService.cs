@@ -33,8 +33,7 @@ public sealed class QueueBackgroundService(
         }
         catch (RequestFailedException ex) when (ex.Status is 401 or 403)
         {
-            logger.LogWarning(ex, "Queue polling is disabled because the storage account is not authorized for queue create.");
-            return;
+            logger.LogWarning(ex, "Queue create is not authorized. Continuing with polling against existing queue.");
         }
 
         while (!stoppingToken.IsCancellationRequested)
@@ -49,8 +48,8 @@ public sealed class QueueBackgroundService(
             }
             catch (RequestFailedException ex) when (ex.Status is 401 or 403)
             {
-                logger.LogWarning(ex, "Queue polling stopped because storage authorization failed.");
-                return;
+                logger.LogWarning(ex, "Queue polling authorization failed. Retrying.");
+                await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
             }
         }
     }

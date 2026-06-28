@@ -24,8 +24,7 @@ public sealed class FoundryAssistantsClient(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _assistantLock = new(1, 1);
     private readonly ConcurrentDictionary<string, string> _fileNameCache = new(StringComparer.OrdinalIgnoreCase);
-    private string? _impactAssistantId;
-    private string? _recommendAssistantId;
+    private readonly ConcurrentDictionary<AssistantKind, string> _assistantIds = new();
 
     public async Task<string> InvokeAsync(
         string instructions,
@@ -35,10 +34,8 @@ public sealed class FoundryAssistantsClient(
     {
         var projectEndpoint = configuration["Foundry:ProjectEndpoint"];
         var deployment = configuration["Foundry:DefaultModelDeployment"];
-        var vectorStoreId = configuration["Foundry:FileSearchVectorStoreId"];
         if (string.IsNullOrWhiteSpace(projectEndpoint) ||
-            string.IsNullOrWhiteSpace(deployment) ||
-            string.IsNullOrWhiteSpace(vectorStoreId))
+            string.IsNullOrWhiteSpace(deployment))
         {
             return await fallback.InvokeAsync(instructions, userMessage, tools, ct);
         }
@@ -46,6 +43,13 @@ public sealed class FoundryAssistantsClient(
         try
         {
             var kind = ResolveAssistantKind(instructions);
+            var vectorStoreId = configuration["Foundry:FileSearchVectorStoreId"];
+            if (RequiresFileSearch(kind) && string.IsNullOrWhiteSpace(vectorStoreId))
+            {
+                logger.LogWarning("Foundry:FileSearchVectorStoreId is required for assistant kind {AssistantKind}. Falling back to mock client.", kind);
+                return await fallback.InvokeAsync(instructions, userMessage, tools, ct);
+            }
+
             var api = ResolveApi(projectEndpoint);
             var assistantId = await EnsureAssistantAsync(kind, instructions, api, deployment, vectorStoreId, ct);
             return await RunAssistantAsync(assistantId, instructions, userMessage, api, ct);
@@ -62,10 +66,10 @@ public sealed class FoundryAssistantsClient(
         string instructions,
         FoundryAssistantsApi api,
         string deployment,
-        string vectorStoreId,
+        string? vectorStoreId,
         CancellationToken ct)
     {
-        var configuredId = configuration[$"Foundry:Assistant:{(kind == AssistantKind.Impact ? "ImpactAssistantId" : "RecommendAssistantId")}"];
+        var configuredId = configuration[$"Foundry:Assistant:{AssistantIdKey(kind)}"];
         if (!string.IsNullOrWhiteSpace(configuredId))
         {
             return configuredId;
@@ -74,14 +78,12 @@ public sealed class FoundryAssistantsClient(
         await _assistantLock.WaitAsync(ct);
         try
         {
-            var cached = kind == AssistantKind.Impact ? _impactAssistantId : _recommendAssistantId;
-            if (!string.IsNullOrWhiteSpace(cached))
+            if (_assistantIds.TryGetValue(kind, out var cached) && !string.IsNullOrWhiteSpace(cached))
             {
                 return cached;
             }
 
-            var name = configuration[$"Foundry:Assistant:{(kind == AssistantKind.Impact ? "ImpactName" : "RecommendName")}"] ??
-                (kind == AssistantKind.Impact ? "nexus6-business-impact-filesearch" : "nexus6-division-recommend-filesearch");
+            var name = configuration[$"Foundry:Assistant:{AssistantNameKey(kind)}"] ?? DefaultAssistantName(kind);
             var found = await FindAssistantByNameAsync(api, name, ct);
             var assistantId = found ?? await CreateAssistantAsync(api, deployment, vectorStoreId, name, instructions, ct);
             if (found is not null)
@@ -89,14 +91,7 @@ public sealed class FoundryAssistantsClient(
                 await UpdateAssistantAsync(api, assistantId, deployment, vectorStoreId, instructions, ct);
             }
 
-            if (kind == AssistantKind.Impact)
-            {
-                _impactAssistantId = assistantId;
-            }
-            else
-            {
-                _recommendAssistantId = assistantId;
-            }
+            _assistantIds[kind] = assistantId;
 
             logger.LogInformation("Using Foundry Assistant {AssistantId} ({AssistantName}) for {AssistantKind}.", assistantId, name, kind);
             return assistantId;
@@ -231,7 +226,7 @@ public sealed class FoundryAssistantsClient(
     private async Task<string> CreateAssistantAsync(
         FoundryAssistantsApi api,
         string deployment,
-        string vectorStoreId,
+        string? vectorStoreId,
         string name,
         string instructions,
         CancellationToken ct)
@@ -249,7 +244,7 @@ public sealed class FoundryAssistantsClient(
         FoundryAssistantsApi api,
         string assistantId,
         string deployment,
-        string vectorStoreId,
+        string? vectorStoreId,
         string instructions,
         CancellationToken ct)
     {
@@ -268,22 +263,27 @@ public sealed class FoundryAssistantsClient(
         }
     }
 
-    private static object AssistantPayload(string deployment, string vectorStoreId, string? name, string instructions)
+    private static object AssistantPayload(string deployment, string? vectorStoreId, string? name, string instructions)
     {
         var payload = new Dictionary<string, object?>
         {
             ["model"] = deployment,
             ["instructions"] = instructions,
-            ["tools"] = new object[] { new { type = "file_search" } },
-            ["tool_resources"] = new
+            ["temperature"] = 0.3
+        };
+
+        if (!string.IsNullOrWhiteSpace(vectorStoreId))
+        {
+            payload["tools"] = new object[] { new { type = "file_search" } };
+            payload["tool_resources"] = new
             {
                 file_search = new
                 {
                     vector_store_ids = new[] { vectorStoreId }
                 }
-            },
-            ["temperature"] = 0.3
-        };
+            };
+        }
+
         if (!string.IsNullOrWhiteSpace(name))
         {
             payload["name"] = name;
@@ -498,10 +498,63 @@ public sealed class FoundryAssistantsClient(
         return false;
     }
 
-    private static AssistantKind ResolveAssistantKind(string instructions) =>
-        instructions.Contains("事業部別レコメンド", StringComparison.Ordinal)
-            ? AssistantKind.Recommend
-            : AssistantKind.Impact;
+    private static AssistantKind ResolveAssistantKind(string instructions)
+    {
+        if (instructions.Contains("ニュース分析の調査担当エージェント", StringComparison.Ordinal))
+        {
+            return AssistantKind.WebResearch;
+        }
+
+        if (instructions.Contains("対象事業部: モバイル通信", StringComparison.Ordinal))
+        {
+            return AssistantKind.MobileRecommend;
+        }
+
+        if (instructions.Contains("対象事業部: Eコマース", StringComparison.Ordinal))
+        {
+            return AssistantKind.EcommerceRecommend;
+        }
+
+        if (instructions.Contains("対象事業部: Fintech", StringComparison.Ordinal))
+        {
+            return AssistantKind.FintechRecommend;
+        }
+
+        return AssistantKind.Impact;
+    }
+
+    private static bool RequiresFileSearch(AssistantKind kind) =>
+        kind is AssistantKind.Impact or AssistantKind.MobileRecommend or AssistantKind.EcommerceRecommend or AssistantKind.FintechRecommend;
+
+    private static string AssistantIdKey(AssistantKind kind) => kind switch
+    {
+        AssistantKind.WebResearch => "WebResearchAssistantId",
+        AssistantKind.Impact => "ImpactAssistantId",
+        AssistantKind.MobileRecommend => "MobileRecommendAssistantId",
+        AssistantKind.EcommerceRecommend => "EcommerceRecommendAssistantId",
+        AssistantKind.FintechRecommend => "FintechRecommendAssistantId",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
+
+    private static string AssistantNameKey(AssistantKind kind) => kind switch
+    {
+        AssistantKind.WebResearch => "WebResearchName",
+        AssistantKind.Impact => "ImpactName",
+        AssistantKind.MobileRecommend => "MobileRecommendName",
+        AssistantKind.EcommerceRecommend => "EcommerceRecommendName",
+        AssistantKind.FintechRecommend => "FintechRecommendName",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
+
+    private static string DefaultAssistantName(AssistantKind kind) => kind switch
+    {
+        AssistantKind.WebResearch => "nexus6-web-research",
+        AssistantKind.Impact => "nexus6-business-impact-filesearch",
+        AssistantKind.MobileRecommend => "nexus6-mobile-recommend-filesearch",
+        AssistantKind.EcommerceRecommend => "nexus6-ecommerce-recommend-filesearch",
+        AssistantKind.FintechRecommend => "nexus6-fintech-recommend-filesearch",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
 
     private static StringContent JsonContent(object value) =>
         new(JsonSerializer.Serialize(value, JsonOptions), Encoding.UTF8, "application/json");
@@ -543,8 +596,11 @@ public sealed class FoundryAssistantsClient(
 
     private enum AssistantKind
     {
+        WebResearch,
         Impact,
-        Recommend
+        MobileRecommend,
+        EcommerceRecommend,
+        FintechRecommend
     }
 
     private sealed record AssistantMessage(string Content, IReadOnlyList<string> SourceFileNames);

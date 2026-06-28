@@ -56,6 +56,7 @@ az containerapp create \
     Storage__Account=stnexus6skill1t2i \
     KeyVault__Uri=https://kv-nexus6-swc.vault.azure.net/ \
     AzureMonitor__ConnectionString="$APPINSIGHTS_CONNECTION_STRING" \
+    APPLICATIONINSIGHTS_CONNECTION_STRING="$APPINSIGHTS_CONNECTION_STRING" \
     DevUi__EnableManualTrigger=true
 ```
 

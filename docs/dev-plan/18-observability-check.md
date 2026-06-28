@@ -255,3 +255,67 @@ az containerapp show \
 ## 結論
 
 App Insights `appi-nexus6-swc` には Phase 3 E2E 実行時間帯の `requests` / `traces` / `dependencies` / `exceptions` が流入している。Workflow step、notification、division-recommend、および Storage Queue / Foundry(OpenAI) 依存呼び出しを確認できたため、`o-observability` は Pass とする。
+
+## 短期運用案（AppTraces 正式運用）
+
+Hosted Agent 実行の一次監視先を `AppTraces` に固定し、`AppGenAIContent` は補助確認とする。理由は、現時点で Hosted Agent の LLM 実行は `AppTraces` には確実に記録される一方、`AppGenAIContent` には web-ag のみが記録される時間帯があるため。
+
+### クエリ1: 実行有無（5分ビン）
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(6h)
+| where Message has "Foundry Assistant run"
+| summarize Runs=count() by bin(TimeGenerated, 5m)
+| order by TimeGenerated desc
+```
+
+判定:
+
+- Runs が 1 以上のビンがあれば、Hosted Agent 側の Foundry 実行は到達している。
+
+### クエリ2: Assistant 内訳（どの Agent が動いたか）
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(6h)
+| where Message has "Foundry Assistant run"
+| extend AssistantId = extract("AssistantId=([^;]+);", 1, Message)
+| summarize Runs=count(), LastSeen=max(TimeGenerated) by AssistantId
+| order by LastSeen desc
+```
+
+判定:
+
+- 複数 AssistantId が出ること。
+- `LastSeen` が直近実行時刻に追随すること。
+
+### クエリ3: 失敗検知（未完了 run の有無）
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(6h)
+| where Message has_any ("Foundry Assistant run", "invocation failed", "ended with status", "did not complete")
+| project TimeGenerated, SeverityLevel, Message
+| order by TimeGenerated desc
+| take 200
+```
+
+判定:
+
+- `completed` が継続して出ること。
+- `failed` / `ended with status` / `did not complete` が急増していないこと。
+
+### 補助クエリ: AppGenAIContent 到達確認
+
+```kusto
+AppGenAIContent
+| where TimeGenerated > ago(6h)
+| summarize Count=count(), LastSeen=max(TimeGenerated) by AgentName, ServiceName, RoleName
+| order by LastSeen desc
+```
+
+補助判定:
+
+- Hosted Agent 名が未表示でも、クエリ1-3が正常なら実行パスは正常とみなす。
+- `AppGenAIContent` への統一は中期対応（計測経路の統一）として扱う。

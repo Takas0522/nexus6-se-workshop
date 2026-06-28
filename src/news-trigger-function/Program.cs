@@ -1,6 +1,7 @@
 using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Queues;
+using Azure.Storage.Queues.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,7 +29,8 @@ var host = new HostBuilder()
 
             return new QueueClient(
                 new Uri($"https://{account}.queue.core.windows.net/{queueName}"),
-                sp.GetRequiredService<TokenCredential>());
+                sp.GetRequiredService<TokenCredential>(),
+                new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 });
         });
         services.AddSingleton<NewsPortalCrawler>();
     })

@@ -3,7 +3,7 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-    "DailyRunCron": "0 0 3 * * *",
+    "DailyRunCron": "0 55 5 * * *",
     "Storage__Account": "stnexus6skill1t2i",
     "Storage__QueueName": "news-analysis-jobs",
     "NewsPortal__BaseUrl": "https://stnexus6portal1t2i.z1.web.core.windows.net/",
