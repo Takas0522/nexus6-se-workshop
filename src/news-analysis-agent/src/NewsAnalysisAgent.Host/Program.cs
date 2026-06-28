@@ -1,3 +1,4 @@
+using System.Text;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
@@ -130,9 +131,8 @@ app.MapGet("/devui", (WorkflowExecutionStore store) => Results.Content($$"""
 <head><meta charset="utf-8"><title>News Analysis Agent DevUI</title></head>
 <body>
   <h1>News Analysis Agent DevUI</h1>
-  <p>Microsoft Agent Framework DevUI placeholder. Replace with MapAgentFrameworkDevUI when Preview APIs stabilize.</p>
   <p>Latest run JSON: <a href="/devui/logs">/devui/logs</a></p>
-  <pre>{{System.Net.WebUtility.HtmlEncode(System.Text.Json.JsonSerializer.Serialize(store.LatestRun))}}</pre>
+  {{RenderDevUi(store.LatestRun, store.LatestContext)}}
 </body>
 </html>
 """, "text/html"));
@@ -168,3 +168,165 @@ app.Run();
 public sealed record ManualRunRequest(string OriginalNewsText, string[]? SearchHints = null);
 
 public partial class Program;
+
+public partial class Program
+{
+    private static string RenderDevUi(WorkflowRunLog? run, NewsAnalysisContext? context)
+    {
+        var html = new StringBuilder();
+        html.Append("""
+<style>
+  :root { color-scheme: light; }
+  body { font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; background: #f5f7fb; color: #182230; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 60%, #2563eb 100%);
+    color: white; border-radius: 20px; padding: 24px 28px; box-shadow: 0 12px 40px rgba(15, 23, 42, .18);
+    margin-bottom: 20px;
+  }
+  .hero h1 { margin: 0 0 8px; font-size: 28px; }
+  .hero p { margin: 0; opacity: .9; }
+  .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+  .card {
+    background: #fff; border: 1px solid #e5eaf3; border-radius: 18px; padding: 18px 20px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, .06);
+  }
+  .card h2 { margin: 0 0 14px; font-size: 18px; }
+  .workflow { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .step {
+    min-width: 132px; border-radius: 14px; padding: 12px 14px; border: 1px solid #dbe4f0;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  .step.primary { background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); border-color: #bfdbfe; }
+  .step .label { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #64748b; }
+  .step .name { margin-top: 4px; font-weight: 700; }
+  .arrow { align-self: center; color: #94a3b8; font-size: 18px; font-weight: 700; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+    background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 12px; font-weight: 600;
+  }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .metric {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px;
+  }
+  .metric .k { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+  .metric .v { font-size: 18px; font-weight: 800; color: #0f172a; }
+  .metric .s { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: left; }
+  th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  tbody tr:hover { background: #fbfdff; }
+  .status-ok { color: #166534; background: #dcfce7; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .status-ng { color: #991b1b; background: #fee2e2; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .muted { color: #64748b; }
+  .empty {
+    padding: 18px; border: 1px dashed #cbd5e1; border-radius: 14px; color: #64748b; background: #f8fafc;
+  }
+</style>
+<div class="page">
+  <div class="hero">
+    <h1>News Analysis Agent DevUI</h1>
+    <p>Workflow の進行状況、最新実行、参照データをまとめて確認できます。</p>
+  </div>
+""");
+        html.Append("""
+<div class="card" style="margin-bottom:18px">
+  <h2>Workflow</h2>
+  <div class="workflow">
+    <div class="step primary"><div class="label">Step 1</div><div class="name">Web Research</div></div>
+    <div class="arrow">→</div>
+    <div class="step primary"><div class="label">Step 2</div><div class="name">Business Impact</div></div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="label">Step 3</div><div class="name">Division Recommend</div>
+      <div class="chip-row"><span class="chip">Mobile</span><span class="chip">Ecommerce</span><span class="chip">Fintech</span></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step primary"><div class="label">Step 4</div><div class="name">Notification</div></div>
+  </div>
+</div>
+""");
+
+        if (run is null)
+        {
+            html.Append("<div class=\"card\"><div class=\"empty\">No workflow has run yet.</div></div></div>");
+            return html.ToString();
+        }
+
+        html.Append($"""
+<div class="grid">
+  <div class="card">
+    <h2>Latest execution</h2>
+    <div class="metric-grid">
+      <div class="metric"><div class="k">Run ID</div><div class="v" style="font-size:13px">{System.Net.WebUtility.HtmlEncode(run.RunId.ToString())}</div><div class="s">execution identifier</div></div>
+      <div class="metric"><div class="k">Started</div><div class="v" style="font-size:13px">{System.Net.WebUtility.HtmlEncode(run.StartedAt.ToString("u"))}</div><div class="s">utc</div></div>
+      <div class="metric"><div class="k">Completed</div><div class="v" style="font-size:13px">{System.Net.WebUtility.HtmlEncode(run.CompletedAt?.ToString("u") ?? "-")}</div><div class="s">utc</div></div>
+      <div class="metric"><div class="k">Steps</div><div class="v">{run.Steps.Count}</div><div class="s">workflow steps</div></div>
+    </div>
+    <div style="margin-top:14px" class="muted"><strong>News:</strong> {System.Net.WebUtility.HtmlEncode(run.OriginalNewsText)}</div>
+  </div>
+""");
+
+        html.Append("""
+  <div class="card">
+    <h2>Context summary</h2>
+    <div class="metric-grid">
+""");
+        if (context is not null)
+        {
+            html.Append($"      <div class=\"metric\"><div class=\"k\">Search hints</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.SearchHints))}</div></div>\n");
+            html.Append($"      <div class=\"metric\"><div class=\"k\">Impact divisions</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.ImpactResult?.ImpactScores.Select(s => s.Division.ToString()) ?? []))}</div></div>\n");
+            html.Append($"      <div class=\"metric\"><div class=\"k\">Recommendations</div><div class=\"v\">{context.Recommendations.Count}</div></div>\n");
+            html.Append($"      <div class=\"metric\"><div class=\"k\">Notification</div><div class=\"v\" style=\"font-size:14px\">{System.Net.WebUtility.HtmlEncode(string.Join(", ", context.NotificationResult?.Channels ?? []))}</div></div>\n");
+        }
+        else
+        {
+            html.Append("<div class=\"metric\"><div class=\"k\">Context</div><div class=\"v\" style=\"font-size:14px\">No latest context</div></div>");
+        }
+        html.Append("""
+    </div>
+  </div>
+</div>
+""");
+
+        html.Append("""
+<div class="card" style="margin-top:18px">
+  <h2>Step timeline</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Step</th>
+        <th>Status</th>
+        <th align="right">Duration (ms)</th>
+        <th>Started</th>
+        <th>Completed</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+""");
+
+        foreach (var step in run.Steps.OrderBy(s => s.StartedAt))
+        {
+            html.Append("<tr>");
+            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StepName)}</td>");
+            html.Append($"<td>{(step.Succeeded ? "<span class=\"status-ok\">Success</span>" : "<span class=\"status-ng\">Failed</span>")}</td>");
+            html.Append($"<td align=\"right\">{step.DurationMilliseconds:N0}</td>");
+            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.StartedAt.ToString("u"))}</td>");
+            html.Append($"<td>{System.Net.WebUtility.HtmlEncode(step.CompletedAt.ToString("u"))}</td>");
+            html.Append($"<td class=\"muted\">{System.Net.WebUtility.HtmlEncode(step.ErrorMessage ?? string.Empty)}</td>");
+            html.Append("</tr>");
+        }
+
+        html.Append("""
+    </tbody>
+  </table>
+</div>
+</div>
+""");
+
+        return html.ToString();
+    }
+}

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Azure;
 using Microsoft.Extensions.Options;
 using NewsAnalysisAgent.Models;
 using NewsAnalysisAgent.Orchestration;
@@ -26,14 +27,30 @@ public sealed class QueueBackgroundService(
         }
 
         var queueClient = queueClientFactory.CreateClient(QueueName);
-        await queueClient.CreateIfNotExistsAsync(stoppingToken);
+        try
+        {
+            await queueClient.CreateIfNotExistsAsync(stoppingToken);
+        }
+        catch (RequestFailedException ex) when (ex.Status is 401 or 403)
+        {
+            logger.LogWarning(ex, "Queue polling is disabled because the storage account is not authorized for queue create.");
+            return;
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var processed = await ExecuteOnePollAsync(queueClient, stoppingToken);
-            if (!processed)
+            try
             {
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                var processed = await ExecuteOnePollAsync(queueClient, stoppingToken);
+                if (!processed)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
+            }
+            catch (RequestFailedException ex) when (ex.Status is 401 or 403)
+            {
+                logger.LogWarning(ex, "Queue polling stopped because storage authorization failed.");
+                return;
             }
         }
     }
