@@ -35,3 +35,8 @@ venv/
 # OS/editor noise
 .DS_Store
 Thumbs.db
+
+# EnvironmentSetup CLI runtime outputs
+setup-state.json
+output/
+logs/

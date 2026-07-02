@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Agents/NewsAnalysisAgent.Agents.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Models/NewsAnalysisAgent.Models.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Orchestration/NewsAnalysisAgent.Orchestration.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Tools/NewsAnalysisAgent.Tools.csproj" />
+  </ItemGroup>
+
+</Project>

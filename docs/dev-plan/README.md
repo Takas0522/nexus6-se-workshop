@@ -39,6 +39,7 @@
 | [27-readability-improvements.md](27-readability-improvements.md) | Teams 投稿の物理列名・Skill ファイル名・dataReferences 可読性改善 |
 | [28-card-polish.md](28-card-polish.md) | Adaptive Card の数値整形・NextActions 構造化・mock URL 排除 |
 | [29-functions-cron-trigger.md](29-functions-cron-trigger.md) | Foundry Scheduled Trigger 代替として Azure Functions Timer Trigger を導入（JST 14:55） |
+| [30-foundry-operate-v1-investigation.md](30-foundry-operate-v1-investigation.md) | Foundry Operate ダッシュボード v1 API 連携 調査記録（保留判定） |
 
 ## 技術スタック
 
