@@ -37,6 +37,30 @@ public class Step12AppDeploy : ISetupStep
         var domainConfigBlobUri = state.DomainConfigBlobUri ?? "";
 
         // =====================================================
+        // 0. WebIQ API Key → Key Vault 登録
+        // =====================================================
+        if (!string.IsNullOrEmpty(deployment.WebIqBaseUrl) && !string.IsNullOrEmpty(deployment.KeyVaultUri))
+        {
+            Console.WriteLine("  🔑 WebIQ API Key を Key Vault に登録中...");
+            var vaultName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
+            Console.Write("    WebIQ API Key を入力 (スキップは Enter): ");
+            var webIqApiKey = Console.ReadLine()?.Trim();
+            if (!string.IsNullOrWhiteSpace(webIqApiKey))
+            {
+                await _az.RunAsync(
+                    $"keyvault secret set --vault-name {vaultName} " +
+                    $"--name webiq-api-key " +
+                    $"--value {webIqApiKey}",
+                    silent: true);
+                Console.WriteLine("    ✓ webiq-api-key を Key Vault に保存しました");
+            }
+            else
+            {
+                Console.WriteLine("    ⚠️ スキップ (後で手動設定してください)");
+            }
+        }
+
+        // =====================================================
         // 1. Container App: news-analysis-agent (Hosted Agent)
         // =====================================================
         Console.WriteLine("  🐳 news-analysis-agent をビルド・デプロイ中...");
@@ -193,7 +217,7 @@ public class Step12AppDeploy : ISetupStep
 
             // WebIQ
             ["WebIq__BaseUrl"] = deployment.WebIqBaseUrl,
-            ["WebIq__AuthMode"] = "EntraID",
+            ["WebIq__KeyVaultSecretName"] = "webiq-api-key",
         };
 
         return vars;
@@ -230,6 +254,9 @@ public class Step12AppDeploy : ISetupStep
             // News Portal
             ["NewsPortal__BaseUrl"] = deployment.PortalBaseUrl,
 
+            // Key Vault
+            ["KeyVault__Uri"] = deployment.KeyVaultUri,
+
             // CORS - Container App の webapp URL (自身)
             ["AllowedOrigins__0"] = !string.IsNullOrEmpty(deployment.ContainerAppUrl)
                 ? deployment.ContainerAppUrl
@@ -240,7 +267,7 @@ public class Step12AppDeploy : ISetupStep
 
             // WebIQ
             ["WebIq__BaseUrl"] = deployment.WebIqBaseUrl,
-            ["WebIq__AuthMode"] = "EntraID",
+            ["WebIq__KeyVaultSecretName"] = "webiq-api-key",
         };
 
         return vars;

@@ -1,6 +1,7 @@
 using System.Text;
 using Azure.Core;
 using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Resilience;
@@ -86,15 +87,53 @@ else
     builder.Services.AddSingleton<IFoundryAgentClient>(sp => sp.GetRequiredService<MockFoundryAgentClient>());
 }
 
+// Key Vault
+var webappKeyVaultUri = builder.Configuration["KeyVault:Uri"];
+if (!string.IsNullOrWhiteSpace(webappKeyVaultUri))
+{
+    builder.Services.AddSingleton(sp => new SecretClient(new Uri(webappKeyVaultUri), sp.GetRequiredService<TokenCredential>()));
+}
+
 // Plugins
 builder.Services.AddSingleton<MockBingSearchPlugin>();
 builder.Services.AddSingleton<MockFabricDataPlugin>();
 
 // WebIQ or legacy Bing+WebPageFetch
-if (!string.IsNullOrWhiteSpace(builder.Configuration["WebIq:BaseUrl"]))
+var webappWebIqBaseUrl = builder.Configuration["WebIq:BaseUrl"];
+if (!string.IsNullOrWhiteSpace(webappWebIqBaseUrl))
 {
     builder.Services.AddSingleton<WebPageFetchPlugin>();
-    builder.Services.AddSingleton<WebIqPlugin>();
+    builder.Services.AddSingleton(sp =>
+    {
+        var secretClient = sp.GetService<SecretClient>();
+        var secretName = builder.Configuration["WebIq:KeyVaultSecretName"] ?? "webiq-api-key";
+        string apiKey;
+        if (secretClient is not null)
+        {
+            try
+            {
+                apiKey = secretClient.GetSecret(secretName).Value.Value;
+            }
+            catch (Exception ex)
+            {
+                sp.GetRequiredService<ILogger<WebIqPlugin>>()
+                  .LogWarning(ex, "Failed to retrieve WebIQ API key from Key Vault.");
+                apiKey = "";
+            }
+        }
+        else
+        {
+            apiKey = builder.Configuration["WebIq:ApiKey"] ?? "";
+        }
+
+        return new WebIqPlugin(
+            webappWebIqBaseUrl,
+            apiKey,
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<MockBingSearchPlugin>(),
+            sp.GetRequiredService<WebPageFetchPlugin>(),
+            sp.GetRequiredService<ILogger<WebIqPlugin>>());
+    });
     builder.Services.AddSingleton<IBingSearchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
     builder.Services.AddSingleton<IWebPageFetchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
 }

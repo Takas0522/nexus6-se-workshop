@@ -1,9 +1,6 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Azure.Core;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace NewsAnalysisAgent.Tools;
@@ -11,6 +8,7 @@ namespace NewsAnalysisAgent.Tools;
 /// <summary>
 /// Web IQ API を使用した検索・ページ取得プラグイン。
 /// IBingSearchPlugin (ニュース検索) と IWebPageFetchPlugin (ページ閲覧) の両方を実装。
+/// 認証は API Key (Key Vault から取得) を使用。
 /// </summary>
 public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
 {
@@ -19,33 +17,28 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly IConfiguration _configuration;
+    private readonly string _baseUrl;
+    private readonly string _apiKey;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly TokenCredential _credential;
     private readonly IBingSearchPlugin _fallbackSearch;
     private readonly IWebPageFetchPlugin _fallbackBrowse;
     private readonly ILogger<WebIqPlugin> _logger;
 
     public WebIqPlugin(
-        IConfiguration configuration,
+        string baseUrl,
+        string apiKey,
         IHttpClientFactory httpClientFactory,
-        TokenCredential credential,
         MockBingSearchPlugin fallbackSearch,
         WebPageFetchPlugin fallbackBrowse,
         ILogger<WebIqPlugin> logger)
     {
-        _configuration = configuration;
+        _baseUrl = baseUrl;
+        _apiKey = apiKey;
         _httpClientFactory = httpClientFactory;
-        _credential = credential;
         _fallbackSearch = fallbackSearch;
         _fallbackBrowse = fallbackBrowse;
         _logger = logger;
     }
-
-    private string? BaseUrl => _configuration["WebIq:BaseUrl"];
-    private string? ApiKey => _configuration["WebIq:ApiKey"];
-    private bool UseEntraId => string.Equals(_configuration["WebIq:AuthMode"], "EntraID", StringComparison.OrdinalIgnoreCase);
-    private string Scope => _configuration["WebIq:Scope"] ?? "https://cognitiveservices.azure.com/.default";
 
     /// <summary>
     /// ニュース検索 (IBingSearchPlugin 実装)。
@@ -53,7 +46,7 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
     /// </summary>
     public async Task<string> SearchAsync(string query, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(BaseUrl))
+        if (string.IsNullOrWhiteSpace(_baseUrl))
         {
             return await _fallbackSearch.SearchAsync(query, ct);
         }
@@ -92,7 +85,7 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
     /// </summary>
     public async Task<string> FetchAsync(string url, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(BaseUrl))
+        if (string.IsNullOrWhiteSpace(_baseUrl))
         {
             return await _fallbackBrowse.FetchAsync(url, ct);
         }
@@ -131,7 +124,7 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
     /// </summary>
     public async Task<string> WebSearchAsync(string query, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(BaseUrl))
+        if (string.IsNullOrWhiteSpace(_baseUrl))
         {
             return await _fallbackSearch.SearchAsync(query, ct);
         }
@@ -152,7 +145,7 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
     private async Task<string> PostAsync<T>(string path, T body, CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient("webiq");
-        var endpoint = new Uri($"{BaseUrl!.TrimEnd('/')}{path}");
+        var endpoint = new Uri($"{_baseUrl.TrimEnd('/')}{path}");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Content = new StringContent(
@@ -160,18 +153,8 @@ public sealed class WebIqPlugin : IBingSearchPlugin, IWebPageFetchPlugin
             Encoding.UTF8,
             "application/json");
 
-        // 認証
-        if (UseEntraId)
-        {
-            var token = await _credential.GetTokenAsync(
-                new TokenRequestContext([Scope]),
-                ct);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
-        }
-        else if (!string.IsNullOrWhiteSpace(ApiKey))
-        {
-            request.Headers.Add("x-apikey", ApiKey);
-        }
+        // API Key 認証
+        request.Headers.Add("x-apikey", _apiKey);
 
         using var response = await client.SendAsync(request, ct);
         var responseBody = await response.Content.ReadAsStringAsync(ct);

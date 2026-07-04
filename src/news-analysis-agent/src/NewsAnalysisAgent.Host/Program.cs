@@ -94,10 +94,42 @@ builder.Services.AddSingleton<MockBingSearchPlugin>();
 builder.Services.AddSingleton<MockFabricDataPlugin>();
 
 // WebIQ or legacy Bing+WebPageFetch
-if (!string.IsNullOrWhiteSpace(builder.Configuration["WebIq:BaseUrl"]))
+var webIqBaseUrl = builder.Configuration["WebIq:BaseUrl"];
+if (!string.IsNullOrWhiteSpace(webIqBaseUrl))
 {
   builder.Services.AddSingleton<WebPageFetchPlugin>();
-  builder.Services.AddSingleton<WebIqPlugin>();
+  builder.Services.AddSingleton(sp =>
+  {
+      // API Key を Key Vault から取得
+      var secretClient = sp.GetService<SecretClient>();
+      var secretName = builder.Configuration["WebIq:KeyVaultSecretName"] ?? "webiq-api-key";
+      string apiKey;
+      if (secretClient is not null)
+      {
+          try
+          {
+              apiKey = secretClient.GetSecret(secretName).Value.Value;
+          }
+          catch (Exception ex)
+          {
+              sp.GetRequiredService<ILogger<WebIqPlugin>>()
+                .LogWarning(ex, "Failed to retrieve WebIQ API key from Key Vault. WebIQ will fallback.");
+              apiKey = "";
+          }
+      }
+      else
+      {
+          apiKey = builder.Configuration["WebIq:ApiKey"] ?? "";
+      }
+
+      return new WebIqPlugin(
+          webIqBaseUrl,
+          apiKey,
+          sp.GetRequiredService<IHttpClientFactory>(),
+          sp.GetRequiredService<MockBingSearchPlugin>(),
+          sp.GetRequiredService<WebPageFetchPlugin>(),
+          sp.GetRequiredService<ILogger<WebIqPlugin>>());
+  });
   builder.Services.AddSingleton<IBingSearchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
   builder.Services.AddSingleton<IWebPageFetchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
 }
