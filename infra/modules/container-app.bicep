@@ -36,12 +36,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
         transport: 'http'
         allowInsecure: false
       }
-      registries: [
+      registries: contains(image, acrLoginServer) ? [
         {
           server: acrLoginServer
           identity: 'System'
         }
-      ]
+      ] : []
       secrets: []
     }
     template: {

@@ -9,13 +9,15 @@ namespace EnvironmentSetup.App.Steps;
 public class Step13AppDeploy : ISetupStep
 {
     private readonly AzureCliWrapper _az;
+    private readonly NonInteractiveConfig _niConfig;
 
     public int StepNumber => 13;
     public string Name => "アプリデプロイ";
 
-    public Step13AppDeploy(AzureCliWrapper az)
+    public Step13AppDeploy(AzureCliWrapper az, NonInteractiveConfig niConfig)
     {
         _az = az;
+        _niConfig = niConfig;
     }
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
@@ -43,8 +45,16 @@ public class Step13AppDeploy : ISetupStep
         {
             Console.WriteLine("  🔑 WebIQ API Key を Key Vault に登録中...");
             var vaultName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
-            Console.Write("    WebIQ API Key を入力 (スキップは Enter): ");
-            var webIqApiKey = Console.ReadLine()?.Trim();
+            string? webIqApiKey;
+            if (_niConfig.Enabled)
+            {
+                webIqApiKey = _niConfig.WebIqApiKey;
+            }
+            else
+            {
+                Console.Write("    WebIQ API Key を入力 (スキップは Enter): ");
+                webIqApiKey = Console.ReadLine()?.Trim();
+            }
             if (!string.IsNullOrWhiteSpace(webIqApiKey))
             {
                 await _az.RunAsync(

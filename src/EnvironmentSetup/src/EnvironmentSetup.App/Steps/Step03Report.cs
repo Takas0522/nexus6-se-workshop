@@ -10,13 +10,15 @@ namespace EnvironmentSetup.App.Steps;
 public class Step03Report : ISetupStep
 {
     private readonly CopilotService _copilot;
+    private readonly NonInteractiveConfig _niConfig;
 
     public int StepNumber => 3;
     public string Name => "レポート作成";
 
-    public Step03Report(CopilotService copilot)
+    public Step03Report(CopilotService copilot, NonInteractiveConfig niConfig)
     {
         _copilot = copilot;
+        _niConfig = niConfig;
     }
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
@@ -66,10 +68,13 @@ public class Step03Report : ISetupStep
         Console.WriteLine($"\n  📄 レポートを保存しました: {outputPath}\n");
 
         // 続行確認
-        Console.Write("  続行しますか? (y/n): ");
-        var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
-        if (confirm != "y" && confirm != "yes")
-            throw new OperationCanceledException("ユーザーにより中断されました。");
+        if (!_niConfig.Enabled)
+        {
+            Console.Write("  続行しますか? (y/n): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm != "y" && confirm != "yes")
+                throw new OperationCanceledException("ユーザーにより中断されました。");
+        }
 
         state.Report = new ReportOutput
         {

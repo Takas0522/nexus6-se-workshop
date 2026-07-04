@@ -14,7 +14,7 @@ param aiProjectName string
 param customSubdomain string
 
 // AI Services Account (Foundry)
-resource aiServices 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
   name: aiServicesName
   location: location
   tags: tags
@@ -23,10 +23,8 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = 
     name: 'S0'
   }
   properties: {
-    apiProperties: {
-      statisticsEnabled: false
-    }
     customSubDomainName: customSubdomain
+    allowProjectManagement: true
     networkAcls: {
       defaultAction: 'Allow'
     }
@@ -38,28 +36,30 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = 
 }
 
 // AI Services Project
-resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2024-01-01-preview' = {
+resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   name: aiProjectName
   parent: aiServices
-  properties: {
-    kind: 'AIServicesProject'
+  location: location
+  identity: {
+    type: 'SystemAssigned'
   }
+  properties: {}
 }
 
 // Model Deployments
-@description('GPT-5.4 model deployment with 500K TPM')
-resource gpt54Deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-01-01-preview' = {
-  name: 'gpt-5.4'
+@description('GPT-5 model deployment')
+resource gpt5Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+  name: 'gpt-5'
   parent: aiServices
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 30
+  }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-5.4'
-      version: '2026-03-05'
-    }
-    scaleSettings: {
-      scaleType: 'TokenRateLimit'
-      maxTokensPerMinuteReadCapacity: 500000
+      name: 'gpt-5'
+      version: '2025-08-07'
     }
     raiPolicyName: 'Microsoft.Default'
   }
@@ -68,66 +68,25 @@ resource gpt54Deployment 'Microsoft.CognitiveServices/accounts/deployments@2024-
   ]
 }
 
-@description('Text Embedding 3 Large model deployment with 120K TPM')
-resource textEmbedding3LargeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-01-01-preview' = {
+@description('Text Embedding 3 Large model deployment')
+resource textEmbedding3LargeDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   name: 'text-embedding-3-large'
   parent: aiServices
+  sku: {
+    name: 'Standard'
+    capacity: 120
+  }
   properties: {
     model: {
       format: 'OpenAI'
       name: 'text-embedding-3-large'
       version: '1'
     }
-    scaleSettings: {
-      scaleType: 'TokenRateLimit'
-      maxTokensPerMinuteReadCapacity: 120000
-    }
     raiPolicyName: 'Microsoft.Default'
   }
   dependsOn: [
     aiProject
-  ]
-}
-
-@description('Model Router deployment with 500K TPM')
-resource modelRouterDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-01-01-preview' = {
-  name: 'model-router'
-  parent: aiServices
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'model-router'
-      version: '2025-11-18'
-    }
-    scaleSettings: {
-      scaleType: 'TokenRateLimit'
-      maxTokensPerMinuteReadCapacity: 500000
-    }
-    raiPolicyName: 'Microsoft.Default'
-  }
-  dependsOn: [
-    aiProject
-  ]
-}
-
-@description('O4-mini model deployment with 500K TPM')
-resource o4MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-01-01-preview' = {
-  name: 'o4-mini'
-  parent: aiServices
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'o4-mini'
-      version: '2025-04-16'
-    }
-    scaleSettings: {
-      scaleType: 'TokenRateLimit'
-      maxTokensPerMinuteReadCapacity: 500000
-    }
-    raiPolicyName: 'Microsoft.Default'
-  }
-  dependsOn: [
-    aiProject
+    gpt5Deployment
   ]
 }
 

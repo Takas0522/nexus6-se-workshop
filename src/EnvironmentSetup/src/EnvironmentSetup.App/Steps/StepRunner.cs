@@ -11,12 +11,14 @@ public class StepRunner
     private readonly ISetupStep[] _steps;
     private readonly StateManager _stateManager;
     private readonly bool _verbose;
+    private readonly bool _nonInteractive;
 
-    public StepRunner(ISetupStep[] steps, StateManager stateManager, bool verbose = false)
+    public StepRunner(ISetupStep[] steps, StateManager stateManager, bool verbose = false, bool nonInteractive = false)
     {
         _steps = steps;
         _stateManager = stateManager;
         _verbose = verbose;
+        _nonInteractive = nonInteractive;
     }
 
     public async Task ExecuteFromAsync(SetupState state, int startStep, CancellationToken ct = default)
@@ -64,6 +66,14 @@ public class StepRunner
                         Console.ResetColor();
                     }
                     Console.WriteLine();
+
+                    if (_nonInteractive)
+                    {
+                        // 非対話モード: エラー時は即座に中断
+                        throw new InvalidOperationException(
+                            $"Step {step.StepNumber} ({step.Name}) が失敗しました: {ex.Message}", ex);
+                    }
+
                     Console.Write("  再試行(r) / スキップ(s) / 中断(q): ");
                     var choice = Console.ReadLine()?.Trim().ToLowerInvariant();
                     switch (choice)

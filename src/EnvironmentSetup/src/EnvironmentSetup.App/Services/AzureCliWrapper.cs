@@ -128,11 +128,16 @@ public class AzureCliWrapper
     /// <summary>
     /// Bicep テンプレートをデプロイする
     /// </summary>
-    public async Task<string> DeployAsync(string resourceGroup, string templateFile, string? paramFile = null)
+    public async Task<string> DeployAsync(string resourceGroup, string templateFile, string? paramFile = null, Dictionary<string, string>? overrides = null)
     {
         var args = $"deployment group create --resource-group {resourceGroup} --template-file {templateFile} --output json";
         if (paramFile != null)
             args += $" --parameters {paramFile}";
+        if (overrides != null)
+        {
+            foreach (var (key, value) in overrides)
+                args += $" --parameters {key}={value}";
+        }
         return await RunAsync(args, silent: true);
     }
 

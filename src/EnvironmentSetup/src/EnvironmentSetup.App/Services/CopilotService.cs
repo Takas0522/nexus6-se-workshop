@@ -20,7 +20,6 @@ public class CopilotService : IAsyncDisposable
         await _client.StartAsync();
         _session = await _client.CreateSessionAsync(new SessionConfig
         {
-            Model = "gpt-5",
             OnPermissionRequest = PermissionHandler.ApproveAll
         });
         _initialized = true;

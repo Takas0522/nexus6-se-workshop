@@ -52,7 +52,7 @@ param aiProjectName string = 'proj-${projectName}'
 param aiServicesSubdomain string = 'fd-${toLower(projectName)}'
 
 @description('AI Search service name')
-param aiSearchName string = 'iq-knowledge-source'
+param aiSearchName string = 'iq-knowledge-source-${uniqueString(resourceGroup().id)}'
 
 @description('App Service Plan name')
 param appServicePlanName string = '${projectName}LinuxDynamicPlan'
@@ -69,6 +69,9 @@ param fabricCapacitySku string = 'F4'
 
 @description('Fabric Capacity 管理者メンバーの Object ID 配列')
 param fabricAdminMembers array = []
+
+@description('Fabric Capacity をデプロイするかどうか')
+param deployFabric bool = false
 
 // =====================================================================
 // Monitoring Module
@@ -194,9 +197,9 @@ module functions './modules/functions.bicep' = {
 }
 
 // =====================================================================
-// Fabric Capacity Module
+// Fabric Capacity Module (conditional)
 // =====================================================================
-module fabric './modules/fabric.bicep' = {
+module fabric './modules/fabric.bicep' = if (deployFabric) {
   name: 'fabric-deployment'
   params: {
     name: fabricCapacityName
@@ -312,7 +315,7 @@ output functionAppName string = functions.outputs.functionAppName
 output functionAppDefaultHostName string = functions.outputs.functionAppDefaultHostName
 
 @description('Fabric Capacity name')
-output fabricCapacityName string = fabric.outputs.fabricCapacityName
+output fabricCapacityName string = deployFabric ? fabric.outputs.fabricCapacityName : ''
 
 @description('Resource group location')
 output deploymentLocation string = location

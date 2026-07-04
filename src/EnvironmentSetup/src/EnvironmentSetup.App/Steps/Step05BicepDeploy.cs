@@ -10,13 +10,15 @@ namespace EnvironmentSetup.App.Steps;
 public class Step05BicepDeploy : ISetupStep
 {
     private readonly AzureCliWrapper _az;
+    private readonly NonInteractiveConfig _niConfig;
 
     public int StepNumber => 5;
     public string Name => "Bicep デプロイ";
 
-    public Step05BicepDeploy(AzureCliWrapper az)
+    public Step05BicepDeploy(AzureCliWrapper az, NonInteractiveConfig niConfig)
     {
         _az = az;
+        _niConfig = niConfig;
     }
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
@@ -28,10 +30,22 @@ public class Step05BicepDeploy : ISetupStep
         var suffix = Random.Shared.Next(1000, 9999).ToString();
         var defaultRgName = $"rg-nexus6-{suffix}";
 
-        Console.Write($"  リソースグループ名 [{defaultRgName}]: ");
-        var rgName = Console.ReadLine()?.Trim();
-        if (string.IsNullOrEmpty(rgName))
+        string rgName;
+        if (_niConfig.Enabled && !string.IsNullOrEmpty(_niConfig.ResourceGroup))
+        {
+            rgName = _niConfig.ResourceGroup;
+        }
+        else if (_niConfig.Enabled)
+        {
             rgName = defaultRgName;
+        }
+        else
+        {
+            Console.Write($"  リソースグループ名 [{defaultRgName}]: ");
+            rgName = Console.ReadLine()?.Trim() ?? "";
+            if (string.IsNullOrEmpty(rgName))
+                rgName = defaultRgName;
+        }
 
         azure.ResourceGroup = rgName;
 
@@ -44,24 +58,50 @@ public class Step05BicepDeploy : ISetupStep
         await _az.EnsureResourceGroupAsync(rgName, azure.Region);
 
         // パラメータファイル生成
-        var templatePath = Path.GetFullPath("infra/main.bicep");
-        var paramPath = Path.GetFullPath("infra/main.bicepparam");
+        // リポジトリルートから infra/ を探す
+        var repoRoot = FindRepoRoot() ?? Directory.GetCurrentDirectory();
+        var templatePath = Path.Combine(repoRoot, "infra", "main.bicep");
+        var paramPath = Path.Combine(repoRoot, "infra", "main.bicepparam");
 
         if (!File.Exists(templatePath))
             throw new FileNotFoundException($"Bicep テンプレートが見つかりません: {templatePath}");
 
-        // What-if 実行
+        // What-if 実行 (非致命的 - 警告のみ)
         Console.WriteLine("\n  what-if を実行中...\n");
-        await _az.WhatIfAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null);
+        try
+        {
+            await _az.WhatIfAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠️ what-if で警告/エラーがありましたが、デプロイは続行します: {ex.Message.Split('\n')[0]}");
+        }
 
-        Console.Write("\n  デプロイを実行しますか? (y/n): ");
-        var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
-        if (confirm != "y" && confirm != "yes")
-            throw new OperationCanceledException("ユーザーによりデプロイがキャンセルされました。");
+        if (!_niConfig.Enabled)
+        {
+            Console.Write("\n  デプロイを実行しますか? (y/n): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm != "y" && confirm != "yes")
+                throw new OperationCanceledException("ユーザーによりデプロイがキャンセルされました。");
+        }
 
         // デプロイ実行
         Console.WriteLine("\n  デプロイ実行中 (数分かかる場合があります)...\n");
-        var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null);
+
+        // Fabric利用可否に応じて動的パラメータを設定
+        var overrides = new Dictionary<string, string>();
+        if (azure.FabricAvailable)
+        {
+            overrides["deployFabric"] = "true";
+            if (!string.IsNullOrEmpty(azure.UserUpn))
+                overrides["fabricAdminMembers"] = $"['{azure.UserUpn}']";
+        }
+        else
+        {
+            overrides["deployFabric"] = "false";
+        }
+
+        var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
 
         // 出力パース
         try
@@ -100,5 +140,25 @@ public class Step05BicepDeploy : ISetupStep
         if (outputs.TryGetProperty(key, out var prop) && prop.TryGetProperty("value", out var val))
             return val.GetString() ?? "";
         return "";
+    }
+
+    private static string? FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, ".git")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        // フォールバック: CWD から探す
+        dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, ".git")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        return null;
     }
 }

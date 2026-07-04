@@ -54,6 +54,12 @@ public class AzureConfig
 
     [JsonPropertyName("region")]
     public string Region { get; set; } = "swedencentral";
+
+    [JsonPropertyName("userUpn")]
+    public string UserUpn { get; set; } = string.Empty;
+
+    [JsonPropertyName("fabricAvailable")]
+    public bool FabricAvailable { get; set; }
 }
 
 /// <summary>
