@@ -10,11 +10,13 @@ public class StepRunner
 {
     private readonly ISetupStep[] _steps;
     private readonly StateManager _stateManager;
+    private readonly bool _verbose;
 
-    public StepRunner(ISetupStep[] steps, StateManager stateManager)
+    public StepRunner(ISetupStep[] steps, StateManager stateManager, bool verbose = false)
     {
         _steps = steps;
         _stateManager = stateManager;
+        _verbose = verbose;
     }
 
     public async Task ExecuteFromAsync(SetupState state, int startStep, CancellationToken ct = default)
@@ -28,7 +30,7 @@ public class StepRunner
             }
 
             Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"  📋 Step {step.StepNumber}/13: {step.Name}");
+            Console.WriteLine($"  📋 Step {step.StepNumber}/14: {step.Name}");
             Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             Console.WriteLine();
 
@@ -48,7 +50,20 @@ public class StepRunner
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"\n  ❌ エラー: {ex.Message}\n");
+                    Console.WriteLine($"\n  ❌ エラー: {ex.Message}");
+                    if (_verbose)
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkRed;
+                        Console.WriteLine($"\n  [Stack Trace]");
+                        Console.WriteLine($"  {ex.StackTrace}");
+                        if (ex.InnerException != null)
+                        {
+                            Console.WriteLine($"\n  [Inner Exception] {ex.InnerException.Message}");
+                            Console.WriteLine($"  {ex.InnerException.StackTrace}");
+                        }
+                        Console.ResetColor();
+                    }
+                    Console.WriteLine();
                     Console.Write("  再試行(r) / スキップ(s) / 中断(q): ");
                     var choice = Console.ReadLine()?.Trim().ToLowerInvariant();
                     switch (choice)

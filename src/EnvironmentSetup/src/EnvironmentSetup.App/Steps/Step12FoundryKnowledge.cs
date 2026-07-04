@@ -1,0 +1,307 @@
+using System.Text;
+using System.Text.Json;
+using EnvironmentSetup.App.Models;
+using EnvironmentSetup.App.Services;
+
+namespace EnvironmentSetup.App.Steps;
+
+/// <summary>
+/// ステップ12: Foundry Knowledge アップロード
+/// - Step11 で生成した Skill/DS.md を Foundry Files API でアップロード
+/// - Vector Store を作成しファイルを紐付け
+/// - Assistants を作成/更新して tool_resources に Vector Store を設定
+/// </summary>
+public class Step12FoundryKnowledge : ISetupStep
+{
+    private readonly AzureCliWrapper _az;
+
+    public int StepNumber => 12;
+    public string Name => "Foundry Knowledge アップロード";
+
+    public Step12FoundryKnowledge(AzureCliWrapper az)
+    {
+        _az = az;
+    }
+
+    public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
+    {
+        var deployment = state.Deployment
+            ?? throw new InvalidOperationException("デプロイが未完了です。Step 5 を先に実行してください。");
+
+        if (string.IsNullOrWhiteSpace(deployment.FoundryEndpoint))
+            throw new InvalidOperationException("Foundry エンドポイントが未設定です。");
+
+        var skillDir = Path.GetFullPath("./output/skills");
+        var dsDir = Path.Combine(skillDir, "ds");
+
+        if (!Directory.Exists(skillDir))
+            throw new InvalidOperationException($"Skill/DS.md ディレクトリが見つかりません: {skillDir}\nStep 11 を先に実行してください。");
+
+        var projectEndpoint = deployment.FoundryEndpoint;
+        var apiVersion = "2025-05-01";
+
+        Console.WriteLine($"  Foundry: {projectEndpoint}");
+        Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
+
+        // 1. ファイルアップロード
+        Console.WriteLine("  📤 Foundry Files API でファイルをアップロード中...");
+        var fileIds = new List<string>();
+
+        var mdFiles = Directory.GetFiles(skillDir, "*.md", SearchOption.AllDirectories);
+        foreach (var filePath in mdFiles)
+        {
+            var fileName = Path.GetFileName(filePath);
+            Console.Write($"    {fileName}...");
+
+            var fileId = await UploadFileAsync(projectEndpoint, apiVersion, filePath, fileName, ct);
+            if (!string.IsNullOrEmpty(fileId))
+            {
+                fileIds.Add(fileId);
+                Console.WriteLine($" ✓ ({fileId})");
+            }
+            else
+            {
+                Console.WriteLine(" ⚠️ スキップ");
+            }
+        }
+
+        if (fileIds.Count == 0)
+        {
+            Console.WriteLine("\n  ⚠️ アップロードされたファイルがありません。スキップします。");
+            return;
+        }
+
+        Console.WriteLine($"\n  📦 {fileIds.Count} ファイルアップロード完了");
+
+        // 2. Vector Store 作成
+        Console.WriteLine("\n  🗄️ Vector Store を作成中...");
+        var vectorStoreId = await CreateVectorStoreAsync(projectEndpoint, apiVersion, fileIds, ct);
+        Console.WriteLine($"    Vector Store ID: {vectorStoreId}");
+
+        // 3. Vector Store のインデックス完了待ち
+        Console.WriteLine("    インデックス作成待ち中...");
+        await WaitForVectorStoreReadyAsync(projectEndpoint, apiVersion, vectorStoreId, ct);
+        Console.WriteLine("    ✓ Vector Store ready");
+
+        // 4. Assistants 作成
+        Console.WriteLine("\n  🤖 Assistants を作成中...");
+
+        var assistants = GetAssistantDefinitions(vectorStoreId);
+        var createdAssistants = new Dictionary<string, string>();
+
+        foreach (var (name, instructions) in assistants)
+        {
+            Console.Write($"    {name}...");
+            var assistantId = await CreateOrUpdateAssistantAsync(
+                projectEndpoint, apiVersion, name, instructions, vectorStoreId, ct);
+            createdAssistants[name] = assistantId;
+            Console.WriteLine($" ✓ ({assistantId})");
+        }
+
+        // 5. 状態保存
+        deployment.FoundryVectorStoreId = vectorStoreId;
+        deployment.FoundryAssistantIds = createdAssistants;
+
+        Console.WriteLine($"\n  ✓ Foundry Knowledge セットアップ完了");
+        Console.WriteLine($"    Vector Store: {vectorStoreId}");
+        Console.WriteLine($"    Assistants: {createdAssistants.Count} 個作成");
+    }
+
+    private async Task<string> UploadFileAsync(
+        string projectEndpoint, string apiVersion, string filePath, string fileName, CancellationToken ct)
+    {
+        // Foundry Files API: POST /files (multipart/form-data)
+        var token = await GetFoundryTokenAsync();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        using var form = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(await File.ReadAllBytesAsync(filePath, ct));
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        form.Add(fileContent, "file", fileName);
+        form.Add(new StringContent("assistants"), "purpose");
+
+        var url = $"{projectEndpoint.TrimEnd('/')}/files?api-version={apiVersion}";
+        var response = await httpClient.PostAsync(url, form, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.Write($" [Error {(int)response.StatusCode}]");
+            return "";
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        return doc.RootElement.GetProperty("id").GetString() ?? "";
+    }
+
+    private async Task<string> CreateVectorStoreAsync(
+        string projectEndpoint, string apiVersion, List<string> fileIds, CancellationToken ct)
+    {
+        var token = await GetFoundryTokenAsync();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            name = "nexus6-knowledge-base",
+            file_ids = fileIds
+        });
+
+        var url = $"{projectEndpoint.TrimEnd('/')}/vector_stores?api-version={apiVersion}";
+        var response = await httpClient.PostAsync(url,
+            new StringContent(payload, Encoding.UTF8, "application/json"), ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        response.EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(body);
+        return doc.RootElement.GetProperty("id").GetString()
+            ?? throw new InvalidOperationException("Vector Store ID not returned");
+    }
+
+    private async Task WaitForVectorStoreReadyAsync(
+        string projectEndpoint, string apiVersion, string vectorStoreId, CancellationToken ct)
+    {
+        var token = await GetFoundryTokenAsync();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var url = $"{projectEndpoint.TrimEnd('/')}/vector_stores/{vectorStoreId}?api-version={apiVersion}";
+
+        for (var i = 0; i < 60; i++) // max 5 minutes
+        {
+            await Task.Delay(5000, ct);
+            var response = await httpClient.GetAsync(url, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(body);
+                var status = doc.RootElement.GetProperty("status").GetString();
+                if (status == "completed") return;
+                if (status == "failed")
+                    throw new InvalidOperationException("Vector Store indexing failed");
+            }
+        }
+
+        throw new TimeoutException("Vector Store indexing timed out (5 minutes)");
+    }
+
+    private async Task<string> CreateOrUpdateAssistantAsync(
+        string projectEndpoint, string apiVersion, string name, string instructions,
+        string vectorStoreId, CancellationToken ct)
+    {
+        var token = await GetFoundryTokenAsync();
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        // 既存 Assistant を検索
+        var listUrl = $"{projectEndpoint.TrimEnd('/')}/assistants?api-version={apiVersion}";
+        var listResponse = await httpClient.GetAsync(listUrl, ct);
+        var listBody = await listResponse.Content.ReadAsStringAsync(ct);
+        string? existingId = null;
+
+        if (listResponse.IsSuccessStatusCode)
+        {
+            using var listDoc = JsonDocument.Parse(listBody);
+            foreach (var a in listDoc.RootElement.GetProperty("data").EnumerateArray())
+            {
+                if (a.GetProperty("name").GetString() == name)
+                {
+                    existingId = a.GetProperty("id").GetString();
+                    break;
+                }
+            }
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            name,
+            model = "gpt-5.4",
+            instructions,
+            tools = new[] { new { type = "file_search" } },
+            tool_resources = new
+            {
+                file_search = new
+                {
+                    vector_store_ids = new[] { vectorStoreId }
+                }
+            }
+        });
+
+        if (existingId != null)
+        {
+            // Update existing
+            var updateUrl = $"{projectEndpoint.TrimEnd('/')}/assistants/{existingId}?api-version={apiVersion}";
+            var updateResponse = await httpClient.PostAsync(updateUrl,
+                new StringContent(payload, Encoding.UTF8, "application/json"), ct);
+            updateResponse.EnsureSuccessStatusCode();
+            return existingId;
+        }
+        else
+        {
+            // Create new
+            var createUrl = $"{projectEndpoint.TrimEnd('/')}/assistants?api-version={apiVersion}";
+            var createResponse = await httpClient.PostAsync(createUrl,
+                new StringContent(payload, Encoding.UTF8, "application/json"), ct);
+            var createBody = await createResponse.Content.ReadAsStringAsync(ct);
+            createResponse.EnsureSuccessStatusCode();
+
+            using var doc = JsonDocument.Parse(createBody);
+            return doc.RootElement.GetProperty("id").GetString()
+                ?? throw new InvalidOperationException("Assistant ID not returned");
+        }
+    }
+
+    private static IReadOnlyList<(string Name, string Instructions)> GetAssistantDefinitions(string vectorStoreId)
+    {
+        return new[]
+        {
+            ("nexus6-business-impact-filesearch", """
+                あなたはビジネスインパクト評価を担当するエージェントです。
+                提供されたニュース本文、Web調査結果、Fabric Gold KPI、Skill.md / DS.md の抜粋を照合し、
+                モバイル通信・Eコマース・Fintechの各事業部への影響を0〜5のスコアで評価してください。
+                Foundry file_search で Skill.md / DS.md を必ず検索し、閾値・過去事例・KPI定義を参照してください。
+                出力はJSON形式で返してください。
+                """),
+            ("nexus6-web-research", """
+                あなたはニュース分析の調査担当エージェントです。
+                入力されたニュース本文を読み、Web検索を行い背景情報を補完してください。
+                file_search で DS.md を参照し、関連するデータソース情報を確認してください。
+                出力はJSON形式（summary / key_factors / source_urls）で返してください。
+                """),
+            ("nexus6-mobile-recommend-filesearch", """
+                あなたはモバイル通信事業部のレコメンドエージェントです。
+                ニュースとビジネスインパクト評価に基づき、モバイル事業部が取るべきアクションを提案してください。
+                file_search で mobile_skill_*.md を検索し、過去事例や閾値を参照してください。
+                """),
+            ("nexus6-ecommerce-recommend-filesearch", """
+                あなたはEコマース事業部のレコメンドエージェントです。
+                ニュースとビジネスインパクト評価に基づき、Eコマース事業部が取るべきアクションを提案してください。
+                file_search で ecommerce_skill_*.md を検索し、過去事例や閾値を参照してください。
+                """),
+            ("nexus6-fintech-recommend-filesearch", """
+                あなたはFintech事業部のレコメンドエージェントです。
+                ニュースとビジネスインパクト評価に基づき、Fintech事業部が取るべきアクションを提案してください。
+                file_search で fintech_skill_*.md を検索し、過去事例や閾値を参照してください。
+                """),
+            ("nexus6-division-recommend-filesearch", """
+                あなたは汎用事業部レコメンドエージェントです。
+                ニュースとビジネスインパクト評価に基づき、担当事業部が取るべきアクションを提案してください。
+                file_search で skill_*.md を検索し、過去事例や閾値を参照してください。
+                """),
+        };
+    }
+
+    private async Task<string> GetFoundryTokenAsync()
+    {
+        var result = await _az.RunAsync(
+            "account get-access-token --resource https://ai.azure.com --query accessToken -o tsv",
+            silent: true);
+        return result.Trim();
+    }
+}

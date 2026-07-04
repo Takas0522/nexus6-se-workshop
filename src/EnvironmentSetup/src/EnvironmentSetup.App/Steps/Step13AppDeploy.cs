@@ -6,14 +6,14 @@ namespace EnvironmentSetup.App.Steps;
 /// <summary>
 /// ステップ12: アプリデプロイ - Container App + Functions をデプロイし環境変数を設定
 /// </summary>
-public class Step12AppDeploy : ISetupStep
+public class Step13AppDeploy : ISetupStep
 {
     private readonly AzureCliWrapper _az;
 
-    public int StepNumber => 12;
+    public int StepNumber => 13;
     public string Name => "アプリデプロイ";
 
-    public Step12AppDeploy(AzureCliWrapper az)
+    public Step13AppDeploy(AzureCliWrapper az)
     {
         _az = az;
     }
@@ -205,6 +205,7 @@ public class Step12AppDeploy : ISetupStep
             ["Foundry__Assistant__EcommerceRecommendName"] = "nexus6-ecommerce-recommend-filesearch",
             ["Foundry__Assistant__FintechRecommendName"] = "nexus6-fintech-recommend-filesearch",
             ["Foundry__Assistant__RunMaxWaitSeconds"] = "60",
+            ["Foundry__FileSearchVectorStoreId"] = deployment.FoundryVectorStoreId,
 
             // Fabric
             ["Fabric__SqlEndpoint"] = deployment.FabricSqlEndpoint,
@@ -246,6 +247,7 @@ public class Step12AppDeploy : ISetupStep
             ["Foundry__Assistant__EcommerceRecommendName"] = "nexus6-ecommerce-recommend-filesearch",
             ["Foundry__Assistant__FintechRecommendName"] = "nexus6-fintech-recommend-filesearch",
             ["Foundry__Assistant__RunMaxWaitSeconds"] = "60",
+            ["Foundry__FileSearchVectorStoreId"] = deployment.FoundryVectorStoreId,
 
             // Fabric
             ["Fabric__SqlEndpoint"] = deployment.FabricSqlEndpoint,

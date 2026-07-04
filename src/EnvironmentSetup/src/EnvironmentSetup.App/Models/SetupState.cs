@@ -108,4 +108,10 @@ public class DeploymentResult
 
     [JsonPropertyName("webIqBaseUrl")]
     public string WebIqBaseUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("foundryVectorStoreId")]
+    public string FoundryVectorStoreId { get; set; } = string.Empty;
+
+    [JsonPropertyName("foundryAssistantIds")]
+    public Dictionary<string, string> FoundryAssistantIds { get; set; } = [];
 }
