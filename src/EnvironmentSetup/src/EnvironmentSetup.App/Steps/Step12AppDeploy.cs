@@ -190,6 +190,10 @@ public class Step12AppDeploy : ISetupStep
             ["KeyVault__Uri"] = deployment.KeyVaultUri,
             ["Storage__Account"] = deployment.StorageAccountSkills,
             ["AzureMonitor__ConnectionString"] = deployment.AppInsightsConnectionString,
+
+            // WebIQ
+            ["WebIq__BaseUrl"] = deployment.WebIqBaseUrl,
+            ["WebIq__AuthMode"] = "EntraID",
         };
 
         return vars;
@@ -233,6 +237,10 @@ public class Step12AppDeploy : ISetupStep
 
             // Monitoring
             ["AzureMonitor__ConnectionString"] = deployment.AppInsightsConnectionString,
+
+            // WebIQ
+            ["WebIq__BaseUrl"] = deployment.WebIqBaseUrl,
+            ["WebIq__AuthMode"] = "EntraID",
         };
 
         return vars;

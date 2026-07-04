@@ -105,4 +105,7 @@ public class DeploymentResult
 
     [JsonPropertyName("entraAppTenantId")]
     public string EntraAppTenantId { get; set; } = string.Empty;
+
+    [JsonPropertyName("webIqBaseUrl")]
+    public string WebIqBaseUrl { get; set; } = string.Empty;
 }

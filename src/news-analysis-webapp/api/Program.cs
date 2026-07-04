@@ -62,7 +62,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential());
 builder.Services.AddHttpClient("foundry-agent", client => client.Timeout = TimeSpan.FromSeconds(120));
 builder.Services.AddHttpClient("bing-grounding", client => client.Timeout = TimeSpan.FromSeconds(10));
-builder.Services.AddHttpClient<IWebPageFetchPlugin, WebPageFetchPlugin>(client => client.Timeout = TimeSpan.FromSeconds(10))
+builder.Services.AddHttpClient("webiq", client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<WebPageFetchPlugin>(client => client.Timeout = TimeSpan.FromSeconds(10))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         AllowAutoRedirect = true,
@@ -87,8 +88,23 @@ else
 
 // Plugins
 builder.Services.AddSingleton<MockBingSearchPlugin>();
-builder.Services.AddSingleton<IBingSearchPlugin, BingSearchPlugin>();
 builder.Services.AddSingleton<MockFabricDataPlugin>();
+
+// WebIQ or legacy Bing+WebPageFetch
+if (!string.IsNullOrWhiteSpace(builder.Configuration["WebIq:BaseUrl"]))
+{
+    builder.Services.AddSingleton<WebPageFetchPlugin>();
+    builder.Services.AddSingleton<WebIqPlugin>();
+    builder.Services.AddSingleton<IBingSearchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
+    builder.Services.AddSingleton<IWebPageFetchPlugin>(sp => sp.GetRequiredService<WebIqPlugin>());
+}
+else
+{
+    builder.Services.AddSingleton<IBingSearchPlugin, BingSearchPlugin>();
+    builder.Services.AddSingleton<WebPageFetchPlugin>();
+    builder.Services.AddSingleton<IWebPageFetchPlugin>(sp => sp.GetRequiredService<WebPageFetchPlugin>());
+}
+
 builder.Services.AddSingleton<IFabricDataPlugin, FabricDataPlugin>();
 builder.Services.AddSingleton<MockMobileDataPlugin>();
 builder.Services.AddSingleton<IMobileDataPlugin, MobileDataPlugin>();
