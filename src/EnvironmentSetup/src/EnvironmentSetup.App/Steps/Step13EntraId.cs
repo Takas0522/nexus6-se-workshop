@@ -5,16 +5,16 @@ using EnvironmentSetup.App.Services;
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ10: Entra ID アプリ作成 - Teams投稿用のアプリ登録
+/// ステップ13: Entra ID アプリ作成 - Teams投稿用のアプリ登録
 /// </summary>
-public class Step10EntraId : ISetupStep
+public class Step13EntraId : ISetupStep
 {
     private readonly AzureCliWrapper _az;
 
-    public int StepNumber => 10;
+    public int StepNumber => 13;
     public string Name => "Entra ID アプリ作成";
 
-    public Step10EntraId(AzureCliWrapper az)
+    public Step13EntraId(AzureCliWrapper az)
     {
         _az = az;
     }

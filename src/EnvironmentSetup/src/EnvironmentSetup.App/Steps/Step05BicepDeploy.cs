@@ -79,6 +79,7 @@ public class Step05BicepDeploy : ISetupStep
                 FunctionAppName = GetOutputValue(outputs, "functionAppName"),
                 KeyVaultUri = GetOutputValue(outputs, "keyVaultUri"),
                 AppInsightsConnectionString = GetOutputValue(outputs, "appInsightsConnectionString"),
+                PortalBaseUrl = GetOutputValue(outputs, "portalStaticWebEndpoint"),
             };
 
             Console.WriteLine("  ✓ デプロイ完了");

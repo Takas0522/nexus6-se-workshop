@@ -4,16 +4,16 @@ using EnvironmentSetup.App.Services;
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ8: Skill/DS.md 作成 - Fabric/Foundry用のSkillとDS.mdを生成
+/// ステップ11: Skill/DS.md 作成 - Fabric/Foundry用のSkillとDS.mdを生成
 /// </summary>
-public class Step08SkillDsMd : ISetupStep
+public class Step11SkillDsMd : ISetupStep
 {
     private readonly CopilotService _copilot;
 
-    public int StepNumber => 8;
+    public int StepNumber => 11;
     public string Name => "Skill/DS.md 作成";
 
-    public Step08SkillDsMd(CopilotService copilot)
+    public Step11SkillDsMd(CopilotService copilot)
     {
         _copilot = copilot;
     }

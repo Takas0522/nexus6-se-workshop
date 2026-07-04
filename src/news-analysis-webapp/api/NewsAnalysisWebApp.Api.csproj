@@ -13,4 +13,8 @@
     <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Tools/NewsAnalysisAgent.Tools.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
+  </ItemGroup>
+
 </Project>

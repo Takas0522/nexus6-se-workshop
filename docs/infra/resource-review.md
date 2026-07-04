@@ -54,7 +54,7 @@
 | Hosted Agent (news-analysis) | `src/news-analysis-agent/` | Container App (`ca-nexus6-hosted-agent`) | AI Foundry, AI Search, Storage, Key Vault, App Insights |
 | News Portal (静的サイト) | `src/news-portal/` | Storage Account 静的 Web サイト (`stnexus6portal1t2i`) | — |
 | News Trigger Function | `src/news-trigger-function/` | Azure Functions (Y1 Plan) | Storage Account, EventGrid |
-| News Analysis WebApp | `src/news-analysis-webapp/` | ※未デプロイ or 別環境 | TBD |
+| News Analysis WebApp | `src/news-analysis-webapp/` | Container App (`ca-nexus6-news-analysis-webapp`) ※新規 | AI Foundry, Fabric, News Portal (静的サイト), App Insights |
 | Demo Data Generator | `src/DemoDataGenerator/` | ローカル/CI ツール | — |
 
 ---
@@ -97,6 +97,7 @@ APPLICATIONINSIGHTS_CONNECTION_STRING → App Insights (重複設定)
 | **コンテナ** | Container Registry | `modules/container-registry.bicep` |
 | | Container Apps Environment | `modules/container-apps-env.bicep` |
 | | Container App (Hosted Agent) | `modules/container-app.bicep` |
+| | Container App (News Analysis WebApp) ※新規 | `modules/container-app.bicep`（パラメータ化して再利用） |
 | **ストレージ** | Storage Account ×2 | `modules/storage.bicep` |
 | **AI** | AI Services (Foundry) | `modules/ai-foundry.bicep` |
 | | AI Services Project | `modules/ai-foundry.bicep` |
@@ -116,6 +117,24 @@ APPLICATIONINSIGHTS_CONNECTION_STRING → App Insights (重複設定)
 | 5 | **Budget Alert** | コスト管理のためのアラート設定 | 低 |
 | 6 | **Diagnostic Settings** | 各リソースの診断ログを Log Analytics に集約する設定 | 中 |
 | 7 | **RBAC ロール割り当て** | Managed Identity → AI Services, Storage, Key Vault, ACR への権限付与を Bicep で明示管理 | 高 |
+
+### 5.3 News Analysis WebApp（新規 Container App）設計
+
+`src/news-analysis-webapp/` は API (`api/`, ASP.NET Core) と SPA (`client/`, Vite+React) の 2 プロジェクト構成だが、**単一 Container App** に統合してデプロイする。
+
+| 項目 | 内容 |
+|------|------|
+| デプロイ形態 | マルチステージ Dockerfile。`client` を `npm run build` → API の `wwwroot/` にコピーして単一イメージ化 |
+| 配信元 Container Apps Environment | 既存 `cae-nexus6-swc` を共用（新規 Environment は作成しない） |
+| リソース名（案） | `ca-nexus6-news-analysis-webapp` |
+| Ingress | 外部 Ingress、ポートは API 側 (`Urls` 設定に合わせる、例: 8080) |
+| スケール | Hosted Agent 同様 0–2（デモ用途のため最小構成） |
+| 認証/ID | System Assigned Managed Identity（Hosted Agent と同パターン） |
+| CORS | SPA と API が同一オリジンになるため `AllowedOrigins` 設定は不要化予定（実装対応時に確認） |
+| 依存リソース | AI Foundry (`fd-PartnerIQ`)、Fabric SQL、News Portal 静的サイト URL、App Insights |
+| Container Registry | 既存 `crnexus6swc` を共用し、Hosted Agent 用と別イメージ・別タグで push |
+
+> 実装（Dockerfile 作成、`Program.cs` の静的ファイル配信設定変更等）は別タスクで対応する。本セクションはリソース構成のみを対象とする。
 
 ---
 
@@ -152,6 +171,7 @@ infra/
 | 5 | AI Search SKU | Standard | Standard（現行踏襲） |
 | 6 | Fabric Capacity | F4 | F4（現行踏襲。Bicep で管理可能だが手動管理も可） |
 | 7 | Function App | Plan のみ存在 | Function App リソースを明示定義 |
+| 8 | News Analysis WebApp のホスティング | 未デプロイ（API/SPA 分離構成） | 単一 Container App に統合し、既存 `cae-nexus6-swc` を共用 |
 
 ---
 

@@ -28,7 +28,7 @@ public class StepRunner
             }
 
             Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"  📋 Step {step.StepNumber}/10: {step.Name}");
+            Console.WriteLine($"  📋 Step {step.StepNumber}/13: {step.Name}");
             Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             Console.WriteLine();
 

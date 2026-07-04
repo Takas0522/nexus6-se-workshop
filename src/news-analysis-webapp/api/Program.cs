@@ -1,5 +1,8 @@
+using System.Text;
 using Azure.Core;
 using Azure.Identity;
+using Azure.Storage.Blobs;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Resilience;
 using NewsAnalysisAgent.Agents.BusinessImpact;
 using NewsAnalysisAgent.Agents.DivisionRecommend;
@@ -15,6 +18,35 @@ using Polly;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls(builder.Configuration["Urls"] ?? "http://localhost:5100");
+
+// --- Blob-based domain configuration loading ---
+var domainConfigBlobUri = builder.Configuration["DomainConfig:BlobUri"];
+if (!string.IsNullOrWhiteSpace(domainConfigBlobUri))
+{
+    try
+    {
+        var credential = new DefaultAzureCredential();
+        var blobClient = new BlobClient(new Uri(domainConfigBlobUri), credential);
+        var downloadResult = await blobClient.DownloadContentAsync();
+        var configJson = downloadResult.Value.Content.ToString();
+        var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(configJson));
+        builder.Configuration.AddJsonStream(memoryStream);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ DomainConfig Blob load failed ({ex.Message}). Using appsettings fallback.");
+    }
+}
+
+builder.Services.Configure<DivisionsConfig>(options =>
+{
+    var divisionsSection = builder.Configuration.GetSection("Divisions");
+    if (divisionsSection.Exists())
+    {
+        var divisions = divisionsSection.Get<List<DivisionConfig>>() ?? [];
+        options.Divisions = divisions;
+    }
+});
 
 // CORS
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? ["http://localhost:5173"];
@@ -90,7 +122,32 @@ builder.Services.AddSingleton<IDivisionRecommendAgentFactory>(sp => new Division
 builder.Services.AddSingleton<NotificationAgent>();
 builder.Services.AddSingleton<WorkflowExecutionStore>();
 builder.Services.AddSingleton<NewsAnalysisWorkflowBuilder>();
-builder.Services.AddSingleton(sp => sp.GetRequiredService<NewsAnalysisWorkflowBuilder>().Build());
+
+// Config-driven division support
+builder.Services.AddSingleton<IConfigDrivenRecommendAgentFactory, ConfigDrivenRecommendAgentFactory>();
+builder.Services.AddSingleton<ConfigDrivenWorkflowBuilder>();
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IOptions<DivisionsConfig>>().Value;
+    var appConfig = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<GenericDivisionDataPlugin>>();
+    return config.Divisions
+        .Select(d => (IDivisionDataPlugin)new GenericDivisionDataPlugin(d, appConfig, logger))
+        .ToList();
+});
+builder.Services.AddSingleton<IEnumerable<IDivisionDataPlugin>>(sp =>
+    sp.GetRequiredService<List<IDivisionDataPlugin>>());
+
+// Workflow: use config-driven builder if divisions are configured, otherwise legacy
+builder.Services.AddSingleton(sp =>
+{
+    var configBuilder = sp.GetRequiredService<ConfigDrivenWorkflowBuilder>();
+    if (configBuilder.HasDivisions)
+    {
+        return configBuilder.Build();
+    }
+    return sp.GetRequiredService<NewsAnalysisWorkflowBuilder>().Build();
+});
 
 builder.Services.AddResiliencePipeline("agent-retry", pipeline =>
 {

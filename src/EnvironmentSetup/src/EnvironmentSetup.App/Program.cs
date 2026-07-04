@@ -26,10 +26,13 @@ ConsoleApp.Run(args, async (int step = 1, string stateFile = "./setup-state.json
         new Step04AzureLogin(azureCli),
         new Step05BicepDeploy(azureCli),
         new Step06DataCreation(copilotService),
-        new Step07NewsSite(copilotService),
-        new Step08SkillDsMd(copilotService),
-        new Step09AppDeploy(azureCli),
-        new Step10EntraId(azureCli),
+        new Step07MedallionSetup(azureCli),
+        new Step08OntologyCreation(azureCli),
+        new Step09DomainConfigUpload(azureCli),
+        new Step10NewsSite(copilotService),
+        new Step11SkillDsMd(copilotService),
+        new Step12AppDeploy(azureCli),
+        new Step13EntraId(azureCli),
     };
 
     var runner = new StepRunner(steps, stateManager);

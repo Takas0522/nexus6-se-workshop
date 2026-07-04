@@ -27,6 +27,15 @@ public class SetupState
 
     [JsonPropertyName("deployment")]
     public DeploymentResult? Deployment { get; set; }
+
+    [JsonPropertyName("medallion")]
+    public MedallionResult? Medallion { get; set; }
+
+    [JsonPropertyName("ontology")]
+    public OntologyResult? Ontology { get; set; }
+
+    [JsonPropertyName("domainConfigBlobUri")]
+    public string? DomainConfigBlobUri { get; set; }
 }
 
 /// <summary>
@@ -64,8 +73,17 @@ public class DeploymentResult
     [JsonPropertyName("fabricSqlEndpoint")]
     public string FabricSqlEndpoint { get; set; } = string.Empty;
 
+    [JsonPropertyName("fabricDatabase")]
+    public string FabricDatabase { get; set; } = "lh_nexus6_gold";
+
     [JsonPropertyName("containerAppUrl")]
     public string ContainerAppUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("containerAppNameAgent")]
+    public string ContainerAppNameAgent { get; set; } = "ca-nexus6-hosted-agent";
+
+    [JsonPropertyName("containerAppNameWebapp")]
+    public string ContainerAppNameWebapp { get; set; } = "ca-nexus6-webapp";
 
     [JsonPropertyName("acrLoginServer")]
     public string AcrLoginServer { get; set; } = string.Empty;
@@ -78,6 +96,9 @@ public class DeploymentResult
 
     [JsonPropertyName("appInsightsConnectionString")]
     public string AppInsightsConnectionString { get; set; } = string.Empty;
+
+    [JsonPropertyName("portalBaseUrl")]
+    public string PortalBaseUrl { get; set; } = string.Empty;
 
     [JsonPropertyName("entraAppId")]
     public string EntraAppId { get; set; } = string.Empty;

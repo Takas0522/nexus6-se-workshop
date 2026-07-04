@@ -4,16 +4,16 @@ using EnvironmentSetup.App.Services;
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ7: ニュースサイト作成 - Copilot SDKでデモニュースサイトを生成しStorageにデプロイ
+/// ステップ10: ニュースサイト作成 - Copilot SDKでデモニュースサイトを生成しStorageにデプロイ
 /// </summary>
-public class Step07NewsSite : ISetupStep
+public class Step10NewsSite : ISetupStep
 {
     private readonly CopilotService _copilot;
 
-    public int StepNumber => 7;
+    public int StepNumber => 10;
     public string Name => "ニュースサイト作成";
 
-    public Step07NewsSite(CopilotService copilot)
+    public Step10NewsSite(CopilotService copilot)
     {
         _copilot = copilot;
     }
