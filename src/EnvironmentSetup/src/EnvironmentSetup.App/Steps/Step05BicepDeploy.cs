@@ -113,7 +113,7 @@ public class Step05BicepDeploy : ISetupStep
             {
                 StorageAccountSkills = GetOutputValue(outputs, "skillsStorageName"),
                 StorageAccountPortal = GetOutputValue(outputs, "portalStorageName"),
-                FoundryEndpoint = GetOutputValue(outputs, "foundryEndpoint"),
+                FoundryEndpoint = GetOutputValue(outputs, "aiServicesEndpoint"),
                 ContainerAppUrl = GetOutputValue(outputs, "containerAppUrl"),
                 AcrLoginServer = GetOutputValue(outputs, "acrLoginServer"),
                 FunctionAppName = GetOutputValue(outputs, "functionAppName"),
@@ -121,6 +121,11 @@ public class Step05BicepDeploy : ISetupStep
                 AppInsightsConnectionString = GetOutputValue(outputs, "appInsightsConnectionString"),
                 PortalBaseUrl = GetOutputValue(outputs, "portalStaticWebEndpoint"),
             };
+
+            // Container App 名を FQDN から抽出
+            var fqdn = GetOutputValue(outputs, "containerAppFqdn");
+            if (!string.IsNullOrEmpty(fqdn))
+                state.Deployment.ContainerAppNameAgent = fqdn.Split('.')[0];
 
             Console.WriteLine("  ✓ デプロイ完了");
             Console.WriteLine($"    Container App: {state.Deployment.ContainerAppUrl}");

@@ -38,7 +38,7 @@ public class Step12FoundryKnowledge : ISetupStep
             throw new InvalidOperationException($"Skill/DS.md ディレクトリが見つかりません: {skillDir}\nStep 11 を先に実行してください。");
 
         var projectEndpoint = deployment.FoundryEndpoint;
-        var apiVersion = "2025-05-01";
+        var apiVersion = "2024-10-01-preview";
 
         Console.WriteLine($"  Foundry: {projectEndpoint}");
         Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
@@ -122,7 +122,7 @@ public class Step12FoundryKnowledge : ISetupStep
         form.Add(fileContent, "file", fileName);
         form.Add(new StringContent("assistants"), "purpose");
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/files?api-version={apiVersion}";
+        var url = $"{projectEndpoint.TrimEnd('/')}/openai/files?api-version={apiVersion}";
         var response = await httpClient.PostAsync(url, form, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
@@ -150,7 +150,7 @@ public class Step12FoundryKnowledge : ISetupStep
             file_ids = fileIds
         });
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/vector_stores?api-version={apiVersion}";
+        var url = $"{projectEndpoint.TrimEnd('/')}/openai/vector_stores?api-version={apiVersion}";
         var response = await httpClient.PostAsync(url,
             new StringContent(payload, Encoding.UTF8, "application/json"), ct);
         var body = await response.Content.ReadAsStringAsync(ct);
@@ -169,7 +169,7 @@ public class Step12FoundryKnowledge : ISetupStep
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/vector_stores/{vectorStoreId}?api-version={apiVersion}";
+        var url = $"{projectEndpoint.TrimEnd('/')}/openai/vector_stores/{vectorStoreId}?api-version={apiVersion}";
 
         for (var i = 0; i < 60; i++) // max 5 minutes
         {
@@ -200,7 +200,7 @@ public class Step12FoundryKnowledge : ISetupStep
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
         // 既存 Assistant を検索
-        var listUrl = $"{projectEndpoint.TrimEnd('/')}/assistants?api-version={apiVersion}";
+        var listUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants?api-version={apiVersion}";
         var listResponse = await httpClient.GetAsync(listUrl, ct);
         var listBody = await listResponse.Content.ReadAsStringAsync(ct);
         string? existingId = null;
@@ -236,7 +236,7 @@ public class Step12FoundryKnowledge : ISetupStep
         if (existingId != null)
         {
             // Update existing
-            var updateUrl = $"{projectEndpoint.TrimEnd('/')}/assistants/{existingId}?api-version={apiVersion}";
+            var updateUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants/{existingId}?api-version={apiVersion}";
             var updateResponse = await httpClient.PostAsync(updateUrl,
                 new StringContent(payload, Encoding.UTF8, "application/json"), ct);
             updateResponse.EnsureSuccessStatusCode();
@@ -245,7 +245,7 @@ public class Step12FoundryKnowledge : ISetupStep
         else
         {
             // Create new
-            var createUrl = $"{projectEndpoint.TrimEnd('/')}/assistants?api-version={apiVersion}";
+            var createUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants?api-version={apiVersion}";
             var createResponse = await httpClient.PostAsync(createUrl,
                 new StringContent(payload, Encoding.UTF8, "application/json"), ct);
             var createBody = await createResponse.Content.ReadAsStringAsync(ct);

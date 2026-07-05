@@ -81,16 +81,45 @@ public class Step07MedallionSetup : ISetupStep
         if (!string.IsNullOrEmpty(state.Medallion?.WorkspaceId))
             return state.Medallion.WorkspaceId;
 
+        const string targetWsName = "ws-nexus6-medallion";
+
+        // 既存ワークスペースを検索
         var wsJson = await _az.RunAsync(
             $"rest --method get --url \"{FabricResource}/v1/workspaces\" --resource \"{FabricResource}\"",
             silent: true);
         var doc = JsonDocument.Parse(wsJson);
 
-        return doc.RootElement.GetProperty("value").EnumerateArray()
-            .Where(w => w.GetProperty("displayName").GetString() != "My workspace")
-            .Select(w => w.GetProperty("id").GetString()!)
+        var existing = doc.RootElement.GetProperty("value").EnumerateArray()
+            .FirstOrDefault(w => w.GetProperty("displayName").GetString() == targetWsName);
+
+        if (existing.ValueKind != JsonValueKind.Undefined)
+            return existing.GetProperty("id").GetString()!;
+
+        // capacity ID を取得
+        Console.WriteLine($"    ワークスペース '{targetWsName}' を作成中...");
+        var capJson = await _az.RunAsync(
+            $"rest --method get --url \"{FabricResource}/v1/capacities\" --resource \"{FabricResource}\"",
+            silent: true);
+        var capDoc = JsonDocument.Parse(capJson);
+        var capacityId = capDoc.RootElement.GetProperty("value").EnumerateArray()
+            .Where(c => c.GetProperty("state").GetString() == "Active")
+            .Select(c => c.GetProperty("id").GetString())
             .FirstOrDefault()
-            ?? throw new InvalidOperationException("Fabric ワークスペースが見つかりません。");
+            ?? throw new InvalidOperationException("アクティブな Fabric Capacity が見つかりません。");
+
+        // ワークスペース作成
+        var payload = JsonSerializer.Serialize(new { displayName = targetWsName, capacityId });
+        var payloadPath = Path.GetFullPath("./output/ws_create.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
+        await File.WriteAllTextAsync(payloadPath, payload);
+
+        var result = await _az.RunAsync(
+            $"rest --method POST --url \"{FabricResource}/v1/workspaces\" --resource \"{FabricResource}\" " +
+            $"--headers \"Content-Type=application/json\" --body @{payloadPath}",
+            silent: true);
+
+        var wsDoc = JsonDocument.Parse(result);
+        return wsDoc.RootElement.GetProperty("id").GetString()!;
     }
 
     private async Task<LakehouseInfo> EnsureLakehouseAsync(string wsId, string name, CancellationToken ct)
@@ -124,7 +153,8 @@ public class Step07MedallionSetup : ISetupStep
             $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
             $"--body @{payloadPath} --verbose");
 
-        await PollLroAsync(opId, ct);
+        if (opId != null)
+            await PollLroAsync(opId, ct);
 
         // 作成されたIDを取得
         itemsJson = await _az.RunAsync(
@@ -247,7 +277,6 @@ public class Step07MedallionSetup : ISetupStep
             ["type"] = "Notebook",
             ["definition"] = new JsonObject
             {
-                ["format"] = "ipynb",
                 ["parts"] = new JsonArray
                 {
                     new JsonObject
@@ -275,7 +304,8 @@ public class Step07MedallionSetup : ISetupStep
             $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
             $"--body @{envPath} --verbose");
 
-        await PollLroAsync(opId, ct);
+        if (opId != null)
+            await PollLroAsync(opId, ct);
 
         // 作成されたIDを取得
         itemsJson = await _az.RunAsync(
@@ -296,7 +326,8 @@ public class Step07MedallionSetup : ISetupStep
             "--body \"{}\" --verbose");
 
         // Notebook 実行は時間がかかるためタイムアウトを延長
-        await PollLroAsync(opId, ct, maxAttempts: 60, intervalSeconds: 10);
+        if (opId != null)
+            await PollLroAsync(opId, ct, maxAttempts: 60, intervalSeconds: 10);
     }
 
     private static string BuildNotebookJson(string pySparkCode, string lakehouseId, string wsId)
@@ -399,7 +430,7 @@ public class Step07MedallionSetup : ISetupStep
         };
     }
 
-    private async Task<string> ExecuteFabricLroAsync(string azArgs)
+    private async Task<string?> ExecuteFabricLroAsync(string azArgs)
     {
         var psi = new System.Diagnostics.ProcessStartInfo
         {
@@ -414,19 +445,32 @@ public class Step07MedallionSetup : ISetupStep
         using var process = System.Diagnostics.Process.Start(psi)
             ?? throw new InvalidOperationException("az CLI の起動に失敗しました。");
 
+        var stdout = await process.StandardOutput.ReadToEndAsync();
         var stderr = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
 
-        // x-ms-operation-id を抽出
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException(
+                $"Fabric API エラー (exit {process.ExitCode}): {stderr[..Math.Min(800, stderr.Length)]}");
+
+        // x-ms-operation-id を抽出 (202 LRO の場合)
         var opIdMatch = System.Text.RegularExpressions.Regex.Match(
-            stderr, @"x-ms-operation-id['""]?:\s*['""]?([a-f0-9\-]+)",
+            stderr, @"x-ms-operation-id['""]?\s*[:=]\s*['""]?([a-f0-9\-]+)",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-        if (!opIdMatch.Success)
-            throw new InvalidOperationException(
-                $"LRO operation-id を取得できませんでした。stderr: {stderr[..Math.Min(500, stderr.Length)]}");
+        if (opIdMatch.Success)
+            return opIdMatch.Groups[1].Value;
 
-        return opIdMatch.Groups[1].Value;
+        // Location ヘッダーから operation-id を抽出
+        var locMatch = System.Text.RegularExpressions.Regex.Match(
+            stderr, @"operations/([a-f0-9\-]+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (locMatch.Success)
+            return locMatch.Groups[1].Value;
+
+        // 同期完了 (201) — LRO不要
+        return null;
     }
 
     private async Task PollLroAsync(string operationId, CancellationToken ct, int maxAttempts = 30, int intervalSeconds = 5)

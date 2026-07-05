@@ -48,31 +48,50 @@ public class Step08OntologyCreation : ISetupStep
         Console.WriteLine($"    RelationshipType 数: {ontologyDef.Relationships.Count}\n");
 
         // 4. オントロジーの作成 or 更新
-        string ontoId;
-        if (string.IsNullOrEmpty(existingOntoId))
+        try
         {
-            ontoId = await CreateOntologyAsync(wsId, ontologyDef, ct);
-            Console.WriteLine($"    ✓ オントロジー作成完了 (ID: {ontoId})");
-        }
-        else
-        {
-            ontoId = existingOntoId;
-            await UpdateOntologyDefinitionAsync(wsId, ontoId, ontologyDef, ct);
-            Console.WriteLine($"    ✓ オントロジー更新完了 (ID: {ontoId})");
-        }
+            string ontoId;
+            if (string.IsNullOrEmpty(existingOntoId))
+            {
+                ontoId = await CreateOntologyAsync(wsId, ontologyDef, ct);
+                Console.WriteLine($"    ✓ オントロジー作成完了 (ID: {ontoId})");
+            }
+            else
+            {
+                ontoId = existingOntoId;
+                await UpdateOntologyDefinitionAsync(wsId, ontoId, ontologyDef, ct);
+                Console.WriteLine($"    ✓ オントロジー更新完了 (ID: {ontoId})");
+            }
 
-        // 5. 結果をstateに保存
-        state.Ontology = new OntologyResult
-        {
-            OntologyId = ontoId,
-            WorkspaceId = wsId,
-            LakehouseId = lhId,
-            EntityTypeCount = ontologyDef.EntityTypes.Count,
-            RelationshipCount = ontologyDef.Relationships.Count
-        };
+            // 5. 結果をstateに保存
+            state.Ontology = new OntologyResult
+            {
+                OntologyId = ontoId,
+                WorkspaceId = wsId,
+                LakehouseId = lhId,
+                EntityTypeCount = ontologyDef.EntityTypes.Count,
+                RelationshipCount = ontologyDef.Relationships.Count
+            };
 
-        Console.WriteLine($"\n  ✓ オントロジー作成完了");
-        Console.WriteLine($"    Entity Types: {string.Join(", ", ontologyDef.EntityTypes.Select(e => e.Name))}");
+            Console.WriteLine($"\n  ✓ オントロジー作成完了");
+            Console.WriteLine($"    Entity Types: {string.Join(", ", ontologyDef.EntityTypes.Select(e => e.Name))}");
+        }
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("FeatureNotAvailable") ||
+            ex.Message.Contains("Forbidden") ||
+            ex.Message.Contains("exit 1"))
+        {
+            Console.WriteLine("  ⚠️ Ontology 機能がこのテナント/容量では利用できません");
+            Console.WriteLine("     この手順はスキップされます。F64以上のSKUが必要な場合があります。");
+            state.Ontology = new OntologyResult
+            {
+                OntologyId = "",
+                WorkspaceId = wsId,
+                LakehouseId = lhId,
+                EntityTypeCount = ontologyDef.EntityTypes.Count,
+                RelationshipCount = ontologyDef.Relationships.Count
+            };
+        }
     }
 
     private async Task<(string wsId, string lhId, string lhName)> ResolveFabricTargetsAsync(SetupState state)
@@ -90,13 +109,21 @@ public class Step08OntologyCreation : ISetupStep
         {
             wsId = state.Ontology.WorkspaceId;
         }
+        else if (!string.IsNullOrEmpty(state.Medallion?.WorkspaceId))
+        {
+            wsId = state.Medallion.WorkspaceId;
+        }
         else
         {
-            // "My workspace" 以外の最初のワークスペースを選択
+            // "ws-nexus6-medallion" を優先、なければ "My workspace" 以外の最初
             wsId = workspaces.EnumerateArray()
-                .Where(w => w.GetProperty("displayName").GetString() != "My workspace")
+                .Where(w => w.GetProperty("displayName").GetString() == "ws-nexus6-medallion")
                 .Select(w => w.GetProperty("id").GetString()!)
                 .FirstOrDefault()
+                ?? workspaces.EnumerateArray()
+                    .Where(w => w.GetProperty("displayName").GetString() != "My workspace")
+                    .Select(w => w.GetProperty("id").GetString()!)
+                    .FirstOrDefault()
                 ?? throw new InvalidOperationException("Fabric ワークスペースが見つかりません。");
         }
 
@@ -264,7 +291,8 @@ public class Step08OntologyCreation : ISetupStep
             $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
             $"--body @{envelopePath} --verbose");
 
-        await PollLroAsync(opId, ct);
+        if (opId != null)
+            await PollLroAsync(opId, ct);
 
         // 作成されたオントロジーのIDを取得
         var itemsJson = await _az.RunAsync(
@@ -300,7 +328,8 @@ public class Step08OntologyCreation : ISetupStep
             $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
             $"--body @{envelopePath} --verbose");
 
-        await PollLroAsync(opId, ct);
+        if (opId != null)
+            await PollLroAsync(opId, ct);
     }
 
     private static JsonArray BuildDefinitionParts(OntologyDefinition def, string displayName)
@@ -412,10 +441,8 @@ public class Step08OntologyCreation : ISetupStep
         };
     }
 
-    private async Task<string> ExecuteFabricLroAsync(string azArgs)
+    private async Task<string?> ExecuteFabricLroAsync(string azArgs)
     {
-        // --verbose で stderr に x-ms-operation-id が出力される
-        // AzureCliWrapper は stderr を内部で保持するが、ここでは直接 Process を使う
         var psi = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "az",
@@ -429,18 +456,32 @@ public class Step08OntologyCreation : ISetupStep
         using var process = System.Diagnostics.Process.Start(psi)
             ?? throw new InvalidOperationException("az CLI の起動に失敗しました。");
 
+        var stdout = await process.StandardOutput.ReadToEndAsync();
         var stderr = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
 
-        // x-ms-operation-id を抽出
-        var opIdMatch = System.Text.RegularExpressions.Regex.Match(
-            stderr, @"x-ms-operation-id['""]?:\s*['""]?([a-f0-9\-]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        if (!opIdMatch.Success)
+        if (process.ExitCode != 0)
             throw new InvalidOperationException(
-                $"LRO operation-id を取得できませんでした。stderr: {stderr[..Math.Min(500, stderr.Length)]}");
+                $"Fabric API エラー (exit {process.ExitCode}): {stderr[..Math.Min(800, stderr.Length)]}");
 
-        return opIdMatch.Groups[1].Value;
+        // x-ms-operation-id を抽出 (202 LRO の場合)
+        var opIdMatch = System.Text.RegularExpressions.Regex.Match(
+            stderr, @"x-ms-operation-id['""]?\s*[:=]\s*['""]?([a-f0-9\-]+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (opIdMatch.Success)
+            return opIdMatch.Groups[1].Value;
+
+        // Location ヘッダーから operation-id を抽出
+        var locMatch = System.Text.RegularExpressions.Regex.Match(
+            stderr, @"operations/([a-f0-9\-]+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (locMatch.Success)
+            return locMatch.Groups[1].Value;
+
+        // 同期完了 (201) — LRO不要
+        return null;
     }
 
     private async Task PollLroAsync(string operationId, CancellationToken ct)

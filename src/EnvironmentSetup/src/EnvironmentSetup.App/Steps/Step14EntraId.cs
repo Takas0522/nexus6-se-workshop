@@ -66,11 +66,11 @@ public class Step14EntraId : ISetupStep
         Console.WriteLine("    ✓ ChannelMessage.Send (delegated)");
         Console.WriteLine("    ✓ Team.ReadBasic.All (delegated)");
 
-        // 3. Client Secret 生成 (6ヶ月)
-        Console.WriteLine("  🔑 Client Secret を生成中 (有効期限: 6ヶ月)...");
+        // 3. Client Secret 生成 (1年)
+        Console.WriteLine("  🔑 Client Secret を生成中 (有効期限: 1年)...");
         var credResult = await _az.RunAsync(
             $"ad app credential reset --id {appId} " +
-            $"--years 0.5 " +
+            $"--years 1 " +
             $"--output json",
             silent: true);
 
@@ -82,6 +82,20 @@ public class Step14EntraId : ISetupStep
         {
             var vaultName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
             Console.WriteLine($"  🔒 Key Vault ({vaultName}) にシークレットを保存中...");
+
+            // RBAC ロール割り当て (Key Vault Secrets Officer) を確認・追加
+            try
+            {
+                var userOid = await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true);
+                await _az.RunAsync(
+                    $"role assignment create --role \"Key Vault Secrets Officer\" " +
+                    $"--assignee {userOid.Trim()} " +
+                    $"--scope /subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}",
+                    silent: true);
+                // 伝播待機
+                await Task.Delay(10000);
+            }
+            catch { /* 既に割り当て済みの場合は無視 */ }
 
             await _az.RunAsync(
                 $"keyvault secret set --vault-name {vaultName} " +

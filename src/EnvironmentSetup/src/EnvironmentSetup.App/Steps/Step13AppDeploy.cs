@@ -29,6 +29,9 @@ public class Step13AppDeploy : ISetupStep
 
         Console.WriteLine("  アプリケーションをデプロイ中...\n");
 
+        // リポジトリルートを特定
+        var repoRoot = FindRepoRoot();
+
         // ポータルURL決定
         if (string.IsNullOrEmpty(deployment.PortalBaseUrl) && !string.IsNullOrEmpty(deployment.StorageAccountPortal))
         {
@@ -78,11 +81,40 @@ public class Step13AppDeploy : ISetupStep
         {
             var imageName = $"{deployment.AcrLoginServer}/news-analysis-agent:latest";
             Console.WriteLine($"    ACR ビルド: {imageName}");
+            var dockerfilePath = Path.Combine(repoRoot, "src", "news-analysis-agent", "Dockerfile");
+            var contextPath = Path.Combine(repoRoot, "src", "news-analysis-agent");
             await _az.RunAsync(
                 $"acr build --registry {deployment.AcrLoginServer.Split('.')[0]} " +
                 $"--image news-analysis-agent:latest " +
-                $"--file src/news-analysis-agent/Dockerfile src/news-analysis-agent",
+                $"--file {dockerfilePath} {contextPath}",
                 silent: true);
+
+            Console.WriteLine("    Container App に ACR レジストリを設定中...");
+            var acrName = deployment.AcrLoginServer.Split('.')[0];
+            try
+            {
+                await _az.RunAsync(
+                    $"containerapp registry set --name {deployment.ContainerAppNameAgent} " +
+                    $"--resource-group {azure.ResourceGroup} " +
+                    $"--server {deployment.AcrLoginServer} " +
+                    $"--identity system",
+                    silent: true);
+            }
+            catch
+            {
+                // Managed Identity が未設定の場合は admin credentials で試行
+                await _az.RunAsync($"acr update --name {acrName} --admin-enabled true", silent: true);
+                var creds = await _az.RunAsync($"acr credential show --name {acrName} --query \"{{username:username,password:passwords[0].value}}\" -o json", silent: true);
+                var credDoc = System.Text.Json.JsonDocument.Parse(creds);
+                var username = credDoc.RootElement.GetProperty("username").GetString()!;
+                var password = credDoc.RootElement.GetProperty("password").GetString()!;
+                await _az.RunAsync(
+                    $"containerapp registry set --name {deployment.ContainerAppNameAgent} " +
+                    $"--resource-group {azure.ResourceGroup} " +
+                    $"--server {deployment.AcrLoginServer} " +
+                    $"--username {username} --password {password}",
+                    silent: true);
+            }
 
             Console.WriteLine("    Container App を更新中...");
             await _az.RunAsync(
@@ -106,14 +138,16 @@ public class Step13AppDeploy : ISetupStep
         // 2. Container App: news-analysis-webapp
         // =====================================================
         Console.WriteLine("\n  🌐 news-analysis-webapp をビルド・デプロイ中...");
-        if (!string.IsNullOrEmpty(deployment.AcrLoginServer))
+        var webappDockerfile = Path.Combine(repoRoot, "src", "news-analysis-webapp", "Dockerfile");
+        if (!string.IsNullOrEmpty(deployment.AcrLoginServer) && File.Exists(webappDockerfile))
         {
             var webappImage = $"{deployment.AcrLoginServer}/news-analysis-webapp:latest";
             Console.WriteLine($"    ACR ビルド: {webappImage}");
+            var webappContext = Path.Combine(repoRoot, "src", "news-analysis-webapp");
             await _az.RunAsync(
                 $"acr build --registry {deployment.AcrLoginServer.Split('.')[0]} " +
                 $"--image news-analysis-webapp:latest " +
-                $"--file src/news-analysis-webapp/Dockerfile src/news-analysis-webapp",
+                $"--file {webappDockerfile} {webappContext}",
                 silent: true);
 
             // webapp Container App がまだなければ作成を試みる
@@ -150,7 +184,7 @@ public class Step13AppDeploy : ISetupStep
         }
         else
         {
-            Console.WriteLine("    ⚠️ ACR が未設定のためスキップ");
+            Console.WriteLine("    ⚠️ Webapp Dockerfileが存在しないかACR未設定のためスキップ");
         }
 
         // =====================================================
@@ -159,7 +193,7 @@ public class Step13AppDeploy : ISetupStep
         Console.WriteLine("\n  ⚡ news-trigger-function をデプロイ中...");
         if (!string.IsNullOrEmpty(deployment.FunctionAppName))
         {
-            var funcProjectPath = "src/news-trigger-function";
+            var funcProjectPath = Path.Combine(repoRoot, "src", "news-trigger-function");
             Console.WriteLine($"    func azure functionapp publish {deployment.FunctionAppName}");
 
             try
@@ -180,9 +214,16 @@ public class Step13AppDeploy : ISetupStep
 
             // アプリ設定
             Console.WriteLine("    Functions アプリ設定を更新中...");
-            var funcSettings = BuildFunctionAppSettings(deployment, domainConfigBlobUri);
-            await SetFunctionAppSettings(deployment.FunctionAppName, azure.ResourceGroup, funcSettings);
-            Console.WriteLine("    ✓ Functions アプリ設定完了");
+            try
+            {
+                var funcSettings = BuildFunctionAppSettings(deployment, domainConfigBlobUri);
+                await SetFunctionAppSettings(deployment.FunctionAppName, azure.ResourceGroup, funcSettings);
+                Console.WriteLine("    ✓ Functions アプリ設定完了");
+            }
+            catch (Exception ex2)
+            {
+                Console.WriteLine($"    ⚠️ Functions アプリ設定に失敗: {ex2.Message[..Math.Min(200, ex2.Message.Length)]}");
+            }
         }
         else
         {
@@ -331,5 +372,25 @@ public class Step13AppDeploy : ISetupStep
             $"--resource-group {resourceGroup} " +
             $"--settings {settingsArgs}",
             silent: true);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, ".git")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        // fallback: search from current directory
+        dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, ".git")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        throw new InvalidOperationException("リポジトリルートが見つかりません。");
     }
 }
