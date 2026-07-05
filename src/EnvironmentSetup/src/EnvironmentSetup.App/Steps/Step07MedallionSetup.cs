@@ -93,7 +93,11 @@ public class Step07MedallionSetup : ISetupStep
             .FirstOrDefault(w => w.GetProperty("displayName").GetString() == targetWsName);
 
         if (existing.ValueKind != JsonValueKind.Undefined)
-            return existing.GetProperty("id").GetString()!;
+        {
+            var wsId = existing.GetProperty("id").GetString()!;
+            await EnsureCapacityAssignedAsync(wsId, targetWsName);
+            return wsId;
+        }
 
         // capacity ID を取得
         Console.WriteLine($"    ワークスペース '{targetWsName}' を作成中...");
@@ -120,6 +124,47 @@ public class Step07MedallionSetup : ISetupStep
 
         var wsDoc = JsonDocument.Parse(result);
         return wsDoc.RootElement.GetProperty("id").GetString()!;
+    }
+
+    private async Task EnsureCapacityAssignedAsync(string wsId, string wsName)
+    {
+        // アクティブなキャパシティを取得
+        var capJson = await _az.RunAsync(
+            $"rest --method get --url \"{FabricResource}/v1/capacities\" --resource \"{FabricResource}\"",
+            silent: true);
+        var capDoc = JsonDocument.Parse(capJson);
+        var capacityId = capDoc.RootElement.GetProperty("value").EnumerateArray()
+            .Where(c => c.GetProperty("state").GetString() == "Active")
+            .Select(c => c.GetProperty("id").GetString())
+            .FirstOrDefault();
+
+        if (string.IsNullOrEmpty(capacityId))
+        {
+            Console.WriteLine($"    ⚠️ アクティブな Fabric Capacity がないため、キャパシティ割り当てをスキップ");
+            return;
+        }
+
+        // キャパシティを割り当て
+        Console.WriteLine($"    ワークスペース '{wsName}' にキャパシティを割り当て中...");
+        var payload = JsonSerializer.Serialize(new { capacityId });
+        var payloadPath = Path.GetFullPath("./output/ws_capacity.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
+        await File.WriteAllTextAsync(payloadPath, payload);
+
+        try
+        {
+            await _az.RunAsync(
+                $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/assignToCapacity\" " +
+                $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" --body @{payloadPath}",
+                silent: true);
+            Console.WriteLine($"    ✓ キャパシティ割り当て完了");
+            // 割り当て反映まで少し待機
+            await Task.Delay(5000);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"    ⚠️ キャパシティ割り当て: {ex.Message[..Math.Min(200, ex.Message.Length)]}");
+        }
     }
 
     private async Task<LakehouseInfo> EnsureLakehouseAsync(string wsId, string name, CancellationToken ct)
