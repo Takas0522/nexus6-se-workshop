@@ -74,7 +74,7 @@ resource textEmbedding3LargeDeployment 'Microsoft.CognitiveServices/accounts/dep
   parent: aiServices
   sku: {
     name: 'Standard'
-    capacity: 120
+    capacity: 100
   }
   properties: {
     model: {
