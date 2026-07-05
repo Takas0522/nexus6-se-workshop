@@ -26,6 +26,7 @@ param portalStorageName string
 var roleIds = {
   acrPull: '7f951dda-4ed3-4680-a7ca-43fe172d538d'
   storageBlobDataContributor: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+  storageQueueDataContributor: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
   storageTableDataContributor: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
   keyVaultSecretsUser: '4633458b-17de-408a-b874-0445c86b69e6'
   cognitiveServicesOpenAIUser: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
@@ -91,6 +92,17 @@ resource containerAppSkillsTable 'Microsoft.Authorization/roleAssignments@2022-0
     principalId: containerAppPrincipalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageTableDataContributor)
+  }
+}
+
+// Container App → Storage Queue Data Contributor (Skills)
+resource containerAppSkillsQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(skillsStorage.id, containerAppPrincipalId, roleIds.storageQueueDataContributor)
+  scope: skillsStorage
+  properties: {
+    principalId: containerAppPrincipalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageQueueDataContributor)
   }
 }
 
