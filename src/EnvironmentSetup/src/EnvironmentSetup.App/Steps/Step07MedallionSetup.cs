@@ -95,8 +95,20 @@ public class Step07MedallionSetup : ISetupStep
         if (existing.ValueKind != JsonValueKind.Undefined)
         {
             var wsId = existing.GetProperty("id").GetString()!;
-            await EnsureCapacityAssignedAsync(wsId, targetWsName);
-            return wsId;
+            // ワークスペースが実際に使用可能か確認
+            try
+            {
+                await _az.RunAsync(
+                    $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}\" --resource \"{FabricResource}\"",
+                    silent: true);
+                await EnsureCapacityAssignedAsync(wsId, targetWsName);
+                return wsId;
+            }
+            catch
+            {
+                // ゴースト状態のワークスペース（一覧に出るが使えない）→ 新規作成
+                Console.WriteLine($"    ⚠️ ワークスペース '{targetWsName}' が応答しないため再作成します...");
+            }
         }
 
         // capacity ID を取得
@@ -495,8 +507,14 @@ public class Step07MedallionSetup : ISetupStep
         await process.WaitForExitAsync();
 
         if (process.ExitCode != 0)
+        {
+            // stderr にINFOログのみでエラー本文がstdoutに含まれる場合がある
+            var errorDetail = !string.IsNullOrWhiteSpace(stdout) && stdout.Contains("errorCode")
+                ? stdout[..Math.Min(500, stdout.Length)]
+                : stderr[..Math.Min(800, stderr.Length)];
             throw new InvalidOperationException(
-                $"Fabric API エラー (exit {process.ExitCode}): {stderr[..Math.Min(800, stderr.Length)]}");
+                $"Fabric API エラー (exit {process.ExitCode}): {errorDetail}");
+        }
 
         // x-ms-operation-id を抽出 (202 LRO の場合)
         var opIdMatch = System.Text.RegularExpressions.Regex.Match(
