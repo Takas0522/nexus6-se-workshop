@@ -143,7 +143,7 @@ public class Step13AppDeploy : ISetupStep
         {
             var webappImage = $"{deployment.AcrLoginServer}/news-analysis-webapp:latest";
             Console.WriteLine($"    ACR ビルド: {webappImage}");
-            var webappContext = Path.Combine(repoRoot, "src", "news-analysis-webapp");
+            var webappContext = Path.Combine(repoRoot, "src");
             await _az.RunAsync(
                 $"acr build --registry {deployment.AcrLoginServer.Split('.')[0]} " +
                 $"--image news-analysis-webapp:latest " +
@@ -161,12 +161,23 @@ public class Step13AppDeploy : ISetupStep
             catch
             {
                 Console.WriteLine($"    Container App '{deployment.ContainerAppNameWebapp}' を新規作成中...");
+                // 既存のagent Container Appから環境IDを取得
+                var envIdJson = await _az.RunAsync(
+                    $"containerapp show --name {deployment.ContainerAppNameAgent} " +
+                    $"--resource-group {azure.ResourceGroup} " +
+                    $"--query properties.environmentId -o tsv",
+                    silent: true);
+                var envId = envIdJson.Trim();
                 await _az.RunAsync(
                     $"containerapp create --name {deployment.ContainerAppNameWebapp} " +
                     $"--resource-group {azure.ResourceGroup} " +
+                    $"--environment {envId} " +
                     $"--image {webappImage} " +
-                    $"--ingress external --target-port 5100 " +
-                    $"--min-replicas 0 --max-replicas 2",
+                    $"--registry-server {deployment.AcrLoginServer} " +
+                    $"--registry-identity system " +
+                    $"--ingress external --target-port 8080 " +
+                    $"--min-replicas 0 --max-replicas 2 " +
+                    $"--system-assigned",
                     silent: true);
             }
 

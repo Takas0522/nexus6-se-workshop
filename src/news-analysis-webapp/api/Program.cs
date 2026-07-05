@@ -217,6 +217,10 @@ builder.Services.AddResiliencePipeline("agent-retry", pipeline =>
 var app = builder.Build();
 app.UseCors();
 
+// Serve React SPA from wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Serve news-portal static files under /news-portal/
 var newsPortalPath = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "news-portal"));
 if (Directory.Exists(newsPortalPath))
@@ -296,6 +300,9 @@ app.MapGet("/api/analysis/latest", (WorkflowExecutionStore store) =>
 
     return Results.Ok(response);
 });
+
+// SPA fallback: non-API routes serve index.html
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
