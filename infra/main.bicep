@@ -4,6 +4,9 @@ param projectName string = 'nexus6'
 @description('Location for all resources (e.g., swedencentral)')
 param location string = 'swedencentral'
 
+@description('Unique suffix for globally-unique resource names (4 chars)')
+param suffix string = substring(uniqueString(resourceGroup().id), 0, 4)
+
 @description('Resource tags to apply to all resources')
 param tags object = {
   environment: 'production'
@@ -19,16 +22,16 @@ param logAnalyticsWorkspaceName string = 'log-${projectName}-swc'
 param appInsightsName string = 'appi-${projectName}-swc'
 
 @description('Key Vault name')
-param keyVaultName string = 'kv-${projectName}-swc'
+param keyVaultName string = 'kv-${projectName}-${suffix}'
 
 @description('Container Registry name')
-param containerRegistryName string = 'cr${projectName}swc'
+param containerRegistryName string = 'cr${projectName}${suffix}'
 
 @description('Container Apps Environment name')
-param containerAppsEnvironmentName string = 'cae-${projectName}-swc'
+param containerAppsEnvironmentName string = 'cae-${projectName}-${suffix}'
 
 @description('Container App name')
-param containerAppName string = 'ca-${projectName}-hosted-agent'
+param containerAppName string = 'ca-${projectName}-hosted-agent-${suffix}'
 
 @description('Container App image')
 param containerAppImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
@@ -37,31 +40,31 @@ param containerAppImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 param containerAppEnvironmentVariables array = []
 
 @description('Skills Storage Account name')
-param skillsStorageName string = 'st${projectName}skill1t2i'
+param skillsStorageName string = 'st${projectName}skill${suffix}'
 
 @description('Portal Storage Account name')
-param portalStorageName string = 'st${projectName}portal1t2i'
+param portalStorageName string = 'st${projectName}portal${suffix}'
 
 @description('AI Services (Foundry) name')
-param aiServicesName string = 'fd-${projectName}'
+param aiServicesName string = 'fd-${projectName}-${suffix}'
 
 @description('AI Services Project name')
-param aiProjectName string = 'proj-${projectName}'
+param aiProjectName string = 'proj-${projectName}-${suffix}'
 
 @description('AI Services custom subdomain')
-param aiServicesSubdomain string = 'fd-${toLower(projectName)}'
+param aiServicesSubdomain string = 'fd-${projectName}-${suffix}'
 
 @description('AI Search service name')
-param aiSearchName string = 'iq-knowledge-source-${uniqueString(resourceGroup().id)}'
+param aiSearchName string = 'iq-${projectName}-search-${suffix}'
 
 @description('App Service Plan name')
-param appServicePlanName string = '${projectName}LinuxDynamicPlan'
+param appServicePlanName string = '${projectName}LinuxDynPlan${suffix}'
 
 @description('Function App name')
-param functionAppName string = 'func-${projectName}-trigger'
+param functionAppName string = 'func-${projectName}-trigger-${suffix}'
 
 @description('Fabric Capacity name')
-param fabricCapacityName string = 'fabric${location}cu001'
+param fabricCapacityName string = 'fabric${projectName}${suffix}'
 
 @description('Fabric Capacity SKU')
 @allowed(['F2', 'F4', 'F8', 'F16', 'F32', 'F64'])
