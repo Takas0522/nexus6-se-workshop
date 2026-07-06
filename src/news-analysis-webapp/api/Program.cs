@@ -253,33 +253,67 @@ app.MapGet("/api/news", () =>
     return Results.Ok(articles);
 });
 
-// Run analysis
-app.MapPost("/api/analysis/run", async (
+// Run analysis (async - returns immediately with job ID)
+app.MapPost("/api/analysis/run", (
     AnalysisRequest request,
     IWorkflow<NewsAnalysisContext> workflow,
-    CancellationToken ct) =>
+    WorkflowExecutionStore store) =>
 {
     if (string.IsNullOrWhiteSpace(request.NewsText))
     {
         return Results.BadRequest(new { error = "newsText is required." });
     }
 
-    var context = new NewsAnalysisContext
+    var jobId = store.CreateJob();
+
+    _ = Task.Run(async () =>
     {
-        OriginalNewsText = request.NewsText,
-        SearchHints = request.SearchHints ?? []
-    };
+        try
+        {
+            var context = new NewsAnalysisContext
+            {
+                OriginalNewsText = request.NewsText,
+                SearchHints = request.SearchHints ?? []
+            };
+            await workflow.RunAsync(context, CancellationToken.None);
+            store.CompleteJob(jobId, context);
+        }
+        catch (Exception ex)
+        {
+            store.FailJob(jobId, ex.Message);
+        }
+    });
 
-    var result = await workflow.RunAsync(context, ct);
+    return Results.Accepted($"/api/analysis/status/{jobId}", new { runId = jobId });
+});
 
+// Poll analysis status
+app.MapGet("/api/analysis/status/{runId}", (string runId, WorkflowExecutionStore store) =>
+{
+    var job = store.GetJob(runId);
+    if (job is null)
+    {
+        return Results.NotFound(new { error = "Job not found." });
+    }
+
+    if (job.Status == "running")
+    {
+        return Results.Ok(new { status = "running" });
+    }
+
+    if (job.Status == "failed")
+    {
+        return Results.Ok(new { status = "failed", error = job.Error });
+    }
+
+    var ctx = job.Context!;
     var response = new AnalysisResponse(
-        result.WebResearchResult,
-        result.ImpactResult,
-        result.Recommendations,
-        result.StartedAt,
-        result.CompletedAt);
-
-    return Results.Ok(response);
+        ctx.WebResearchResult,
+        ctx.ImpactResult,
+        ctx.Recommendations,
+        ctx.StartedAt,
+        ctx.CompletedAt);
+    return Results.Ok(new { status = "completed", result = response });
 });
 
 // Latest result

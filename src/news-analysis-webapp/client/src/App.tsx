@@ -51,8 +51,26 @@ export default function App() {
         body: JSON.stringify({ newsText: article.summary, searchHints: [article.category] }),
       });
       if (!res.ok) throw new Error(`Analysis failed: ${res.status}`);
-      const data: AnalysisResponse = await res.json();
-      setAnalysis(data);
+      const { runId } = await res.json();
+
+      // Poll for completion
+      const pollInterval = 3000;
+      const maxPollTime = 600000; // 10 minutes
+      const startTime = Date.now();
+      while (Date.now() - startTime < maxPollTime) {
+        await new Promise((r) => setTimeout(r, pollInterval));
+        const statusRes = await fetch(`/api/analysis/status/${runId}`);
+        if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
+        const statusData = await statusRes.json();
+        if (statusData.status === 'completed') {
+          setAnalysis(statusData.result as AnalysisResponse);
+          return;
+        }
+        if (statusData.status === 'failed') {
+          throw new Error(statusData.error || '分析に失敗しました');
+        }
+      }
+      throw new Error('分析がタイムアウトしました');
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析の実行に失敗しました');
     } finally {
