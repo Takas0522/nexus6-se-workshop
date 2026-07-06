@@ -204,16 +204,10 @@ public class Step13AppDeploy : ISetupStep
                 {
                     var rgScope = $"/subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}";
                     var aiAccountName = GetResourceName(deployment.FoundryEndpoint);
-                    // Cognitive Services OpenAI User (account level)
+                    // Cognitive Services User (account level - covers OpenAI + AIServices/agents)
                     await _az.RunAsync(
                         $"role assignment create --assignee {webappPrincipalId} " +
-                        $"--role \"Cognitive Services OpenAI User\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{aiAccountName}",
-                        silent: true);
-                    // Azure AI Developer (project level - required for Assistants API)
-                    var projectName = aiAccountName.Replace("fd-", "proj-");
-                    await _az.RunAsync(
-                        $"role assignment create --assignee {webappPrincipalId} " +
-                        $"--role \"Azure AI Developer\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{aiAccountName}/projects/{projectName}",
+                        $"--role \"Cognitive Services User\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{aiAccountName}",
                         silent: true);
                     // Key Vault Secrets User
                     if (!string.IsNullOrEmpty(deployment.KeyVaultUri))
