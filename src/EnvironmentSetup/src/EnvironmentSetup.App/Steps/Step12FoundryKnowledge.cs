@@ -37,17 +37,12 @@ public class Step12FoundryKnowledge : ISetupStep
         if (!Directory.Exists(skillDir))
             throw new InvalidOperationException($"Skill/DS.md ディレクトリが見つかりません: {skillDir}\nStep 11 を先に実行してください。");
 
-        // Files/Vector Store はプロジェクトエンドポイント (ai.azure.com スコープ)
-        var projectEndpoint = !string.IsNullOrWhiteSpace(deployment.FoundryProjectEndpoint)
-            ? deployment.FoundryProjectEndpoint
-            : deployment.FoundryEndpoint;
-        // Assistants API はアカウントエンドポイント (cognitiveservices.azure.com スコープ)
-        var accountEndpoint = deployment.FoundryEndpoint;
-        var filesApiVersion = "2025-05-01";
-        var assistantsApiVersion = "2024-10-01-preview";
+        // 全 API をアカウントエンドポイント + cognitiveservices スコープで統一
+        // (project endpoint では Vector Store と Assistants が別空間になるため)
+        var endpoint = deployment.FoundryEndpoint;
+        var apiVersion = "2024-10-01-preview";
 
-        Console.WriteLine($"  Foundry (files): {projectEndpoint}");
-        Console.WriteLine($"  Foundry (assistants): {accountEndpoint}");
+        Console.WriteLine($"  Foundry: {endpoint}");
         Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
 
         // 1. ファイルアップロード
@@ -60,7 +55,7 @@ public class Step12FoundryKnowledge : ISetupStep
             var fileName = Path.GetFileName(filePath);
             Console.Write($"    {fileName}...");
 
-            var fileId = await UploadFileAsync(projectEndpoint, filesApiVersion, filePath, fileName, ct);
+            var fileId = await UploadFileAsync(endpoint, apiVersion, filePath, fileName, ct);
             if (!string.IsNullOrEmpty(fileId))
             {
                 fileIds.Add(fileId);
@@ -82,12 +77,12 @@ public class Step12FoundryKnowledge : ISetupStep
 
         // 2. Vector Store 作成
         Console.WriteLine("\n  🗄️ Vector Store を作成中...");
-        var vectorStoreId = await CreateVectorStoreAsync(projectEndpoint, filesApiVersion, fileIds, ct);
+        var vectorStoreId = await CreateVectorStoreAsync(endpoint, apiVersion, fileIds, ct);
         Console.WriteLine($"    Vector Store ID: {vectorStoreId}");
 
         // 3. Vector Store のインデックス完了待ち
         Console.WriteLine("    インデックス作成待ち中...");
-        await WaitForVectorStoreReadyAsync(projectEndpoint, filesApiVersion, vectorStoreId, ct);
+        await WaitForVectorStoreReadyAsync(endpoint, apiVersion, vectorStoreId, ct);
         Console.WriteLine("    ✓ Vector Store ready");
 
         // 4. Assistants 作成 (アカウントエンドポイント + cognitiveservices スコープ)
@@ -100,7 +95,7 @@ public class Step12FoundryKnowledge : ISetupStep
         {
             Console.Write($"    {name}...");
             var assistantId = await CreateOrUpdateAssistantAsync(
-                accountEndpoint, assistantsApiVersion, name, instructions, vectorStoreId, ct);
+                endpoint, apiVersion, name, instructions, vectorStoreId, ct);
             createdAssistants[name] = assistantId;
             Console.WriteLine($" ✓ ({assistantId})");
         }
@@ -118,7 +113,7 @@ public class Step12FoundryKnowledge : ISetupStep
         string projectEndpoint, string apiVersion, string filePath, string fileName, CancellationToken ct)
     {
         // Foundry Files API: POST /files (multipart/form-data)
-        var token = await GetFoundryTokenAsync();
+        var token = await GetCognitiveServicesTokenAsync();
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -146,7 +141,7 @@ public class Step12FoundryKnowledge : ISetupStep
     private async Task<string> CreateVectorStoreAsync(
         string projectEndpoint, string apiVersion, List<string> fileIds, CancellationToken ct)
     {
-        var token = await GetFoundryTokenAsync();
+        var token = await GetCognitiveServicesTokenAsync();
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -171,7 +166,7 @@ public class Step12FoundryKnowledge : ISetupStep
     private async Task WaitForVectorStoreReadyAsync(
         string projectEndpoint, string apiVersion, string vectorStoreId, CancellationToken ct)
     {
-        var token = await GetFoundryTokenAsync();
+        var token = await GetCognitiveServicesTokenAsync();
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
