@@ -28,7 +28,7 @@ public class Step12FoundryKnowledge : ISetupStep
         var deployment = state.Deployment
             ?? throw new InvalidOperationException("デプロイが未完了です。Step 5 を先に実行してください。");
 
-        if (string.IsNullOrWhiteSpace(deployment.FoundryEndpoint))
+        if (string.IsNullOrWhiteSpace(deployment.FoundryEndpoint) && string.IsNullOrWhiteSpace(deployment.FoundryProjectEndpoint))
             throw new InvalidOperationException("Foundry エンドポイントが未設定です。");
 
         var skillDir = Path.GetFullPath("./output/skills");
@@ -37,8 +37,11 @@ public class Step12FoundryKnowledge : ISetupStep
         if (!Directory.Exists(skillDir))
             throw new InvalidOperationException($"Skill/DS.md ディレクトリが見つかりません: {skillDir}\nStep 11 を先に実行してください。");
 
-        var projectEndpoint = deployment.FoundryEndpoint;
-        var apiVersion = "2024-10-01-preview";
+        // Assistants/Files API はプロジェクトエンドポイントが必要
+        var projectEndpoint = !string.IsNullOrWhiteSpace(deployment.FoundryProjectEndpoint)
+            ? deployment.FoundryProjectEndpoint
+            : deployment.FoundryEndpoint;
+        var apiVersion = "2025-05-01";
 
         Console.WriteLine($"  Foundry: {projectEndpoint}");
         Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
@@ -122,7 +125,7 @@ public class Step12FoundryKnowledge : ISetupStep
         form.Add(fileContent, "file", fileName);
         form.Add(new StringContent("assistants"), "purpose");
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/openai/files?api-version={apiVersion}";
+        var url = $"{BuildApiBase(projectEndpoint)}/files?api-version={apiVersion}";
         var response = await httpClient.PostAsync(url, form, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
@@ -150,7 +153,7 @@ public class Step12FoundryKnowledge : ISetupStep
             file_ids = fileIds
         });
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/openai/vector_stores?api-version={apiVersion}";
+        var url = $"{BuildApiBase(projectEndpoint)}/vector_stores?api-version={apiVersion}";
         var response = await httpClient.PostAsync(url,
             new StringContent(payload, Encoding.UTF8, "application/json"), ct);
         var body = await response.Content.ReadAsStringAsync(ct);
@@ -169,7 +172,7 @@ public class Step12FoundryKnowledge : ISetupStep
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var url = $"{projectEndpoint.TrimEnd('/')}/openai/vector_stores/{vectorStoreId}?api-version={apiVersion}";
+        var url = $"{BuildApiBase(projectEndpoint)}/vector_stores/{vectorStoreId}?api-version={apiVersion}";
 
         for (var i = 0; i < 60; i++) // max 5 minutes
         {
@@ -200,7 +203,7 @@ public class Step12FoundryKnowledge : ISetupStep
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
         // 既存 Assistant を検索
-        var listUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants?api-version={apiVersion}";
+        var listUrl = $"{BuildApiBase(projectEndpoint)}/assistants?api-version={apiVersion}";
         var listResponse = await httpClient.GetAsync(listUrl, ct);
         var listBody = await listResponse.Content.ReadAsStringAsync(ct);
         string? existingId = null;
@@ -236,7 +239,7 @@ public class Step12FoundryKnowledge : ISetupStep
         if (existingId != null)
         {
             // Update existing
-            var updateUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants/{existingId}?api-version={apiVersion}";
+            var updateUrl = $"{BuildApiBase(projectEndpoint)}/assistants/{existingId}?api-version={apiVersion}";
             var updateResponse = await httpClient.PostAsync(updateUrl,
                 new StringContent(payload, Encoding.UTF8, "application/json"), ct);
             updateResponse.EnsureSuccessStatusCode();
@@ -245,7 +248,7 @@ public class Step12FoundryKnowledge : ISetupStep
         else
         {
             // Create new
-            var createUrl = $"{projectEndpoint.TrimEnd('/')}/openai/assistants?api-version={apiVersion}";
+            var createUrl = $"{BuildApiBase(projectEndpoint)}/assistants?api-version={apiVersion}";
             var createResponse = await httpClient.PostAsync(createUrl,
                 new StringContent(payload, Encoding.UTF8, "application/json"), ct);
             var createBody = await createResponse.Content.ReadAsStringAsync(ct);
@@ -295,6 +298,19 @@ public class Step12FoundryKnowledge : ISetupStep
                 file_search で skill_*.md を検索し、過去事例や閾値を参照してください。
                 """),
         };
+    }
+
+    /// <summary>
+    /// プロジェクトエンドポイントの場合は /openai/ を付けない。
+    /// アカウントレベルエンドポイントの場合は /openai/ を付加する。
+    /// </summary>
+    private static string BuildApiBase(string endpoint)
+    {
+        var trimmed = endpoint.TrimEnd('/');
+        // プロジェクトエンドポイント (*.services.ai.azure.com/api/projects/...) は /openai/ 不要
+        if (trimmed.Contains("/api/projects/", StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+        return $"{trimmed}/openai";
     }
 
     private async Task<string> GetFoundryTokenAsync()
