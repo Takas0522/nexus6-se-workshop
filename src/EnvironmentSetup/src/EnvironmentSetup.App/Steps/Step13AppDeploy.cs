@@ -175,7 +175,7 @@ public class Step13AppDeploy : ISetupStep
                     $"--image {webappImage} " +
                     $"--registry-server {deployment.AcrLoginServer} " +
                     $"--registry-identity system " +
-                    $"--ingress external --target-port 80 " +
+                    $"--ingress external --target-port 8080 " +
                     $"--min-replicas 0 --max-replicas 2 " +
                     $"--system-assigned",
                     silent: true);
@@ -293,6 +293,9 @@ public class Step13AppDeploy : ISetupStep
     {
         var vars = new Dictionary<string, string>
         {
+            // Server
+            ["Urls"] = "http://+:8080",
+
             // Domain Config
             ["DomainConfig__BlobUri"] = domainConfigBlobUri,
 
