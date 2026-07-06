@@ -289,18 +289,16 @@ public class Step13AppDeploy : ISetupStep
     /// </summary>
     private static Dictionary<string, string> BuildAgentEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
     {
-        var projectEndpoint = !string.IsNullOrEmpty(deployment.FoundryProjectEndpoint)
-            ? deployment.FoundryProjectEndpoint : deployment.FoundryEndpoint;
-
+        // Assistants API はアカウントエンドポイントのみで動作するため FoundryEndpoint を使用
         var vars = new Dictionary<string, string>
         {
             // Domain Config (Blob-driven)
             ["DomainConfig__BlobUri"] = domainConfigBlobUri,
 
             // Foundry
-            ["Foundry__ProjectEndpoint"] = projectEndpoint,
+            ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
             ["Foundry__ApiVersion"] = "2024-10-21",
-            ["Foundry__AssistantsApiVersion"] = "2025-05-01",
+            ["Foundry__AssistantsApiVersion"] = "2024-10-01-preview",
             ["Foundry__DefaultModelDeployment"] = "gpt-5.4",
             ["Foundry__MaxCompletionTokens"] = "4096",
             ["Foundry__NotificationModelDeployment"] = "gpt-5.4",
@@ -334,9 +332,7 @@ public class Step13AppDeploy : ISetupStep
     /// </summary>
     private static Dictionary<string, string> BuildWebappEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
     {
-        var projectEndpoint = !string.IsNullOrEmpty(deployment.FoundryProjectEndpoint)
-            ? deployment.FoundryProjectEndpoint : deployment.FoundryEndpoint;
-
+        // Assistants API はアカウントエンドポイントのみで動作するため FoundryEndpoint を使用
         var vars = new Dictionary<string, string>
         {
             // Server
@@ -346,9 +342,9 @@ public class Step13AppDeploy : ISetupStep
             ["DomainConfig__BlobUri"] = domainConfigBlobUri,
 
             // Foundry
-            ["Foundry__ProjectEndpoint"] = projectEndpoint,
+            ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
             ["Foundry__ApiVersion"] = "2024-10-21",
-            ["Foundry__AssistantsApiVersion"] = "2025-05-01",
+            ["Foundry__AssistantsApiVersion"] = "2024-10-01-preview",
             ["Foundry__DefaultModelDeployment"] = "gpt-5.4",
             ["Foundry__MaxCompletionTokens"] = "4096",
             ["Foundry__NotificationModelDeployment"] = "gpt-5.4",
