@@ -73,7 +73,7 @@ resource textEmbedding3LargeDeployment 'Microsoft.CognitiveServices/accounts/dep
   name: 'text-embedding-3-large'
   parent: aiServices
   sku: {
-    name: 'Standard'
+    name: 'GlobalStandard'
     capacity: 100
   }
   properties: {
