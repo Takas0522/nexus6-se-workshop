@@ -308,6 +308,9 @@ output aiServicesName string = aiFoundry.outputs.foundryName
 @description('AI Services Project name')
 output aiServicesProjectName string = aiFoundry.outputs.projectName
 
+@description('AI Foundry Project endpoint (for Assistants API)')
+output aiFoundryProjectEndpoint string = 'https://${aiFoundry.outputs.customSubdomain}.services.ai.azure.com/api/projects/${aiFoundry.outputs.projectName}'
+
 @description('AI Search endpoint')
 output aiSearchEndpoint string = aiSearch.outputs.searchEndpoint
 

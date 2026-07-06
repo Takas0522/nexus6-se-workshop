@@ -76,6 +76,9 @@ public class DeploymentResult
     [JsonPropertyName("foundryEndpoint")]
     public string FoundryEndpoint { get; set; } = string.Empty;
 
+    [JsonPropertyName("foundryProjectEndpoint")]
+    public string FoundryProjectEndpoint { get; set; } = string.Empty;
+
     [JsonPropertyName("fabricSqlEndpoint")]
     public string FabricSqlEndpoint { get; set; } = string.Empty;
 

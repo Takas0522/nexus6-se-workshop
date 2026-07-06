@@ -118,6 +118,7 @@ public class Step05BicepDeploy : ISetupStep
                 StorageAccountSkills = GetOutputValue(outputs, "skillsStorageName"),
                 StorageAccountPortal = GetOutputValue(outputs, "portalStorageName"),
                 FoundryEndpoint = GetOutputValue(outputs, "aiServicesEndpoint"),
+                FoundryProjectEndpoint = GetOutputValue(outputs, "aiFoundryProjectEndpoint"),
                 ContainerAppUrl = GetOutputValue(outputs, "containerAppUrl"),
                 AcrLoginServer = GetOutputValue(outputs, "acrLoginServer"),
                 FunctionAppName = GetOutputValue(outputs, "functionAppName"),

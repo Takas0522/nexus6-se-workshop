@@ -203,10 +203,17 @@ public class Step13AppDeploy : ISetupStep
                 if (!string.IsNullOrEmpty(webappPrincipalId))
                 {
                     var rgScope = $"/subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}";
-                    // Cognitive Services OpenAI User
+                    var aiAccountName = GetResourceName(deployment.FoundryEndpoint);
+                    // Cognitive Services OpenAI User (account level)
                     await _az.RunAsync(
                         $"role assignment create --assignee {webappPrincipalId} " +
-                        $"--role \"Cognitive Services OpenAI User\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{GetResourceName(deployment.FoundryEndpoint)}",
+                        $"--role \"Cognitive Services OpenAI User\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{aiAccountName}",
+                        silent: true);
+                    // Azure AI Developer (project level - required for Assistants API)
+                    var projectName = aiAccountName.Replace("fd-", "proj-");
+                    await _az.RunAsync(
+                        $"role assignment create --assignee {webappPrincipalId} " +
+                        $"--role \"Azure AI Developer\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{aiAccountName}/projects/{projectName}",
                         silent: true);
                     // Key Vault Secrets User
                     if (!string.IsNullOrEmpty(deployment.KeyVaultUri))
@@ -288,13 +295,16 @@ public class Step13AppDeploy : ISetupStep
     /// </summary>
     private static Dictionary<string, string> BuildAgentEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
     {
+        var projectEndpoint = !string.IsNullOrEmpty(deployment.FoundryProjectEndpoint)
+            ? deployment.FoundryProjectEndpoint : deployment.FoundryEndpoint;
+
         var vars = new Dictionary<string, string>
         {
             // Domain Config (Blob-driven)
             ["DomainConfig__BlobUri"] = domainConfigBlobUri,
 
             // Foundry
-            ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
+            ["Foundry__ProjectEndpoint"] = projectEndpoint,
             ["Foundry__ApiVersion"] = "2024-10-21",
             ["Foundry__AssistantsApiVersion"] = "2025-05-01",
             ["Foundry__DefaultModelDeployment"] = "gpt-5.4",
@@ -330,6 +340,9 @@ public class Step13AppDeploy : ISetupStep
     /// </summary>
     private static Dictionary<string, string> BuildWebappEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
     {
+        var projectEndpoint = !string.IsNullOrEmpty(deployment.FoundryProjectEndpoint)
+            ? deployment.FoundryProjectEndpoint : deployment.FoundryEndpoint;
+
         var vars = new Dictionary<string, string>
         {
             // Server
@@ -339,7 +352,7 @@ public class Step13AppDeploy : ISetupStep
             ["DomainConfig__BlobUri"] = domainConfigBlobUri,
 
             // Foundry
-            ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
+            ["Foundry__ProjectEndpoint"] = projectEndpoint,
             ["Foundry__ApiVersion"] = "2024-10-21",
             ["Foundry__AssistantsApiVersion"] = "2025-05-01",
             ["Foundry__DefaultModelDeployment"] = "gpt-5.4",
