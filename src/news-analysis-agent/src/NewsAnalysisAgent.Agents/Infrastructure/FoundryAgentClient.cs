@@ -50,7 +50,6 @@ public sealed class FoundryAgentClient(
                     new { role = "system", content = instructions },
                     new { role = "user", content = userMessage }
                 },
-                temperature = 0.3,
                 max_completion_tokens = maxCompletionTokens
             });
 

@@ -128,7 +128,8 @@ public sealed class FoundryAssistantsClient(
             {
                 assistant_id = assistantId,
                 instructions,
-                tool_choice = "auto"
+                tool_choice = "auto",
+                temperature = 1
             },
             api,
             ct);
