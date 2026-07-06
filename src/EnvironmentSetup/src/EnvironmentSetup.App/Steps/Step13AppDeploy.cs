@@ -419,8 +419,8 @@ public class Step13AppDeploy : ISetupStep
         var filtered = settings.Where(kv => !string.IsNullOrEmpty(kv.Value)).ToList();
         if (filtered.Count == 0) return;
 
-        // az functionapp config appsettings set --settings key=value key=value ...
-        var settingsArgs = string.Join(" ", filtered.Select(kv => $"{kv.Key}={kv.Value}"));
+        // az functionapp config appsettings set --settings "key=value" "key=value" ...
+        var settingsArgs = string.Join(" ", filtered.Select(kv => $"\"{kv.Key}={kv.Value}\""));
 
         await _az.RunAsync(
             $"functionapp config appsettings set " +

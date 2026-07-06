@@ -98,6 +98,10 @@ public class Step14EntraId : ISetupStep
             catch { /* 既に割り当て済みの場合は無視 */ }
 
             await _az.RunAsync(
+                $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
+                silent: true);
+
+            await _az.RunAsync(
                 $"keyvault secret set --vault-name {vaultName} " +
                 $"--name teams-app-client-secret " +
                 $"--value {clientSecret}",
