@@ -130,6 +130,12 @@ public class Step05BicepDeploy : ISetupStep
             var fqdn = GetOutputValue(outputs, "containerAppFqdn");
             if (!string.IsNullOrEmpty(fqdn))
                 state.Deployment.ContainerAppNameAgent = fqdn.Split('.')[0];
+            else
+            {
+                var caName = GetOutputValue(outputs, "containerAppName");
+                if (!string.IsNullOrEmpty(caName))
+                    state.Deployment.ContainerAppNameAgent = caName;
+            }
 
             Console.WriteLine("  ✓ デプロイ完了");
             Console.WriteLine($"    Container App: {state.Deployment.ContainerAppUrl}");

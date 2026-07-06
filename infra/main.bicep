@@ -287,6 +287,9 @@ output containerAppUrl string = containerApp.outputs.containerAppUrl
 @description('Container App FQDN')
 output containerAppFqdn string = containerApp.outputs.containerAppFqdn
 
+@description('Container App name')
+output containerAppName string = containerAppName
+
 @description('Skills Storage Account name')
 output skillsStorageName string = storage.outputs.skillsStorageName
 
