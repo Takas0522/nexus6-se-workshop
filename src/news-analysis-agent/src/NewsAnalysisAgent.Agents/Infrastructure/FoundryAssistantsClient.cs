@@ -112,7 +112,7 @@ public sealed class FoundryAssistantsClient(
         FoundryAssistantsApi api,
         CancellationToken ct)
     {
-        const int maxRetries = 3;
+        const int maxRetries = 5;
         var maxWait = TimeSpan.FromSeconds(configuration.GetValue("Foundry:Assistant:RunMaxWaitSeconds", 30));
 
         for (var attempt = 0; attempt < maxRetries; attempt++)
@@ -205,7 +205,7 @@ public sealed class FoundryAssistantsClient(
 
             if (attempt < maxRetries - 1 && errorCode is "rate_limit_exceeded" or "server_error")
             {
-                var backoff = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5); // 10s, 20s
+                var backoff = TimeSpan.FromSeconds((attempt + 1) * 5); // 5s, 10s, 15s, 20s
                 logger.LogWarning(
                     "Foundry Assistant run {RunId} failed with {ErrorCode}. Retrying in {Backoff}s (attempt {Attempt}/{MaxRetries}).",
                     runId, errorCode, backoff.TotalSeconds, attempt + 1, maxRetries);
