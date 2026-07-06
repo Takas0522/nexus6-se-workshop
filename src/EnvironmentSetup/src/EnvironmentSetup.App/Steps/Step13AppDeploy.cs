@@ -191,6 +191,45 @@ public class Step13AppDeploy : ISetupStep
             var webappEnvVars = BuildWebappEnvironmentVariables(deployment, domainConfigBlobUri);
             await SetContainerAppEnvVars(deployment.ContainerAppNameWebapp, azure.ResourceGroup, webappEnvVars);
 
+            // RBAC: webapp マネージドID にロールを割り当て
+            Console.WriteLine("    Webapp RBAC を設定中...");
+            try
+            {
+                var webappPrincipalId = (await _az.RunAsync(
+                    $"containerapp show --name {deployment.ContainerAppNameWebapp} " +
+                    $"--resource-group {azure.ResourceGroup} --query identity.principalId -o tsv",
+                    silent: true)).Trim();
+
+                if (!string.IsNullOrEmpty(webappPrincipalId))
+                {
+                    var rgScope = $"/subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}";
+                    // Cognitive Services OpenAI User
+                    await _az.RunAsync(
+                        $"role assignment create --assignee {webappPrincipalId} " +
+                        $"--role \"Cognitive Services OpenAI User\" --scope {rgScope}/providers/Microsoft.CognitiveServices/accounts/{GetResourceName(deployment.FoundryEndpoint)}",
+                        silent: true);
+                    // Key Vault Secrets User
+                    if (!string.IsNullOrEmpty(deployment.KeyVaultUri))
+                    {
+                        var kvName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
+                        await _az.RunAsync(
+                            $"role assignment create --assignee {webappPrincipalId} " +
+                            $"--role \"Key Vault Secrets User\" --scope {rgScope}/providers/Microsoft.KeyVault/vaults/{kvName}",
+                            silent: true);
+                    }
+                    // Storage Blob Data Contributor
+                    await _az.RunAsync(
+                        $"role assignment create --assignee {webappPrincipalId} " +
+                        $"--role \"Storage Blob Data Contributor\" --scope {rgScope}/providers/Microsoft.Storage/storageAccounts/{deployment.StorageAccountSkills}",
+                        silent: true);
+                    Console.WriteLine("    ✓ Webapp RBAC 完了");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"    ⚠️ Webapp RBAC 設定に失敗: {ex.Message[..Math.Min(150, ex.Message.Length)]}");
+            }
+
             Console.WriteLine("    ✓ Webapp デプロイ完了");
         }
         else
@@ -406,5 +445,13 @@ public class Step13AppDeploy : ISetupStep
             dir = dir.Parent;
         }
         throw new InvalidOperationException("リポジトリルートが見つかりません。");
+    }
+
+    /// <summary>FoundryEndpoint URLからCognitive Servicesリソース名を抽出</summary>
+    private static string GetResourceName(string endpoint)
+    {
+        if (string.IsNullOrEmpty(endpoint)) return string.Empty;
+        try { return new Uri(endpoint).Host.Split('.')[0]; }
+        catch { return string.Empty; }
     }
 }
