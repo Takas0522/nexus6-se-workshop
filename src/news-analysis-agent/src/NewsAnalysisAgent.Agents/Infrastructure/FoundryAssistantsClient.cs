@@ -112,89 +112,111 @@ public sealed class FoundryAssistantsClient(
         FoundryAssistantsApi api,
         CancellationToken ct)
     {
-        var thread = await SendJsonAsync(HttpMethod.Post, BuildEndpoint(api, "/threads"), new { }, api, ct);
-        var threadId = GetRequiredString(thread, "id");
-        await SendJsonAsync(
-            HttpMethod.Post,
-            BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/messages"),
-            new { role = "user", content = userMessage },
-            api,
-            ct);
-
-        var run = await SendJsonAsync(
-            HttpMethod.Post,
-            BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/runs"),
-            new
-            {
-                assistant_id = assistantId,
-                instructions,
-                tool_choice = "auto",
-                temperature = 1
-            },
-            api,
-            ct);
-        var runId = GetRequiredString(run, "id");
-        var latestRun = run;
-        var status = run.TryGetProperty("status", out var initialStatus) ? initialStatus.GetString() : "queued";
-        var stopwatch = Stopwatch.StartNew();
+        const int maxRetries = 3;
         var maxWait = TimeSpan.FromSeconds(configuration.GetValue("Foundry:Assistant:RunMaxWaitSeconds", 30));
 
-        while (status is "queued" or "in_progress" or "requires_action" or "cancelling")
+        for (var attempt = 0; attempt < maxRetries; attempt++)
         {
-            if (stopwatch.Elapsed > maxWait)
-            {
-                throw new TimeoutException($"Foundry Assistant run {runId} did not complete within {maxWait.TotalSeconds:0}s.");
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            latestRun = await SendAsync(
-                HttpMethod.Get,
-                BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/runs/{Uri.EscapeDataString(runId)}"),
-                content: null,
+            var thread = await SendJsonAsync(HttpMethod.Post, BuildEndpoint(api, "/threads"), new { }, api, ct);
+            var threadId = GetRequiredString(thread, "id");
+            await SendJsonAsync(
+                HttpMethod.Post,
+                BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/messages"),
+                new { role = "user", content = userMessage },
                 api,
                 ct);
-            status = latestRun.TryGetProperty("status", out var statusElement) ? statusElement.GetString() : null;
-        }
 
-        if (status != "completed")
-        {
+            var run = await SendJsonAsync(
+                HttpMethod.Post,
+                BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/runs"),
+                new
+                {
+                    assistant_id = assistantId,
+                    instructions,
+                    tool_choice = "auto",
+                    temperature = 1
+                },
+                api,
+                ct);
+            var runId = GetRequiredString(run, "id");
+            var latestRun = run;
+            var status = run.TryGetProperty("status", out var initialStatus) ? initialStatus.GetString() : "queued";
+            var stopwatch = Stopwatch.StartNew();
+
+            while (status is "queued" or "in_progress" or "requires_action" or "cancelling")
+            {
+                if (stopwatch.Elapsed > maxWait)
+                {
+                    throw new TimeoutException($"Foundry Assistant run {runId} did not complete within {maxWait.TotalSeconds:0}s.");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
+                latestRun = await SendAsync(
+                    HttpMethod.Get,
+                    BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/runs/{Uri.EscapeDataString(runId)}"),
+                    content: null,
+                    api,
+                    ct);
+                status = latestRun.TryGetProperty("status", out var statusElement) ? statusElement.GetString() : null;
+            }
+
+            if (status == "completed")
+            {
+                var fileSearchUsed = await TryLogFileSearchAsync(api, threadId, runId, ct);
+                var messages = await SendAsync(
+                    HttpMethod.Get,
+                    BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/messages?limit=10&order=desc", hasQuery: true),
+                    content: null,
+                    api,
+                    ct);
+                var message = await ExtractAssistantMessageAsync(messages, api, ct);
+                if (string.IsNullOrWhiteSpace(message.Content))
+                {
+                    throw new InvalidOperationException($"Foundry Assistant run {runId} completed without assistant content.");
+                }
+
+                var (inputTokens, outputTokens) = ExtractUsageTokens(latestRun);
+                logger.LogInformation(
+                    "Foundry Assistant run {RunId} completed. AssistantId={AssistantId}; FoundryAgentId={FoundryAgentId}; file_search_used={FileSearchUsed}; sources={Sources}; input_tokens={InputTokens}; output_tokens={OutputTokens}.",
+                    runId,
+                    assistantId,
+                    foundryAgentId,
+                    fileSearchUsed,
+                    string.Join(",", message.SourceFileNames),
+                    inputTokens,
+                    outputTokens);
+                GenAITelemetry.RecordChat(
+                    agentName: foundryAgentId,
+                    model: model,
+                    assistantId: foundryAgentId,
+                    runId: runId,
+                    instructions: instructions,
+                    userMessage: userMessage,
+                    assistantContent: message.Content,
+                    inputTokens: inputTokens,
+                    outputTokens: outputTokens);
+                return MergeDataReferences(message.Content, message.SourceFileNames);
+            }
+
+            // Rate limit or transient failure — retry after backoff
+            var errorCode = latestRun.TryGetProperty("last_error", out var lastErr)
+                && lastErr.TryGetProperty("code", out var code)
+                ? code.GetString() : null;
+
+            if (attempt < maxRetries - 1 && errorCode is "rate_limit_exceeded" or "server_error")
+            {
+                var backoff = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5); // 10s, 20s
+                logger.LogWarning(
+                    "Foundry Assistant run {RunId} failed with {ErrorCode}. Retrying in {Backoff}s (attempt {Attempt}/{MaxRetries}).",
+                    runId, errorCode, backoff.TotalSeconds, attempt + 1, maxRetries);
+                await Task.Delay(backoff, ct);
+                continue;
+            }
+
             throw new InvalidOperationException($"Foundry Assistant run {runId} ended with status {status ?? "(unknown)"}.");
         }
 
-        var fileSearchUsed = await TryLogFileSearchAsync(api, threadId, runId, ct);
-        var messages = await SendAsync(
-            HttpMethod.Get,
-            BuildEndpoint(api, $"/threads/{Uri.EscapeDataString(threadId)}/messages?limit=10&order=desc", hasQuery: true),
-            content: null,
-            api,
-            ct);
-        var message = await ExtractAssistantMessageAsync(messages, api, ct);
-        if (string.IsNullOrWhiteSpace(message.Content))
-        {
-            throw new InvalidOperationException($"Foundry Assistant run {runId} completed without assistant content.");
-        }
-
-        var (inputTokens, outputTokens) = ExtractUsageTokens(latestRun);
-        logger.LogInformation(
-            "Foundry Assistant run {RunId} completed. AssistantId={AssistantId}; FoundryAgentId={FoundryAgentId}; file_search_used={FileSearchUsed}; sources={Sources}; input_tokens={InputTokens}; output_tokens={OutputTokens}.",
-            runId,
-            assistantId,
-            foundryAgentId,
-            fileSearchUsed,
-            string.Join(",", message.SourceFileNames),
-            inputTokens,
-            outputTokens);
-        GenAITelemetry.RecordChat(
-            agentName: foundryAgentId,
-            model: model,
-            assistantId: foundryAgentId,
-            runId: runId,
-            instructions: instructions,
-            userMessage: userMessage,
-            assistantContent: message.Content,
-            inputTokens: inputTokens,
-            outputTokens: outputTokens);
-        return MergeDataReferences(message.Content, message.SourceFileNames);
+        throw new InvalidOperationException("Foundry Assistant run exhausted all retries.");
     }
 
     private string ResolveAssistantName(AssistantKind kind) =>

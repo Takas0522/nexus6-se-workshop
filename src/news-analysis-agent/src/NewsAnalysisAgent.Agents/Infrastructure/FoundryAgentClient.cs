@@ -37,41 +37,57 @@ public sealed class FoundryAgentClient(
             var apiVersion = configuration["Foundry:ApiVersion"] ?? DefaultApiVersion;
             var maxCompletionTokens = configuration.GetValue("Foundry:MaxCompletionTokens", DefaultMaxCompletionTokens);
             var endpoint = BuildChatCompletionsEndpoint(projectEndpoint, deployment, apiVersion);
-            var token = await credential.GetTokenAsync(
-                new TokenRequestContext(["https://cognitiveservices.azure.com/.default"]),
-                ct);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
-            request.Content = JsonContent(new
+            const int maxRetries = 3;
+            for (var attempt = 0; attempt < maxRetries; attempt++)
             {
-                messages = new object[]
+                var token = await credential.GetTokenAsync(
+                    new TokenRequestContext(["https://cognitiveservices.azure.com/.default"]),
+                    ct);
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+                request.Content = JsonContent(new
                 {
-                    new { role = "system", content = instructions },
-                    new { role = "user", content = userMessage }
-                },
-                max_completion_tokens = maxCompletionTokens
-            });
+                    messages = new object[]
+                    {
+                        new { role = "system", content = instructions },
+                        new { role = "user", content = userMessage }
+                    },
+                    max_completion_tokens = maxCompletionTokens
+                });
 
-            var client = httpClientFactory.CreateClient("foundry-agent");
-            logger.LogInformation("Invoking Foundry chat completions deployment {Deployment} api-version {ApiVersion}.", deployment, apiVersion);
-            using var response = await client.SendAsync(request, ct);
-            var body = await response.Content.ReadAsStringAsync(ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning(
-                    "Foundry chat completions returned {StatusCode} for deployment {Deployment} api-version {ApiVersion}. Error body: {ErrorBody}. Falling back to mock client.",
-                    response.StatusCode,
-                    deployment,
-                    apiVersion,
-                    Truncate(body, 1000));
-                return await fallback.InvokeAsync(instructions, userMessage, tools, ct);
+                var client = httpClientFactory.CreateClient("foundry-agent");
+                logger.LogInformation("Invoking Foundry chat completions deployment {Deployment} api-version {ApiVersion} (attempt {Attempt}).", deployment, apiVersion, attempt + 1);
+                using var response = await client.SendAsync(request, ct);
+                var body = await response.Content.ReadAsStringAsync(ct);
+
+                if ((int)response.StatusCode == 429 && attempt < maxRetries - 1)
+                {
+                    var backoff = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1) * 5);
+                    logger.LogWarning("Foundry chat completions returned 429 (rate limited). Retrying in {Backoff}s.", backoff.TotalSeconds);
+                    await Task.Delay(backoff, ct);
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogWarning(
+                        "Foundry chat completions returned {StatusCode} for deployment {Deployment} api-version {ApiVersion}. Error body: {ErrorBody}. Falling back to mock client.",
+                        response.StatusCode,
+                        deployment,
+                        apiVersion,
+                        Truncate(body, 1000));
+                    return await fallback.InvokeAsync(instructions, userMessage, tools, ct);
+                }
+
+                var content = ExtractAssistantContent(body);
+                return string.IsNullOrWhiteSpace(content)
+                    ? await fallback.InvokeAsync(instructions, userMessage, tools, ct)
+                    : content;
             }
 
-            var content = ExtractAssistantContent(body);
-            return string.IsNullOrWhiteSpace(content)
-                ? await fallback.InvokeAsync(instructions, userMessage, tools, ct)
-                : content;
+            return await fallback.InvokeAsync(instructions, userMessage, tools, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
