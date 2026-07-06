@@ -53,7 +53,7 @@ resource gpt5Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
   parent: aiServices
   sku: {
     name: 'GlobalStandard'
-    capacity: 30
+    capacity: 200
   }
   properties: {
     model: {

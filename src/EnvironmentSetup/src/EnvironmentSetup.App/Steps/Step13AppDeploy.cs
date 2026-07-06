@@ -307,7 +307,7 @@ public class Step13AppDeploy : ISetupStep
             ["Foundry__Assistant__MobileRecommendName"] = "nexus6-mobile-recommend-filesearch",
             ["Foundry__Assistant__EcommerceRecommendName"] = "nexus6-ecommerce-recommend-filesearch",
             ["Foundry__Assistant__FintechRecommendName"] = "nexus6-fintech-recommend-filesearch",
-            ["Foundry__Assistant__RunMaxWaitSeconds"] = "60",
+            ["Foundry__Assistant__RunMaxWaitSeconds"] = "180",
             ["Foundry__FileSearchVectorStoreId"] = deployment.FoundryVectorStoreId,
 
             // Fabric
@@ -353,7 +353,7 @@ public class Step13AppDeploy : ISetupStep
             ["Foundry__Assistant__MobileRecommendName"] = "nexus6-mobile-recommend-filesearch",
             ["Foundry__Assistant__EcommerceRecommendName"] = "nexus6-ecommerce-recommend-filesearch",
             ["Foundry__Assistant__FintechRecommendName"] = "nexus6-fintech-recommend-filesearch",
-            ["Foundry__Assistant__RunMaxWaitSeconds"] = "60",
+            ["Foundry__Assistant__RunMaxWaitSeconds"] = "180",
             ["Foundry__FileSearchVectorStoreId"] = deployment.FoundryVectorStoreId,
 
             // Fabric
