@@ -37,13 +37,17 @@ public class Step12FoundryKnowledge : ISetupStep
         if (!Directory.Exists(skillDir))
             throw new InvalidOperationException($"Skill/DS.md ディレクトリが見つかりません: {skillDir}\nStep 11 を先に実行してください。");
 
-        // Assistants/Files API はプロジェクトエンドポイントが必要
+        // Files/Vector Store はプロジェクトエンドポイント (ai.azure.com スコープ)
         var projectEndpoint = !string.IsNullOrWhiteSpace(deployment.FoundryProjectEndpoint)
             ? deployment.FoundryProjectEndpoint
             : deployment.FoundryEndpoint;
-        var apiVersion = "2025-05-01";
+        // Assistants API はアカウントエンドポイント (cognitiveservices.azure.com スコープ)
+        var accountEndpoint = deployment.FoundryEndpoint;
+        var filesApiVersion = "2025-05-01";
+        var assistantsApiVersion = "2024-10-01-preview";
 
-        Console.WriteLine($"  Foundry: {projectEndpoint}");
+        Console.WriteLine($"  Foundry (files): {projectEndpoint}");
+        Console.WriteLine($"  Foundry (assistants): {accountEndpoint}");
         Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
 
         // 1. ファイルアップロード
@@ -56,7 +60,7 @@ public class Step12FoundryKnowledge : ISetupStep
             var fileName = Path.GetFileName(filePath);
             Console.Write($"    {fileName}...");
 
-            var fileId = await UploadFileAsync(projectEndpoint, apiVersion, filePath, fileName, ct);
+            var fileId = await UploadFileAsync(projectEndpoint, filesApiVersion, filePath, fileName, ct);
             if (!string.IsNullOrEmpty(fileId))
             {
                 fileIds.Add(fileId);
@@ -78,15 +82,15 @@ public class Step12FoundryKnowledge : ISetupStep
 
         // 2. Vector Store 作成
         Console.WriteLine("\n  🗄️ Vector Store を作成中...");
-        var vectorStoreId = await CreateVectorStoreAsync(projectEndpoint, apiVersion, fileIds, ct);
+        var vectorStoreId = await CreateVectorStoreAsync(projectEndpoint, filesApiVersion, fileIds, ct);
         Console.WriteLine($"    Vector Store ID: {vectorStoreId}");
 
         // 3. Vector Store のインデックス完了待ち
         Console.WriteLine("    インデックス作成待ち中...");
-        await WaitForVectorStoreReadyAsync(projectEndpoint, apiVersion, vectorStoreId, ct);
+        await WaitForVectorStoreReadyAsync(projectEndpoint, filesApiVersion, vectorStoreId, ct);
         Console.WriteLine("    ✓ Vector Store ready");
 
-        // 4. Assistants 作成
+        // 4. Assistants 作成 (アカウントエンドポイント + cognitiveservices スコープ)
         Console.WriteLine("\n  🤖 Assistants を作成中...");
 
         var assistants = GetAssistantDefinitions(vectorStoreId);
@@ -96,7 +100,7 @@ public class Step12FoundryKnowledge : ISetupStep
         {
             Console.Write($"    {name}...");
             var assistantId = await CreateOrUpdateAssistantAsync(
-                projectEndpoint, apiVersion, name, instructions, vectorStoreId, ct);
+                accountEndpoint, assistantsApiVersion, name, instructions, vectorStoreId, ct);
             createdAssistants[name] = assistantId;
             Console.WriteLine($" ✓ ({assistantId})");
         }
@@ -197,7 +201,7 @@ public class Step12FoundryKnowledge : ISetupStep
         string projectEndpoint, string apiVersion, string name, string instructions,
         string vectorStoreId, CancellationToken ct)
     {
-        var token = await GetFoundryTokenAsync();
+        var token = await GetCognitiveServicesTokenAsync();
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -317,6 +321,14 @@ public class Step12FoundryKnowledge : ISetupStep
     {
         var result = await _az.RunAsync(
             "account get-access-token --resource https://ai.azure.com --query accessToken -o tsv",
+            silent: true);
+        return result.Trim();
+    }
+
+    private async Task<string> GetCognitiveServicesTokenAsync()
+    {
+        var result = await _az.RunAsync(
+            "account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv",
             silent: true);
         return result.Trim();
     }
