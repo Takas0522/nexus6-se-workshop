@@ -175,7 +175,7 @@ public class Step13AppDeploy : ISetupStep
                     $"--image {webappImage} " +
                     $"--registry-server {deployment.AcrLoginServer} " +
                     $"--registry-identity system " +
-                    $"--ingress external --target-port 8080 " +
+                    $"--ingress external --target-port 80 " +
                     $"--min-replicas 0 --max-replicas 2 " +
                     $"--system-assigned",
                     silent: true);
