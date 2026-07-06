@@ -223,7 +223,7 @@ public class Step12FoundryKnowledge : ISetupStep
         var payload = JsonSerializer.Serialize(new
         {
             name,
-            model = "gpt-5.4",
+            model = "gpt-5",
             instructions,
             tools = new[] { new { type = "file_search" } },
             tool_resources = new
