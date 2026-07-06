@@ -222,7 +222,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // Serve news-portal static files under /news-portal/
-var newsPortalPath = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "news-portal"));
+var newsPortalPath = Path.Combine(app.Environment.ContentRootPath, "news-portal");
 if (Directory.Exists(newsPortalPath))
 {
     app.UseStaticFiles(new StaticFileOptions

@@ -22,6 +22,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=api-build /app/publish .
 COPY --from=client-build /app/client/dist ./wwwroot
+COPY news-portal/ ./news-portal
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "NewsAnalysisWebApp.Api.dll"]
