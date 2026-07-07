@@ -68,6 +68,59 @@ ConsoleApp.Run(args, async (
     var runner = new StepRunner(steps, stateManager, verbose, nonInteractive);
     await runner.ExecuteFromAsync(state, step);
 
+    // 最終サマリー: 構築されたリソースのURL一覧
     Console.WriteLine();
-    Console.WriteLine("✅ 環境構築が完了しました！");
+    Console.WriteLine("╔══════════════════════════════════════════════════════════╗");
+    Console.WriteLine("║        ✅ 環境構築が完了しました！                      ║");
+    Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+    Console.WriteLine();
+    Console.WriteLine("  📋 リソース URL 一覧:");
+    Console.WriteLine("  ─────────────────────────────────────────────────────────");
+
+    var dep = state.Deployment;
+    var az = state.Azure;
+
+    if (dep != null)
+    {
+        if (!string.IsNullOrEmpty(dep.ContainerAppUrl))
+            Console.WriteLine($"  🌐 WebApp:           {dep.ContainerAppUrl}");
+
+        if (!string.IsNullOrEmpty(az?.ResourceGroup) && !string.IsNullOrEmpty(dep.ContainerAppNameWebapp))
+            Console.WriteLine($"  🌐 WebApp (Azure):   https://portal.azure.com/#@/resource/subscriptions/{az!.SubscriptionId}/resourceGroups/{az.ResourceGroup}/providers/Microsoft.App/containerApps/{dep.ContainerAppNameWebapp}");
+
+        if (!string.IsNullOrEmpty(dep.FoundryEndpoint))
+            Console.WriteLine($"  🤖 AI Foundry:       {dep.FoundryEndpoint}");
+
+        if (!string.IsNullOrEmpty(dep.FoundryProjectEndpoint))
+            Console.WriteLine($"  🤖 Foundry Project:  {dep.FoundryProjectEndpoint}");
+
+        if (!string.IsNullOrEmpty(dep.FabricSqlEndpoint))
+            Console.WriteLine($"  🗄️  Fabric SQL:      {dep.FabricSqlEndpoint}");
+
+        if (!string.IsNullOrEmpty(dep.KeyVaultUri))
+            Console.WriteLine($"  🔒 Key Vault:        {dep.KeyVaultUri}");
+
+        if (!string.IsNullOrEmpty(dep.PortalBaseUrl))
+            Console.WriteLine($"  📊 Portal:           {dep.PortalBaseUrl}");
+
+        if (!string.IsNullOrEmpty(dep.WebIqBaseUrl))
+            Console.WriteLine($"  🔍 WebIQ:            {dep.WebIqBaseUrl}");
+
+        if (!string.IsNullOrEmpty(dep.FunctionAppName))
+            Console.WriteLine($"  ⚡ Functions:         https://{dep.FunctionAppName}.azurewebsites.net");
+
+        if (!string.IsNullOrEmpty(dep.EntraAppId))
+            Console.WriteLine($"  🔑 Entra App ID:     {dep.EntraAppId}");
+    }
+
+    if (az != null)
+    {
+        Console.WriteLine($"  ☁️  Resource Group:   https://portal.azure.com/#@/resource/subscriptions/{az.SubscriptionId}/resourceGroups/{az.ResourceGroup}/overview");
+
+        // Fabric workspace URL
+        Console.WriteLine($"  🏭 Fabric:           https://app.fabric.microsoft.com/");
+    }
+
+    Console.WriteLine("  ─────────────────────────────────────────────────────────");
+    Console.WriteLine();
 });
