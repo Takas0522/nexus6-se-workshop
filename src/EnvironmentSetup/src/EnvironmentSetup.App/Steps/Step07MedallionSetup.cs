@@ -147,21 +147,82 @@ public class Step07MedallionSetup : ISetupStep
 
     private async Task EnsureCapacityAssignedAsync(string wsId, string wsName)
     {
-        // アクティブなキャパシティを取得
+        // キャパシティを取得 (Active または Inactive)
         var capJson = await _az.RunAsync(
             $"rest --method get --url \"{FabricResource}/v1/capacities\" --resource \"{FabricResource}\"",
             silent: true);
         var capDoc = JsonDocument.Parse(capJson);
-        var capacityId = capDoc.RootElement.GetProperty("value").EnumerateArray()
+
+        // まず Active を探す
+        var activeId = capDoc.RootElement.GetProperty("value").EnumerateArray()
             .Where(c => c.GetProperty("state").GetString() == "Active")
             .Select(c => c.GetProperty("id").GetString())
             .FirstOrDefault();
 
-        if (string.IsNullOrEmpty(capacityId))
+        if (string.IsNullOrEmpty(activeId))
         {
-            Console.WriteLine($"    ⚠️ アクティブな Fabric Capacity がないため、キャパシティ割り当てをスキップ");
-            return;
+            // Inactive なキャパシティを Resume する
+            var inactiveEntry = capDoc.RootElement.GetProperty("value").EnumerateArray()
+                .FirstOrDefault();
+
+            if (inactiveEntry.ValueKind == JsonValueKind.Undefined)
+            {
+                throw new InvalidOperationException(
+                    "Fabric Capacity が存在しません。Bicep デプロイ (deployFabric=true) を確認してください。");
+            }
+
+            var inactiveId = inactiveEntry.GetProperty("id").GetString()!;
+            var capacityDisplayName = inactiveEntry.GetProperty("displayName").GetString()!;
+            Console.WriteLine($"    🔄 Fabric Capacity '{capacityDisplayName}' が Inactive → Resume 中...");
+
+            // ARM REST API で Resume
+            try
+            {
+                var subId = (await _az.RunAsync("account show --query id -o tsv", silent: true)).Trim();
+                var rg = (await _az.RunAsync(
+                    "group list --query \"[?contains(name,'nexus6')].name | [0]\" -o tsv", silent: true)).Trim();
+                await _az.RunAsync(
+                    $"rest --method POST " +
+                    $"--url \"https://management.azure.com/subscriptions/{subId}/resourceGroups/{rg}/providers/Microsoft.Fabric/capacities/{capacityDisplayName}/resume?api-version=2023-11-01\" " +
+                    $"--resource \"https://management.azure.com\"",
+                    silent: true);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Fabric Capacity の Resume に失敗しました。Azure Portal から手動で Resume してください: {ex.Message}");
+            }
+
+            // Resume 完了待ち (最大3分)
+            Console.Write("    Resume 待機中");
+            for (int i = 0; i < 12; i++)
+            {
+                await Task.Delay(15000);
+                var checkJson = await _az.RunAsync(
+                    $"rest --method get --url \"{FabricResource}/v1/capacities\" --resource \"{FabricResource}\"",
+                    silent: true);
+                var checkDoc = JsonDocument.Parse(checkJson);
+                var capState = checkDoc.RootElement.GetProperty("value").EnumerateArray()
+                    .Where(c => c.GetProperty("id").GetString() == inactiveId)
+                    .Select(c => c.GetProperty("state").GetString())
+                    .FirstOrDefault();
+                if (capState == "Active")
+                {
+                    Console.WriteLine(" ✓ Active");
+                    activeId = inactiveId;
+                    break;
+                }
+                Console.Write(".");
+            }
+
+            if (string.IsNullOrEmpty(activeId))
+            {
+                throw new InvalidOperationException(
+                    "Fabric Capacity が3分以内に Active になりませんでした。Azure Portal を確認してください。");
+            }
         }
+
+        var capacityId = activeId;
 
         // キャパシティを割り当て
         Console.WriteLine($"    ワークスペース '{wsName}' にキャパシティを割り当て中...");
