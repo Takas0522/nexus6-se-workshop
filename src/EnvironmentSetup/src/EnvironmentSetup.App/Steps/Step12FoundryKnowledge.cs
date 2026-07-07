@@ -119,8 +119,12 @@ public class Step12FoundryKnowledge : ISetupStep
     /// </summary>
     private async Task WaitForRbacPropagationAsync(string endpoint, string apiVersion, CancellationToken ct)
     {
+        // GET /files は権限不足でも 200 (空リスト) を返す場合があるため、
+        // 実際に POST /files でダミーファイルをアップロードして確認する
         const int maxAttempts = 20; // 20 × 30s = 10分
         const int delaySec = 30;
+
+        var dummyContent = "RBAC probe test"u8.ToArray();
 
         for (int i = 1; i <= maxAttempts; i++)
         {
@@ -129,12 +133,34 @@ public class Step12FoundryKnowledge : ISetupStep
             httpClient.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            var url = $"{BuildApiBase(endpoint)}/files?api-version={apiVersion}&limit=1";
+            using var form = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(dummyContent);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            form.Add(fileContent, "file", "_rbac_probe.txt");
+            form.Add(new StringContent("assistants"), "purpose");
+
+            var url = $"{BuildApiBase(endpoint)}/files?api-version={apiVersion}";
             try
             {
-                var response = await httpClient.GetAsync(url, ct);
+                var response = await httpClient.PostAsync(url, form, ct);
                 if ((int)response.StatusCode != 401 && (int)response.StatusCode != 403)
                 {
+                    // 成功した場合はプローブファイルを削除
+                    if (response.IsSuccessStatusCode)
+                    {
+                        try
+                        {
+                            var body = await response.Content.ReadAsStringAsync(ct);
+                            using var doc = JsonDocument.Parse(body);
+                            var fileId = doc.RootElement.GetProperty("id").GetString();
+                            if (!string.IsNullOrEmpty(fileId))
+                            {
+                                var delUrl = $"{BuildApiBase(endpoint)}/files/{fileId}?api-version={apiVersion}";
+                                _ = httpClient.DeleteAsync(delUrl, ct);
+                            }
+                        }
+                        catch { /* cleanup best-effort */ }
+                    }
                     return; // RBAC OK
                 }
                 Console.Write($"    [{i}/{maxAttempts}] 401 → {delaySec}s 待機...\n");
