@@ -135,11 +135,12 @@ public class Step14EntraId : ISetupStep
         // 5. Container App の環境変数更新
         if (!string.IsNullOrEmpty(azure.ResourceGroup))
         {
-            Console.WriteLine("  📦 Container App の環境変数を更新中...");
+            var agentAppName = deployment.ContainerAppNameAgent;
+            Console.WriteLine($"  📦 Container App ({agentAppName}) の環境変数を更新中...");
             try
             {
                 await _az.RunAsync(
-                    $"containerapp update --name ca-nexus6-hosted-agent " +
+                    $"containerapp update --name {agentAppName} " +
                     $"--resource-group {azure.ResourceGroup} " +
                     $"--set-env-vars " +
                     $"Teams__Graph__ClientId={appId} " +
@@ -179,7 +180,7 @@ public class Step14EntraId : ISetupStep
                 try
                 {
                     await _az.RunAsync(
-                        $"containerapp update --name ca-nexus6-hosted-agent " +
+                        $"containerapp update --name {deployment.ContainerAppNameAgent} " +
                         $"--resource-group {azure.ResourceGroup} " +
                         $"--set-env-vars " +
                         $"\"Teams__Graph__RefreshToken={refreshToken}\"",
