@@ -25,6 +25,7 @@ EnvironmentSetup CLI (Step05 Bicep デプロイ〜Step14) で発生する既知�
 - **gpt-5 に temperature を渡してはいけない** — temperature=1 のみ対応。指定するなら1、しないなら省略
 - **gpt-5 に max_tokens を使ってはいけない** — `max_completion_tokens` を使う
 - **northeurope に AI Foundry / Functions / Fabric を配置してはいけない** — クォータ=0 または非対応
+- **GET /files で RBAC 確認してはいけない** — 権限なしでも 200 (空リスト) が返る。POST /files で確認すること
 
 ## リージョン構成（変更禁止）
 
@@ -45,7 +46,7 @@ EnvironmentSetup CLI (Step05 Bicep デプロイ〜Step14) で発生する既知�
 | `InternalSubscriptionIsOverQuotaForSku` serverFarms | northeurope Functions クォータ=0 | Functions を `aiFoundryLocation` に。自動フォールバック済み |
 | Fabric Lakehouse 作成失敗 (Capacity Inactive) | Bicep デプロイ後 Capacity が Suspended/Inactive | Step07 で自動 Resume 実装済み。ARM API: `POST .../capacities/{name}/resume` |
 | Fabric item 作成 409 Conflict `ItemDisplayNameAlreadyInUse` | 前回実行で作成済み (再実行時) | Step07 で Conflict を idempotent 成功として処理。既存アイテムの ID を再取得して続行 |
-| HTTP 401 on Foundry Files API (Step12) | Cognitive Services User ロール伝播遅延 (5-10分) | Step12 開始時に GET /files プローブで RBAC 伝播を確認（20回×30秒=最大10分）。失敗時は Azure Portal IAM 確認 |
+| HTTP 401 on Foundry Files API (Step12) | Cognitive Services User ロール伝播遅延 (5-10分) | Step12 開始時に POST /files プローブで RBAC 伝播を確認（20回×30秒=最大10分）。GET /files は権限なしでも200返すため使えない |
 | `ResourceNotFound` in RBAC module | 依存リソース未作成 | rbac module に `dependsOn: [aiSearch, aiFoundry, keyVault]` |
 | Key Vault secret set 403 | publicNetworkAccess 自動無効化 | `az keyvault update --public-network-access Enabled` してから set |
 | `Unsupported value: 'temperature'` | gpt-5 は temperature=1 のみ | temperature 省略。Assistants は run で `temperature=1` オーバーライド |
