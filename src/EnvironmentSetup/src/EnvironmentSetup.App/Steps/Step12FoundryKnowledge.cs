@@ -69,8 +69,8 @@ public class Step12FoundryKnowledge : ISetupStep
 
         if (fileIds.Count == 0)
         {
-            Console.WriteLine("\n  ⚠️ アップロードされたファイルがありません。スキップします。");
-            return;
+            throw new InvalidOperationException(
+                "ファイルが1件もアップロードできませんでした。RBAC (Cognitive Services User) が伝播済みか確認し、再実行してください。");
         }
 
         Console.WriteLine($"\n  📦 {fileIds.Count} ファイルアップロード完了");
@@ -113,29 +113,45 @@ public class Step12FoundryKnowledge : ISetupStep
         string projectEndpoint, string apiVersion, string filePath, string fileName, CancellationToken ct)
     {
         // Foundry Files API: POST /files (multipart/form-data)
-        var token = await GetCognitiveServicesTokenAsync();
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        httpClient.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        // 401 はRBAC伝播遅延の可能性があるためリトライ（最大6回、5秒間隔）
+        const int maxRetries = 6;
+        const int retryDelaySec = 5;
 
-        using var form = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(await File.ReadAllBytesAsync(filePath, ct));
-        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-        form.Add(fileContent, "file", fileName);
-        form.Add(new StringContent("assistants"), "purpose");
-
-        var url = $"{BuildApiBase(projectEndpoint)}/files?api-version={apiVersion}";
-        var response = await httpClient.PostAsync(url, form, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-
-        if (!response.IsSuccessStatusCode)
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
+            var token = await GetCognitiveServicesTokenAsync();
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var form = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(await File.ReadAllBytesAsync(filePath, ct));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            form.Add(fileContent, "file", fileName);
+            form.Add(new StringContent("assistants"), "purpose");
+
+            var url = $"{BuildApiBase(projectEndpoint)}/files?api-version={apiVersion}";
+            var response = await httpClient.PostAsync(url, form, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(body);
+                return doc.RootElement.GetProperty("id").GetString() ?? "";
+            }
+
+            if ((int)response.StatusCode == 401 && attempt < maxRetries)
+            {
+                Console.Write($" [401→{retryDelaySec}s待機]");
+                await Task.Delay(TimeSpan.FromSeconds(retryDelaySec), ct);
+                continue;
+            }
+
             Console.Write($" [Error {(int)response.StatusCode}]");
             return "";
         }
 
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.GetProperty("id").GetString() ?? "";
+        return "";
     }
 
     private async Task<string> CreateVectorStoreAsync(
