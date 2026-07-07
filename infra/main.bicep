@@ -227,6 +227,11 @@ module rbac './modules/rbac.bicep' = {
     skillsStorageName: skillsStorageName
     portalStorageName: portalStorageName
   }
+  dependsOn: [
+    aiSearch
+    aiFoundry
+    keyVault
+  ]
 }
 
 // =====================================================================
