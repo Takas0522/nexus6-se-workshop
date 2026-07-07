@@ -24,6 +24,13 @@ public class Step08OntologyCreation : ISetupStep
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
     {
+        var azure = state.Azure;
+        if (azure != null && !azure.FabricAvailable)
+        {
+            Console.WriteLine("  ⏭️  Fabric が無効のためスキップします (FabricAvailable=false)");
+            return;
+        }
+
         var analysis = state.Analysis
             ?? throw new InvalidOperationException("分析が未完了です。Step 2 を先に実行してください。");
 
