@@ -45,10 +45,17 @@ public class Step14EntraId : ISetupStep
 
         Console.WriteLine($"    App ID: {appId}");
 
+        // Public Client (Device Code Flow に必要) を有効化
+        await _az.RunAsync(
+            $"ad app update --id {appId} --is-fallback-public-client true",
+            silent: true);
+        Console.WriteLine("    ✓ Public Client Flow 有効化");
+
         // 2. API権限追加 (Microsoft Graph delegated permissions)
         // User.Read: e1fe6dd8-ba31-4d61-89e7-88639da4683d
         // ChannelMessage.Send: ebf0f66e-9fb1-49e4-a278-222f76911cf4
         // Team.ReadBasic.All: 660b7406-55f1-41ca-a0ed-0b035e182f3e
+        // offline_access: 7427e0e9-2fba-42fe-b0c0-848c9e6a8182
         Console.WriteLine("  🔐 API権限を追加中 (管理者同意不要スコープ)...");
 
         var graphResourceId = "00000003-0000-0000-c000-000000000000"; // Microsoft Graph
@@ -59,11 +66,13 @@ public class Step14EntraId : ISetupStep
             $"--api-permissions " +
             $"e1fe6dd8-ba31-4d61-89e7-88639da4683d=Scope " + // User.Read
             $"ebf0f66e-9fb1-49e4-a278-222f76911cf4=Scope " + // ChannelMessage.Send
-            $"660b7406-55f1-41ca-a0ed-0b035e182f3e=Scope",   // Team.ReadBasic.All
+            $"660b7406-55f1-41ca-a0ed-0b035e182f3e=Scope " + // Team.ReadBasic.All
+            $"7427e0e9-2fba-42fe-b0c0-848c9e6a8182=Scope",   // offline_access
             silent: true);
 
         Console.WriteLine("    ✓ User.Read (delegated)");
         Console.WriteLine("    ✓ ChannelMessage.Send (delegated)");
+        Console.WriteLine("    ✓ offline_access (delegated)");
         Console.WriteLine("    ✓ Team.ReadBasic.All (delegated)");
 
         // 3. Client Secret 生成 (1年)
@@ -144,6 +153,50 @@ public class Step14EntraId : ISetupStep
             }
         }
 
+        // 6. Device Code Flow でユーザーの Refresh Token を取得
+        Console.WriteLine("\n  🔑 Device Code Flow でユーザー認証を実行中...");
+        Console.WriteLine("    (Teams投稿用の委任トークンを取得します)\n");
+
+        var refreshToken = await AcquireRefreshTokenViaDeviceCodeAsync(appId, azure.TenantId, ct);
+
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            // Key Vault に保存
+            if (!string.IsNullOrEmpty(deployment.KeyVaultUri))
+            {
+                var vaultName2 = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
+                await _az.RunAsync(
+                    $"keyvault secret set --vault-name {vaultName2} " +
+                    $"--name teams-graph-refresh-token " +
+                    $"--value \"{refreshToken}\"",
+                    silent: true);
+                Console.WriteLine("    ✓ teams-graph-refresh-token → Key Vault 保存完了");
+            }
+
+            // Container App 環境変数に追加
+            if (!string.IsNullOrEmpty(azure.ResourceGroup))
+            {
+                try
+                {
+                    await _az.RunAsync(
+                        $"containerapp update --name ca-nexus6-hosted-agent " +
+                        $"--resource-group {azure.ResourceGroup} " +
+                        $"--set-env-vars " +
+                        $"\"Teams__Graph__RefreshToken={refreshToken}\"",
+                        silent: true);
+                    Console.WriteLine("    ✓ Container App 環境変数更新完了");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"    ⚠️ 環境変数更新に失敗: {ex.Message}");
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine("    ⚠️ Refresh Token の取得に失敗しました。後で手動設定してください。");
+        }
+
         // 状態保存
         deployment.EntraAppId = appId;
         deployment.EntraAppTenantId = azure.TenantId;
@@ -152,5 +205,101 @@ public class Step14EntraId : ISetupStep
         Console.WriteLine($"    App Name: {appName}");
         Console.WriteLine($"    App ID: {appId}");
         Console.WriteLine($"    権限: User.Read, ChannelMessage.Send, Team.ReadBasic.All (delegated, 管理者同意不要)");
+    }
+
+    /// <summary>
+    /// Device Code Flow でユーザーを認証し、Refresh Token を取得する
+    /// </summary>
+    private static async Task<string> AcquireRefreshTokenViaDeviceCodeAsync(
+        string clientId, string tenantId, CancellationToken ct)
+    {
+        using var http = new HttpClient();
+        var scopes = "https://graph.microsoft.com/ChannelMessage.Send https://graph.microsoft.com/Team.ReadBasic.All offline_access";
+
+        // 1. Device Code リクエスト
+        var deviceCodeResponse = await http.PostAsync(
+            $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/devicecode",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = clientId,
+                ["scope"] = scopes
+            }),
+            ct);
+
+        var deviceCodeBody = await deviceCodeResponse.Content.ReadAsStringAsync(ct);
+        if (!deviceCodeResponse.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"    ❌ Device Code 取得失敗: {deviceCodeBody}");
+            return "";
+        }
+
+        using var dcDoc = JsonDocument.Parse(deviceCodeBody);
+        var userCode = dcDoc.RootElement.GetProperty("user_code").GetString() ?? "";
+        var deviceCode = dcDoc.RootElement.GetProperty("device_code").GetString() ?? "";
+        var verificationUri = dcDoc.RootElement.GetProperty("verification_uri").GetString() ?? "";
+        var interval = dcDoc.RootElement.TryGetProperty("interval", out var intProp) ? intProp.GetInt32() : 5;
+        var expiresIn = dcDoc.RootElement.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 900;
+
+        Console.WriteLine($"    ┌──────────────────────────────────────────────────┐");
+        Console.WriteLine($"    │  以下のURLにアクセスしてコードを入力してください │");
+        Console.WriteLine($"    │  URL:  {verificationUri,-40} │");
+        Console.WriteLine($"    │  Code: {userCode,-40} │");
+        Console.WriteLine($"    └──────────────────────────────────────────────────┘");
+        Console.WriteLine($"    ⏳ 認証待ち中... (最大 {expiresIn / 60} 分)");
+
+        // 2. ポーリングでトークン取得
+        var deadline = DateTime.UtcNow.AddSeconds(expiresIn);
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(TimeSpan.FromSeconds(interval), ct);
+
+            var tokenResponse = await http.PostAsync(
+                $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
+                    ["client_id"] = clientId,
+                    ["device_code"] = deviceCode
+                }),
+                ct);
+
+            var tokenBody = await tokenResponse.Content.ReadAsStringAsync(ct);
+            using var tokenDoc = JsonDocument.Parse(tokenBody);
+
+            if (tokenResponse.IsSuccessStatusCode)
+            {
+                var rt = tokenDoc.RootElement.TryGetProperty("refresh_token", out var rtProp)
+                    ? rtProp.GetString() ?? ""
+                    : "";
+                if (!string.IsNullOrEmpty(rt))
+                {
+                    Console.WriteLine("    ✅ 認証成功！Refresh Token を取得しました。");
+                    return rt;
+                }
+                Console.WriteLine("    ⚠️ Access Token は取得できましたが、Refresh Token がありません（offline_access スコープを確認）。");
+                return "";
+            }
+
+            var error = tokenDoc.RootElement.TryGetProperty("error", out var errProp)
+                ? errProp.GetString() ?? ""
+                : "";
+
+            if (error == "authorization_pending")
+                continue;
+
+            if (error == "slow_down")
+            {
+                interval += 5;
+                continue;
+            }
+
+            // expired_token, access_denied, etc.
+            Console.WriteLine($"    ❌ 認証失敗: {error}");
+            return "";
+        }
+
+        Console.WriteLine("    ❌ タイムアウト: 認証が完了しませんでした。");
+        return "";
     }
 }
