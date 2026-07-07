@@ -95,6 +95,9 @@ public class Step05BicepDeploy : ISetupStep
         overrides["location"] = azure.Region;
         overrides["suffix"] = suffix;
 
+        // Functions デプロイ (サブスクリプションのクォータ制限で失敗する場合 false)
+        overrides["deployFunctions"] = azure.FunctionsAvailable ? "true" : "false";
+
         if (azure.FabricAvailable)
         {
             overrides["deployFabric"] = "true";
@@ -106,9 +109,28 @@ public class Step05BicepDeploy : ISetupStep
             overrides["deployFabric"] = "false";
         }
 
-        var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
+        try
+        {
+            var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
+            await ParseDeploymentOutputAsync(state, output, azure);
+        }
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("InternalSubscriptionIsOverQuotaForSku") &&
+            ex.Message.Contains("serverFarms") &&
+            overrides.GetValueOrDefault("deployFunctions") != "false")
+        {
+            // Functions クォータ不足 → Functions 無しでリトライ
+            Console.WriteLine("\n  ⚠️ Functions クォータ不足を検出。Functions 無しで再デプロイします...\n");
+            overrides["deployFunctions"] = "false";
+            azure.FunctionsAvailable = false;
+            var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
+            await ParseDeploymentOutputAsync(state, output, azure);
+        }
 
-        // 出力パース
+    }
+
+    private Task ParseDeploymentOutputAsync(SetupState state, string output, AzureConfig azure)
+    {
         try
         {
             var deployResult = JsonDocument.Parse(output);
@@ -150,6 +172,7 @@ public class Step05BicepDeploy : ISetupStep
             Console.WriteLine("  デプロイ自体は成功している可能性があります。状態を手動で確認してください。");
             state.Deployment = new DeploymentResult();
         }
+        return Task.CompletedTask;
     }
 
     private static string GetOutputValue(JsonElement outputs, string key)

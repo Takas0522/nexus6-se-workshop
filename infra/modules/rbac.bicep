@@ -144,7 +144,7 @@ resource containerAppAiSearch 'Microsoft.Authorization/roleAssignments@2022-04-0
 // =====================================================================
 
 // Function App → Storage Blob Data Contributor (Skills - WebJobs + データ)
-resource functionAppSkillsBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppSkillsBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(functionAppPrincipalId)) {
   name: guid(skillsStorage.id, functionAppPrincipalId, roleIds.storageBlobDataContributor)
   scope: skillsStorage
   properties: {
@@ -155,7 +155,7 @@ resource functionAppSkillsBlob 'Microsoft.Authorization/roleAssignments@2022-04-
 }
 
 // Function App → Storage Table Data Contributor (Skills)
-resource functionAppSkillsTable 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppSkillsTable 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(functionAppPrincipalId)) {
   name: guid(skillsStorage.id, functionAppPrincipalId, roleIds.storageTableDataContributor)
   scope: skillsStorage
   properties: {
@@ -166,7 +166,7 @@ resource functionAppSkillsTable 'Microsoft.Authorization/roleAssignments@2022-04
 }
 
 // Function App → Storage Blob Data Contributor (Portal - 静的サイト公開用)
-resource functionAppPortalBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppPortalBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(functionAppPrincipalId)) {
   name: guid(portalStorage.id, functionAppPrincipalId, roleIds.storageBlobDataContributor)
   scope: portalStorage
   properties: {

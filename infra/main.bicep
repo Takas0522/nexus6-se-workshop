@@ -79,6 +79,9 @@ param fabricAdminMembers array = []
 @description('Fabric Capacity をデプロイするかどうか')
 param deployFabric bool = false
 
+@description('Azure Functions をデプロイするかどうか')
+param deployFunctions bool = true
+
 // =====================================================================
 // Monitoring Module
 // =====================================================================
@@ -190,7 +193,7 @@ module aiSearch './modules/ai-search.bicep' = {
 // =====================================================================
 // Functions Module
 // =====================================================================
-module functions './modules/functions.bicep' = {
+module functions './modules/functions.bicep' = if (deployFunctions) {
   name: 'functions-deployment'
   params: {
     location: location
@@ -222,7 +225,7 @@ module rbac './modules/rbac.bicep' = {
   name: 'rbac-deployment'
   params: {
     containerAppPrincipalId: containerApp.outputs.containerAppPrincipalId
-    functionAppPrincipalId: functions.outputs.functionAppPrincipalId
+    functionAppPrincipalId: deployFunctions ? functions.outputs.functionAppPrincipalId : ''
     acrName: containerRegistryName
     keyVaultName: keyVaultName
     aiServicesName: aiServicesName
@@ -326,10 +329,10 @@ output aiSearchEndpoint string = aiSearch.outputs.searchEndpoint
 output aiSearchName string = aiSearch.outputs.searchName
 
 @description('Function App name')
-output functionAppName string = functions.outputs.functionAppName
+output functionAppName string = deployFunctions ? functions.outputs.functionAppName : ''
 
 @description('Function App default hostname')
-output functionAppDefaultHostName string = functions.outputs.functionAppDefaultHostName
+output functionAppDefaultHostName string = deployFunctions ? functions.outputs.functionAppDefaultHostName : ''
 
 @description('Fabric Capacity name')
 output fabricCapacityName string = deployFabric ? fabric.outputs.fabricCapacityName : ''

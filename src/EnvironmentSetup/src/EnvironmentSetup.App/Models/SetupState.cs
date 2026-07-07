@@ -60,6 +60,9 @@ public class AzureConfig
 
     [JsonPropertyName("fabricAvailable")]
     public bool FabricAvailable { get; set; }
+
+    [JsonPropertyName("functionsAvailable")]
+    public bool FunctionsAvailable { get; set; } = true;
 }
 
 /// <summary>
