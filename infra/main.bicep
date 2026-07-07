@@ -196,7 +196,7 @@ module aiSearch './modules/ai-search.bicep' = {
 module functions './modules/functions.bicep' = if (deployFunctions) {
   name: 'functions-deployment'
   params: {
-    location: location
+    location: aiFoundryLocation // Functions は swedencentral で作成 (northeurope はクォータ不足)
     tags: tags
     appServicePlanName: appServicePlanName
     functionAppName: functionAppName
