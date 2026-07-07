@@ -82,6 +82,9 @@ param deployFabric bool = false
 @description('Azure Functions をデプロイするかどうか')
 param deployFunctions bool = true
 
+@description('デプロイ実行ユーザーの Object ID (RBAC用)')
+param deployerObjectId string = ''
+
 // =====================================================================
 // Monitoring Module
 // =====================================================================
@@ -226,6 +229,7 @@ module rbac './modules/rbac.bicep' = {
   params: {
     containerAppPrincipalId: containerApp.outputs.containerAppPrincipalId
     functionAppPrincipalId: deployFunctions ? functions.outputs.functionAppPrincipalId : ''
+    deployerPrincipalId: deployerObjectId
     acrName: containerRegistryName
     keyVaultName: keyVaultName
     aiServicesName: aiServicesName

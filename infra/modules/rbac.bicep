@@ -4,6 +4,9 @@ param containerAppPrincipalId string
 @description('Function App の Principal ID')
 param functionAppPrincipalId string
 
+@description('デプロイ実行ユーザーの Principal ID (Step12 ファイルアップロード用)')
+param deployerPrincipalId string = ''
+
 @description('Container Registry 名')
 param acrName string
 
@@ -173,5 +176,20 @@ resource functionAppPortalBlob 'Microsoft.Authorization/roleAssignments@2022-04-
     principalId: functionAppPrincipalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageBlobDataContributor)
+  }
+}
+
+// =====================================================================
+// デプロイ実行ユーザー ロール割り当て (Step12 Foundry Files API 用)
+// =====================================================================
+
+// Deployer → Cognitive Services User (AI Foundry Files/Assistants API)
+resource deployerCognitiveServicesUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(aiServices.id, deployerPrincipalId, roleIds.cognitiveServicesOpenAIUser)
+  scope: aiServices
+  properties: {
+    principalId: deployerPrincipalId
+    principalType: 'User'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesOpenAIUser)
   }
 }

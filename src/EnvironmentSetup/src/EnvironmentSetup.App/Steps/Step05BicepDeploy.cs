@@ -95,6 +95,15 @@ public class Step05BicepDeploy : ISetupStep
         overrides["location"] = azure.Region;
         overrides["suffix"] = suffix;
 
+        // デプロイ実行ユーザーの Object ID (RBAC割当用)
+        try
+        {
+            var userOid = (await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true)).Trim();
+            if (!string.IsNullOrEmpty(userOid))
+                overrides["deployerObjectId"] = userOid;
+        }
+        catch { /* 取得失敗時は空で進行 */ }
+
         // Functions デプロイ (サブスクリプションのクォータ制限で失敗する場合 false)
         overrides["deployFunctions"] = azure.FunctionsAvailable ? "true" : "false";
 

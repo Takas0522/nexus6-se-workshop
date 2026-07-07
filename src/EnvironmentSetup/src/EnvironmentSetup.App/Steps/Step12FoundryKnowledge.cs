@@ -113,9 +113,9 @@ public class Step12FoundryKnowledge : ISetupStep
         string projectEndpoint, string apiVersion, string filePath, string fileName, CancellationToken ct)
     {
         // Foundry Files API: POST /files (multipart/form-data)
-        // 401 はRBAC伝播遅延の可能性があるためリトライ（最大6回、5秒間隔）
-        const int maxRetries = 6;
-        const int retryDelaySec = 5;
+        // 401 はRBAC伝播遅延の可能性があるためリトライ（最大10回、30秒間隔 = 最大5分待機）
+        const int maxRetries = 10;
+        const int retryDelaySec = 30;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
