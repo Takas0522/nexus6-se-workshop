@@ -273,13 +273,20 @@ public class Step07MedallionSetup : ISetupStep
         Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
         await File.WriteAllTextAsync(payloadPath, payload, ct);
 
-        var opId = await ExecuteFabricLroAsync(
-            $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
-            $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
-            $"--body @{payloadPath} --verbose");
+        try
+        {
+            var opId = await ExecuteFabricLroAsync(
+                $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
+                $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
+                $"--body @{payloadPath} --verbose");
 
-        if (opId != null)
-            await PollLroAsync(opId, ct);
+            if (opId != null)
+                await PollLroAsync(opId, ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("AlreadyInUse") || ex.Message.Contains("Conflict"))
+        {
+            Console.WriteLine($"    ℹ️ '{name}' は既に存在します (Conflict)。続行します。");
+        }
 
         // 作成されたIDを取得
         itemsJson = await _az.RunAsync(
@@ -424,13 +431,20 @@ public class Step07MedallionSetup : ISetupStep
         Directory.CreateDirectory(Path.GetDirectoryName(envPath)!);
         await File.WriteAllTextAsync(envPath, envelope.ToJsonString(), ct);
 
-        var opId = await ExecuteFabricLroAsync(
-            $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
-            $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
-            $"--body @{envPath} --verbose");
+        try
+        {
+            var opId = await ExecuteFabricLroAsync(
+                $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
+                $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
+                $"--body @{envPath} --verbose");
 
-        if (opId != null)
-            await PollLroAsync(opId, ct);
+            if (opId != null)
+                await PollLroAsync(opId, ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("AlreadyInUse") || ex.Message.Contains("Conflict"))
+        {
+            Console.WriteLine($"    ℹ️ Notebook '{name}' は既に存在します。続行します。");
+        }
 
         // 作成されたIDを取得
         itemsJson = await _az.RunAsync(
@@ -576,9 +590,10 @@ public class Step07MedallionSetup : ISetupStep
 
         if (process.ExitCode != 0)
         {
-            // stderr にINFOログのみでエラー本文がstdoutに含まれる場合がある
-            var errorDetail = !string.IsNullOrWhiteSpace(stdout) && stdout.Contains("errorCode")
-                ? stdout[..Math.Min(500, stdout.Length)]
+            // stderr/stdout 両方を確認 (Fabric は ERROR: をstderrに出す)
+            var combined = stderr + "\n" + stdout;
+            var errorDetail = combined.Contains("errorCode") || combined.Contains("ERROR:")
+                ? combined[..Math.Min(800, combined.Length)]
                 : stderr[..Math.Min(800, stderr.Length)];
             throw new InvalidOperationException(
                 $"Fabric API エラー (exit {process.ExitCode}): {errorDetail}");
