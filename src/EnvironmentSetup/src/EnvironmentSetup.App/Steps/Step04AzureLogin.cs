@@ -139,7 +139,7 @@ public class Step04AzureLogin : ISetupStep
             // what-if相当: PUTでvalidateOnly
             var result = await _az.RunAsync(
                 $"rest --method POST " +
-                $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/{azure.Region}/checkNameAvailability?api-version=2023-11-01\" " +
+                $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/swedencentral/checkNameAvailability?api-version=2023-11-01\" " +
                 $"--body \"{{\\\"name\\\":\\\"{testName}\\\",\\\"type\\\":\\\"Microsoft.Fabric/capacities\\\"}}\"",
                 silent: true);
 
@@ -150,7 +150,7 @@ public class Step04AzureLogin : ISetupStep
             // 3. リージョンのFabricクォータ確認 (RegionalQuota > 0 であること)
             var quotaResult = await _az.RunAsync(
                 $"rest --method GET " +
-                $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/{azure.Region}/skus?api-version=2023-11-01\"",
+                $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/swedencentral/skus?api-version=2023-11-01\"",
                 silent: true);
 
             // F4 SKU が利用可能かつクォータ > 0 かを確認
@@ -164,7 +164,7 @@ public class Step04AzureLogin : ISetupStep
                 {
                     var capacityCheck = await _az.RunAsync(
                         $"rest --method POST " +
-                        $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/{azure.Region}/checkQuotaAvailability?api-version=2023-11-01\" " +
+                        $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/swedencentral/checkQuotaAvailability?api-version=2023-11-01\" " +
                         $"--body \"{{\\\"name\\\":\\\"{testName}\\\",\\\"type\\\":\\\"Microsoft.Fabric/capacities\\\",\\\"properties\\\":{{\\\"sku\\\":{{\\\"name\\\":\\\"F4\\\"}}}}}}\"",
                         silent: true);
                     if (capacityCheck.Contains("QuotaExceeded") || capacityCheck.Contains("RegionalQuota: 0") || capacityCheck.Contains("must not exceed"))

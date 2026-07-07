@@ -128,22 +128,10 @@ public class Step05BicepDeploy : ISetupStep
             ex.Message.Contains("serverFarms") &&
             overrides.GetValueOrDefault("deployFunctions") != "false")
         {
-            // Functions クォータ不足 → Functions 無しでリトライ
+            // Functions クォータ不足 → Functions 無しでリトライ (Functions は補助機能)
             Console.WriteLine("\n  ⚠️ Functions クォータ不足を検出。Functions 無しで再デプロイします...\n");
             overrides["deployFunctions"] = "false";
             azure.FunctionsAvailable = false;
-            var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
-            await ParseDeploymentOutputAsync(state, output, azure);
-        }
-        catch (InvalidOperationException ex) when (
-            (ex.Message.Contains("RegionalQuota") || ex.Message.Contains("CapacityUnits")) &&
-            ex.Message.Contains("Fabric") &&
-            overrides.GetValueOrDefault("deployFabric") != "false")
-        {
-            // Fabric クォータ不足 → Fabric 無しでリトライ
-            Console.WriteLine("\n  ⚠️ Fabric クォータ不足を検出。Fabric 無しで再デプロイします...\n");
-            overrides["deployFabric"] = "false";
-            azure.FabricAvailable = false;
             var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
             await ParseDeploymentOutputAsync(state, output, azure);
         }

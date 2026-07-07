@@ -215,7 +215,7 @@ module fabric './modules/fabric.bicep' = if (deployFabric) {
   name: 'fabric-deployment'
   params: {
     name: fabricCapacityName
-    location: location
+    location: aiFoundryLocation // Fabric も swedencentral (northeurope はクォータ0)
     skuName: fabricCapacitySku
     administrationMembers: fabricAdminMembers
   }
