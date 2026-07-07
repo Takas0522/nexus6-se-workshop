@@ -2,7 +2,7 @@ using './main.bicep'
 
 // ─── 基本設定 ───
 param projectName = 'nexus6'
-param location = 'swedencentral'
+param location = 'northeurope'
 
 param tags = {
   environment: 'production'
@@ -12,8 +12,8 @@ param tags = {
 }
 
 // ─── 監視 ───
-param logAnalyticsWorkspaceName = 'log-nexus6-swc'
-param appInsightsName = 'appi-nexus6-swc'
+param logAnalyticsWorkspaceName = 'log-nexus6-neu'
+param appInsightsName = 'appi-nexus6-neu'
 
 // ─── コンテナ ───
 param containerAppImage = 'mcr.microsoft.com/k8se/quickstart:latest'

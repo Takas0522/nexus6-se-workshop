@@ -1,8 +1,8 @@
 @description('Project name - used for resource naming')
 param projectName string = 'nexus6'
 
-@description('Location for all resources (e.g., swedencentral)')
-param location string = 'swedencentral'
+@description('Location for all resources (e.g., northeurope)')
+param location string = 'northeurope'
 
 @description('Unique suffix for globally-unique resource names (4 chars)')
 param suffix string = substring(uniqueString(resourceGroup().id), 0, 4)
