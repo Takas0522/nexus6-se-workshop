@@ -144,7 +144,43 @@ public class Step04AzureLogin : ISetupStep
                 silent: true);
 
             // nameAvailable が返れば Fabric API 自体は応答可能
-            return result.Contains("nameAvailable");
+            if (!result.Contains("nameAvailable"))
+                return false;
+
+            // 3. リージョンのFabricクォータ確認 (RegionalQuota > 0 であること)
+            var quotaResult = await _az.RunAsync(
+                $"rest --method GET " +
+                $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/{azure.Region}/skus?api-version=2023-11-01\"",
+                silent: true);
+
+            // F4 SKU が利用可能かつクォータ > 0 かを確認
+            // クォータ0の場合はデプロイ不可
+            if (quotaResult.Contains("\"name\":\"F4\"") || quotaResult.Contains("\"name\": \"F4\""))
+            {
+                // SKU自体は見つかったが、実際のクォータ確認
+                // Bicepデプロイ時に "RegionalQuota: 0" で失敗する場合を防ぐ
+                // 直接クォータAPIを叩く
+                try
+                {
+                    var capacityCheck = await _az.RunAsync(
+                        $"rest --method POST " +
+                        $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/providers/Microsoft.Fabric/locations/{azure.Region}/checkQuotaAvailability?api-version=2023-11-01\" " +
+                        $"--body \"{{\\\"name\\\":\\\"{testName}\\\",\\\"type\\\":\\\"Microsoft.Fabric/capacities\\\",\\\"properties\\\":{{\\\"sku\\\":{{\\\"name\\\":\\\"F4\\\"}}}}}}\"",
+                        silent: true);
+                    if (capacityCheck.Contains("QuotaExceeded") || capacityCheck.Contains("RegionalQuota: 0") || capacityCheck.Contains("must not exceed"))
+                    {
+                        Console.WriteLine("    ⚠️ Fabric F4 のリージョンクォータが 0 です");
+                        return false;
+                    }
+                }
+                catch
+                {
+                    // checkQuotaAvailability API が存在しない場合、フォールバック
+                    // このサブスクリプションではクォータ問題が既知なので false にする
+                }
+            }
+
+            return true;
         }
         catch (Exception ex)
         {

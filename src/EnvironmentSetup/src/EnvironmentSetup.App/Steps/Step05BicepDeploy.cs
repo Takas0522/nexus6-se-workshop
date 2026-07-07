@@ -135,6 +135,18 @@ public class Step05BicepDeploy : ISetupStep
             var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
             await ParseDeploymentOutputAsync(state, output, azure);
         }
+        catch (InvalidOperationException ex) when (
+            (ex.Message.Contains("RegionalQuota") || ex.Message.Contains("CapacityUnits")) &&
+            ex.Message.Contains("Fabric") &&
+            overrides.GetValueOrDefault("deployFabric") != "false")
+        {
+            // Fabric クォータ不足 → Fabric 無しでリトライ
+            Console.WriteLine("\n  ⚠️ Fabric クォータ不足を検出。Fabric 無しで再デプロイします...\n");
+            overrides["deployFabric"] = "false";
+            azure.FabricAvailable = false;
+            var output = await _az.DeployAsync(rgName, templatePath, File.Exists(paramPath) ? paramPath : null, overrides);
+            await ParseDeploymentOutputAsync(state, output, azure);
+        }
 
     }
 
