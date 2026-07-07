@@ -44,6 +44,7 @@ EnvironmentSetup CLI (Step05 Bicep デプロイ〜Step14) で発生する既知�
 | `InvalidResourceProperties` gpt-5 GlobalStandard not supported | northeurope 非対応 | AI Foundry は `aiFoundryLocation=swedencentral` |
 | `InternalSubscriptionIsOverQuotaForSku` serverFarms | northeurope Functions クォータ=0 | Functions を `aiFoundryLocation` に。自動フォールバック済み |
 | Fabric Lakehouse 作成失敗 (Capacity Inactive) | Bicep デプロイ後 Capacity が Suspended/Inactive | Step07 で自動 Resume 実装済み。ARM API: `POST .../capacities/{name}/resume` |
+| Fabric item 作成 409 Conflict `ItemDisplayNameAlreadyInUse` | 前回実行で作成済み (再実行時) | Step07 で Conflict を idempotent 成功として処理。既存アイテムの ID を再取得して続行 |
 | HTTP 401 on Foundry Files API (Step12) | Cognitive Services User ロール伝播遅延 (5-10分) | Step12 開始時に GET /files プローブで RBAC 伝播を確認（20回×30秒=最大10分）。失敗時は Azure Portal IAM 確認 |
 | `ResourceNotFound` in RBAC module | 依存リソース未作成 | rbac module に `dependsOn: [aiSearch, aiFoundry, keyVault]` |
 | Key Vault secret set 403 | publicNetworkAccess 自動無効化 | `az keyvault update --public-network-access Enabled` してから set |
