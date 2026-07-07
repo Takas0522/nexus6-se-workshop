@@ -91,7 +91,8 @@ public class Step05BicepDeploy : ISetupStep
         // Fabric利用可否に応じて動的パラメータを設定
         var overrides = new Dictionary<string, string>();
 
-        // サフィックスを動的に設定（ソフトデリート衝突防止）
+        // リージョンとサフィックスを動的に設定
+        overrides["location"] = azure.Region;
         overrides["suffix"] = suffix;
 
         if (azure.FabricAvailable)

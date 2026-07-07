@@ -56,7 +56,7 @@ public class Step04AzureLogin : ISetupStep
             {
                 SubscriptionId = subId,
                 TenantId = tenantId,
-                Region = "swedencentral"
+                Region = "northeurope"
             };
         }
         else
@@ -70,7 +70,7 @@ public class Step04AzureLogin : ISetupStep
             {
                 SubscriptionId = account.RootElement.GetProperty("id").GetString() ?? "",
                 TenantId = account.RootElement.GetProperty("tenantId").GetString() ?? "",
-                Region = "swedencentral"
+                Region = "northeurope"
             };
         }
 
