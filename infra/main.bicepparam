@@ -3,6 +3,7 @@ using './main.bicep'
 // ─── 基本設定 ───
 param projectName = 'nexus6'
 param location = 'northeurope'
+param aiFoundryLocation = 'swedencentral'
 
 param tags = {
   environment: 'production'

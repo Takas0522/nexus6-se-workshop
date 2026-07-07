@@ -4,6 +4,9 @@ param projectName string = 'nexus6'
 @description('Location for all resources (e.g., northeurope)')
 param location string = 'northeurope'
 
+@description('Location for AI Foundry/Cognitive Services (gpt-5 GlobalStandard requires specific regions)')
+param aiFoundryLocation string = 'swedencentral'
+
 @description('Unique suffix for globally-unique resource names (4 chars)')
 param suffix string = substring(uniqueString(resourceGroup().id), 0, 4)
 
@@ -162,7 +165,7 @@ module storage './modules/storage.bicep' = {
 module aiFoundry './modules/ai-foundry.bicep' = {
   name: 'ai-foundry-deployment'
   params: {
-    location: location
+    location: aiFoundryLocation
     tags: tags
     aiServicesName: aiServicesName
     aiProjectName: aiProjectName
