@@ -45,6 +45,11 @@ public class Step12FoundryKnowledge : ISetupStep
         Console.WriteLine($"  Foundry: {endpoint}");
         Console.WriteLine($"  Knowledge Dir: {skillDir}\n");
 
+        // 0. RBAC 伝播待機 (Files API に GET して 401 でなくなるまで待つ)
+        Console.WriteLine("  🔑 RBAC 伝播確認中 (最大10分)...");
+        await WaitForRbacPropagationAsync(endpoint, apiVersion, ct);
+        Console.WriteLine("    ✓ RBAC OK\n");
+
         // 1. ファイルアップロード
         Console.WriteLine("  📤 Foundry Files API でファイルをアップロード中...");
         var fileIds = new List<string>();
@@ -109,13 +114,50 @@ public class Step12FoundryKnowledge : ISetupStep
         Console.WriteLine($"    Assistants: {createdAssistants.Count} 個作成");
     }
 
+    /// <summary>
+    /// Step12 開始前に RBAC が伝播しているか確認。GET /files で 401 以外が返るまで待機。
+    /// </summary>
+    private async Task WaitForRbacPropagationAsync(string endpoint, string apiVersion, CancellationToken ct)
+    {
+        const int maxAttempts = 20; // 20 × 30s = 10分
+        const int delaySec = 30;
+
+        for (int i = 1; i <= maxAttempts; i++)
+        {
+            var token = await GetCognitiveServicesTokenAsync();
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var url = $"{BuildApiBase(endpoint)}/files?api-version={apiVersion}&limit=1";
+            try
+            {
+                var response = await httpClient.GetAsync(url, ct);
+                if ((int)response.StatusCode != 401 && (int)response.StatusCode != 403)
+                {
+                    return; // RBAC OK
+                }
+                Console.Write($"    [{i}/{maxAttempts}] 401 → {delaySec}s 待機...\n");
+            }
+            catch (Exception ex)
+            {
+                Console.Write($"    [{i}/{maxAttempts}] {ex.GetType().Name} → {delaySec}s 待機...\n");
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(delaySec), ct);
+        }
+
+        throw new InvalidOperationException(
+            "RBAC (Cognitive Services User) が10分経過しても伝播しませんでした。" +
+            "Azure Portal で AI Services の IAM を確認してください。");
+    }
+
     private async Task<string> UploadFileAsync(
         string projectEndpoint, string apiVersion, string filePath, string fileName, CancellationToken ct)
     {
-        // Foundry Files API: POST /files (multipart/form-data)
-        // 401 はRBAC伝播遅延の可能性があるためリトライ（最大10回、30秒間隔 = 最大5分待機）
-        const int maxRetries = 10;
-        const int retryDelaySec = 30;
+        // RBAC は事前に WaitForRbacPropagationAsync で確認済み。短めのリトライのみ。
+        const int maxRetries = 3;
+        const int retryDelaySec = 10;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
