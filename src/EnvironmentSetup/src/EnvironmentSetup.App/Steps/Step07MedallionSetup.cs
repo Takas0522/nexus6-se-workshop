@@ -284,13 +284,44 @@ public class Step07MedallionSetup : ISetupStep
             if (opId != null)
                 await PollLroAsync(opId, ct);
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.Contains("AlreadyInUse", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("Conflict", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("409", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+        catch (InvalidOperationException ex)
         {
-            Console.WriteLine($"    ℹ️ '{name}' は既に存在します (Conflict)。続行します。");
+            // POST 失敗 → アイテムが既に存在するか再確認 (type付き + type無し両方)
+            Console.WriteLine($"    ⚠️ POST 失敗: {ex.Message[..Math.Min(200, ex.Message.Length)]}");
+            Console.WriteLine($"    🔄 既存アイテムを再確認中...");
+            await Task.Delay(5000, ct);
+
+            // type=Lakehouse でまず検索
+            var retryJson = await _az.RunAsync(
+                $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Lakehouse\" --resource \"{FabricResource}\"",
+                silent: true);
+            var retryDoc = JsonDocument.Parse(retryJson);
+            var found = retryDoc.RootElement.GetProperty("value").EnumerateArray()
+                .FirstOrDefault(i => i.GetProperty("displayName").GetString() == name);
+
+            // type フィルタなしでも試行 (Fabric list API の結果整合性対策)
+            if (found.ValueKind == JsonValueKind.Undefined)
+            {
+                var allItemsJson = await _az.RunAsync(
+                    $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items\" --resource \"{FabricResource}\"",
+                    silent: true);
+                var allDoc = JsonDocument.Parse(allItemsJson);
+                found = allDoc.RootElement.GetProperty("value").EnumerateArray()
+                    .FirstOrDefault(i => i.GetProperty("displayName").GetString() == name
+                        && i.GetProperty("type").GetString() == "Lakehouse");
+            }
+
+            if (found.ValueKind != JsonValueKind.Undefined)
+            {
+                Console.WriteLine($"    ✓ '{name}' は既に存在します (ID: {found.GetProperty("id").GetString()})。続行します。");
+                return new LakehouseInfo
+                {
+                    Id = found.GetProperty("id").GetString()!,
+                    Name = name
+                };
+            }
+            // 本当に存在しない場合は元の例外を再スロー
+            throw;
         }
 
         // 作成されたIDを取得
