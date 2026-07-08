@@ -83,12 +83,26 @@ public class Step09DomainConfigUpload : ISetupStep
             Console.WriteLine($"\n    Blob にアップロード中 ({storageAccount}/config/domain-config.json)...");
             try
             {
-                await _az.RunAsync(
-                    $"storage blob upload --account-name {storageAccount} " +
-                    $"--container-name config --name domain-config.json " +
-                    $"--file {configPath} --overwrite --auth-mode login",
-                    silent: true);
-                Console.WriteLine("    ✓ Blob アップロード完了");
+                try
+                {
+                    await _az.RunAsync(
+                        $"storage blob upload --account-name {storageAccount} " +
+                        $"--container-name config --name domain-config.json " +
+                        $"--file {configPath} --overwrite --auth-mode login",
+                        silent: true);
+                    Console.WriteLine("    ✓ Blob アップロード完了");
+                }
+                catch
+                {
+                    // RBAC 未伝播の場合はアカウントキーでフォールバック
+                    Console.WriteLine("    ⚠️ login 認証失敗 → アカウントキーで再試行...");
+                    await _az.RunAsync(
+                        $"storage blob upload --account-name {storageAccount} " +
+                        $"--container-name config --name domain-config.json " +
+                        $"--file {configPath} --overwrite --auth-mode key",
+                        silent: true);
+                    Console.WriteLine("    ✓ Blob アップロード完了 (key mode)");
+                }
 
                 // Blob URI を表示
                 var blobUri = $"https://{storageAccount}.blob.core.windows.net/config/domain-config.json";
@@ -103,7 +117,7 @@ public class Step09DomainConfigUpload : ISetupStep
                 Console.WriteLine($"    ⚠️ Blob アップロード失敗: {ex.Message}");
                 Console.WriteLine("    手動でアップロードしてください:");
                 Console.WriteLine($"    az storage blob upload --account-name {storageAccount} " +
-                    $"--container-name config --name domain-config.json --file {configPath} --auth-mode login");
+                    $"--container-name config --name domain-config.json --file {configPath} --auth-mode key");
             }
         }
         else

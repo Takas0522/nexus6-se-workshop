@@ -193,3 +193,13 @@ resource deployerCognitiveServicesUser 'Microsoft.Authorization/roleAssignments@
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesOpenAIUser)
   }
 }
+
+resource deployerStorageBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(skillsStorage.id, deployerPrincipalId, roleIds.storageBlobDataContributor)
+  scope: skillsStorage
+  properties: {
+    principalId: deployerPrincipalId
+    principalType: 'User'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageBlobDataContributor)
+  }
+}
