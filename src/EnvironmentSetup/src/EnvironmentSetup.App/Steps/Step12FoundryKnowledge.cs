@@ -257,7 +257,7 @@ public class Step12FoundryKnowledge : ISetupStep
 
         var url = $"{BuildApiBase(projectEndpoint)}/vector_stores/{vectorStoreId}?api-version={apiVersion}";
 
-        for (var i = 0; i < 60; i++) // max 5 minutes
+        for (var i = 0; i < 180; i++) // max 15 minutes (50ファイルのインデックスに余裕を持たせる)
         {
             await Task.Delay(5000, ct);
             var response = await httpClient.GetAsync(url, ct);
@@ -267,13 +267,14 @@ public class Step12FoundryKnowledge : ISetupStep
             {
                 using var doc = JsonDocument.Parse(body);
                 var status = doc.RootElement.GetProperty("status").GetString();
-                if (status == "completed") return;
+                Console.Write(i % 12 == 0 && i > 0 ? $" [{status}]" : ".");
+                if (status == "completed") { Console.WriteLine(" ✓"); return; }
                 if (status == "failed")
                     throw new InvalidOperationException("Vector Store indexing failed");
             }
         }
 
-        throw new TimeoutException("Vector Store indexing timed out (5 minutes)");
+        throw new TimeoutException("Vector Store indexing timed out (15 minutes)");
     }
 
     private async Task<string> CreateOrUpdateAssistantAsync(
