@@ -33,6 +33,7 @@ var roleIds = {
   storageTableDataContributor: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
   keyVaultSecretsUser: '4633458b-17de-408a-b874-0445c86b69e6'
   cognitiveServicesOpenAIUser: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+  cognitiveServicesContributor: '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
   searchIndexDataReader: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
 }
 
@@ -184,13 +185,13 @@ resource functionAppPortalBlob 'Microsoft.Authorization/roleAssignments@2022-04-
 // =====================================================================
 
 // Deployer → Cognitive Services User (AI Foundry Files/Assistants API)
-resource deployerCognitiveServicesUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
-  name: guid(aiServices.id, deployerPrincipalId, roleIds.cognitiveServicesOpenAIUser)
+resource deployerCognitiveServicesContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(aiServices.id, deployerPrincipalId, roleIds.cognitiveServicesContributor)
   scope: aiServices
   properties: {
     principalId: deployerPrincipalId
     principalType: 'User'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesOpenAIUser)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesContributor)
   }
 }
 
