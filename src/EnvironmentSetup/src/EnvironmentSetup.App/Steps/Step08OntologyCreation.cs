@@ -83,12 +83,16 @@ public class Step08OntologyCreation : ISetupStep
             Console.WriteLine($"\n  ✓ オントロジー作成完了");
             Console.WriteLine($"    Entity Types: {string.Join(", ", ontologyDef.EntityTypes.Select(e => e.Name))}");
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.Contains("FeatureNotAvailable") ||
-            ex.Message.Contains("Forbidden") ||
-            ex.Message.Contains("exit 1"))
+        catch (Exception ex) when (
+            ex is TimeoutException ||
+            (ex is InvalidOperationException ioe && (
+                ioe.Message.Contains("FeatureNotAvailable") ||
+                ioe.Message.Contains("Forbidden") ||
+                ioe.Message.Contains("タイムアウト") ||
+                ioe.Message.Contains("exit 1"))))
         {
             Console.WriteLine("  ⚠️ Ontology 機能がこのテナント/容量では利用できません");
+            Console.WriteLine($"     ({ex.Message[..Math.Min(150, ex.Message.Length)]})");
             Console.WriteLine("     この手順はスキップされます。F64以上のSKUが必要な場合があります。");
             state.Ontology = new OntologyResult
             {
@@ -463,14 +467,28 @@ public class Step08OntologyCreation : ISetupStep
         using var process = System.Diagnostics.Process.Start(psi)
             ?? throw new InvalidOperationException("az CLI の起動に失敗しました。");
 
+        // 60秒タイムアウト付きで待機
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        try
+        {
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            throw new InvalidOperationException(
+                "Fabric API コールがタイムアウトしました (60秒)。Ontology 機能がこの SKU で利用できない可能性があります。");
+        }
+
         var stdout = await process.StandardOutput.ReadToEndAsync();
         var stderr = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
 
         if (process.ExitCode != 0)
+        {
+            var combined = stderr + "\n" + stdout;
             throw new InvalidOperationException(
-                $"Fabric API エラー (exit {process.ExitCode}): {stderr[..Math.Min(800, stderr.Length)]}");
-
+                $"Fabric API エラー (exit {process.ExitCode}): {combined[..Math.Min(800, combined.Length)]}");
+        }
         // x-ms-operation-id を抽出 (202 LRO の場合)
         var opIdMatch = System.Text.RegularExpressions.Regex.Match(
             stderr, @"x-ms-operation-id['""]?\s*[:=]\s*['""]?([a-f0-9\-]+)",
