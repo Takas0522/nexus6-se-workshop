@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Linq;
 using EnvironmentSetup.App.Models;
 using EnvironmentSetup.App.Services;
 
@@ -278,12 +279,16 @@ public class Step07MedallionSetup : ISetupStep
             var opId = await ExecuteFabricLroAsync(
                 $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
                 $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
-                $"--body @{payloadPath} --verbose");
+                $"--body @{payloadPath}");
 
             if (opId != null)
                 await PollLroAsync(opId, ct);
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("AlreadyInUse") || ex.Message.Contains("Conflict"))
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("AlreadyInUse", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Conflict", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("409", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine($"    ℹ️ '{name}' は既に存在します (Conflict)。続行します。");
         }
@@ -436,12 +441,16 @@ public class Step07MedallionSetup : ISetupStep
             var opId = await ExecuteFabricLroAsync(
                 $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items\" " +
                 $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
-                $"--body @{envPath} --verbose");
+                $"--body @{envPath}");
 
             if (opId != null)
                 await PollLroAsync(opId, ct);
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("AlreadyInUse") || ex.Message.Contains("Conflict"))
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("AlreadyInUse", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Conflict", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("409", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine($"    ℹ️ Notebook '{name}' は既に存在します。続行します。");
         }
@@ -462,7 +471,7 @@ public class Step07MedallionSetup : ISetupStep
         var opId = await ExecuteFabricLroAsync(
             $"rest --method POST --url \"{FabricResource}/v1/workspaces/{wsId}/items/{notebookId}/jobs/instances?jobType=RunNotebook\" " +
             $"--resource \"{FabricResource}\" --headers \"Content-Type=application/json\" " +
-            "--body \"{}\" --verbose");
+            "--body \"{}\"");
 
         // Notebook 実行は時間がかかるためタイムアウトを延長
         if (opId != null)
@@ -590,11 +599,15 @@ public class Step07MedallionSetup : ISetupStep
 
         if (process.ExitCode != 0)
         {
-            // stderr/stdout 両方を確認 (Fabric は ERROR: をstderrに出す)
-            var combined = stderr + "\n" + stdout;
-            var errorDetail = combined.Contains("errorCode") || combined.Contains("ERROR:")
-                ? combined[..Math.Min(800, combined.Length)]
-                : stderr[..Math.Min(800, stderr.Length)];
+            // INFO: 行（verbose出力）を除外して実際のエラーメッセージを抽出
+            var combinedLines = (stderr + "\n" + stdout)
+                .Split('\n')
+                .Where(l => !l.TrimStart().StartsWith("INFO:"))
+                .ToArray();
+            var filtered = string.Join("\n", combinedLines).Trim();
+            var errorDetail = string.IsNullOrWhiteSpace(filtered)
+                ? (stderr + "\n" + stdout)[..Math.Min(800, (stderr + "\n" + stdout).Length)]
+                : filtered[..Math.Min(800, filtered.Length)];
             throw new InvalidOperationException(
                 $"Fabric API エラー (exit {process.ExitCode}): {errorDetail}");
         }
