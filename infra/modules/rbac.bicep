@@ -32,7 +32,9 @@ var roleIds = {
   storageQueueDataContributor: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
   storageTableDataContributor: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
   keyVaultSecretsUser: '4633458b-17de-408a-b874-0445c86b69e6'
-  cognitiveServicesOpenAIUser: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+  // kind:AIServices では accounts/AIServices/* 名前空間が必要。
+  // Foundry User は dataActions: ["Microsoft.CognitiveServices/*"] で全名前空間カバー。
+  foundryUser: '53ca6127-db72-4b80-b1b0-d745d6d5456d'
   cognitiveServicesContributor: '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
   searchIndexDataReader: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
 }
@@ -121,14 +123,14 @@ resource containerAppKeyVault 'Microsoft.Authorization/roleAssignments@2022-04-0
   }
 }
 
-// Container App → Cognitive Services OpenAI User
+// Container App → Foundry User (kind:AIServices の全データプレーン操作)
 resource containerAppAiServices 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(aiServices.id, containerAppPrincipalId, roleIds.cognitiveServicesOpenAIUser)
+  name: guid(aiServices.id, containerAppPrincipalId, roleIds.foundryUser)
   scope: aiServices
   properties: {
     principalId: containerAppPrincipalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesOpenAIUser)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.foundryUser)
   }
 }
 
@@ -184,14 +186,14 @@ resource functionAppPortalBlob 'Microsoft.Authorization/roleAssignments@2022-04-
 // デプロイ実行ユーザー ロール割り当て (Step12 Foundry Files API 用)
 // =====================================================================
 
-// Deployer → Cognitive Services User (AI Foundry Files/Assistants API)
-resource deployerCognitiveServicesContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
-  name: guid(aiServices.id, deployerPrincipalId, roleIds.cognitiveServicesContributor)
+// Deployer → Foundry User (kind:AIServices Files/Assistants API 用)
+resource deployerFoundryUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(aiServices.id, deployerPrincipalId, roleIds.foundryUser)
   scope: aiServices
   properties: {
     principalId: deployerPrincipalId
     principalType: 'User'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.cognitiveServicesContributor)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.foundryUser)
   }
 }
 

@@ -49,7 +49,7 @@ EnvironmentSetup CLI (Step05 Bicep デプロイ〜Step14) で発生する既知�
 | Fabric item 作成 409 Conflict `ItemDisplayNameAlreadyInUse` | 前回実行で作成済み (再実行時) | Step07 で Conflict を idempotent 成功として処理。既存アイテムの ID を再取得して続行 |
 | Step08 Ontology 作成がハング/FeatureNotAvailable | F4 SKU では Ontology 非対応 (F64以上必要) | 60秒タイムアウト追加済み。タイムアウト or FeatureNotAvailable でスキップして続行 |
 | Storage Blob upload 403 `You do not have the required permissions` | Storage Blob Data Contributor 未割り当て or 伝播待ち | Bicep で deployer に割り当て済み。Step09 は `--auth-mode key` にフォールバック |
-| HTTP 401 on Foundry Files API (Step12) | Cognitive Services User ロール伝播遅延 (5-10分) | Step12 開始時に POST /files プローブで RBAC 伝播を確認（20回×30秒=最大10分）。GET /files は権限なしでも200返すため使えない |
+| HTTP 401 on Foundry Files API (Step12) | `kind:AIServices` は `accounts/AIServices/*` 名前空間で RBAC 評価。`Cognitive Services OpenAI Contributor` (`accounts/OpenAI/*`) では不一致 | **Foundry User** (`53ca6127`) を割り当てる。`dataActions: ["Microsoft.CognitiveServices/*"]` で全名前空間カバー。伝播待ち最大10分。GET /files は権限なしでも200返すためPOSTプローブで確認 |
 | `ResourceNotFound` in RBAC module | 依存リソース未作成 | rbac module に `dependsOn: [aiSearch, aiFoundry, keyVault]` |
 | Key Vault secret set 403 | publicNetworkAccess 自動無効化 | `az keyvault update --public-network-access Enabled` してから set |
 | `Unsupported value: 'temperature'` | gpt-5 は temperature=1 のみ | temperature 省略。Assistants は run で `temperature=1` オーバーライド |
