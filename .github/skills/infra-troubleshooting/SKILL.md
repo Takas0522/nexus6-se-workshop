@@ -25,6 +25,7 @@ EnvironmentSetup CLI (Step05 Bicep デプロイ〜Step14) で発生する既知�
 - **gpt-5 に temperature を渡してはいけない** — temperature=1 のみ対応。指定するなら1、しないなら省略
 - **gpt-5 に max_tokens を使ってはいけない** — `max_completion_tokens` を使う
 - **northeurope に AI Foundry / Functions / Fabric を配置してはいけない** — クォータ=0 または非対応
+- **デプロイヤーに `Cognitive Services OpenAI User` だけ割り当ててはいけない** — Files/Assistants API には `Cognitive Services Contributor` が必要
 - **GET /files で RBAC 確認してはいけない** — 権限なしでも 200 (空リスト) が返る。POST /files で確認すること
 
 ## リージョン構成（変更禁止）
