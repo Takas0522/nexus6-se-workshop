@@ -1,6 +1,6 @@
 ---
 name: infra-troubleshooting
-description: 'Troubleshooting guide for Azure infrastructure deployment in this repository. Use when Bicep deployment fails, RBAC 401 errors occur, region or quota issues arise, AI model errors happen, Container Apps timeout, or when cleaning up and redeploying resources. Covers EnvironmentSetup CLI Steps 5-14.'
+description: 'Troubleshoot Azure infrastructure deployment failures. Use when: Bicep deploy fails, HTTP 401 403 on Foundry or Storage, RBAC role propagation issues, region quota errors, Fabric Capacity inactive, Container Apps timeout, AI model gpt-5 errors, cleanup and redeploy. Covers EnvironmentSetup CLI Steps 5-14, ARM API, Cognitive Services, Fabric API.'
 ---
 
 # Azure インフラデプロイ トラブルシューティング
