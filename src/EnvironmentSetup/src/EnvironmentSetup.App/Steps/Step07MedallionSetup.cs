@@ -176,12 +176,16 @@ public class Step07MedallionSetup : ISetupStep
             var capacityDisplayName = inactiveEntry.GetProperty("displayName").GetString()!;
             Console.WriteLine($"    🔄 Fabric Capacity '{capacityDisplayName}' が Inactive → Resume 中...");
 
-            // ARM REST API で Resume
+            // ARM REST API で Resume — Capacity リソースの実際の RG を特定
             try
             {
                 var subId = (await _az.RunAsync("account show --query id -o tsv", silent: true)).Trim();
                 var rg = (await _az.RunAsync(
-                    "group list --query \"[?contains(name,'nexus6')].name | [0]\" -o tsv", silent: true)).Trim();
+                    $"resource list --resource-type \"Microsoft.Fabric/capacities\" " +
+                    $"--query \"[?name=='{capacityDisplayName}'].resourceGroup | [0]\" -o tsv",
+                    silent: true)).Trim();
+                if (string.IsNullOrEmpty(rg))
+                    throw new InvalidOperationException($"Fabric Capacity '{capacityDisplayName}' のリソースグループが見つかりません。");
                 await _az.RunAsync(
                     $"rest --method POST " +
                     $"--url \"https://management.azure.com/subscriptions/{subId}/resourceGroups/{rg}/providers/Microsoft.Fabric/capacities/{capacityDisplayName}/resume?api-version=2023-11-01\" " +
