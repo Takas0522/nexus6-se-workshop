@@ -92,65 +92,40 @@ public class Step14EntraId : ISetupStep
             var vaultName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
             Console.WriteLine($"  🔒 Key Vault ({vaultName}) にシークレットを保存中...");
 
-            var kvSuccess = false;
+            // publicNetworkAccess を確認
+            var publicAccess = "Enabled";
             try
             {
-                // RBAC ロール割り当て (Key Vault Secrets Officer) を確認・追加
+                var kvJson = await _az.RunAsync(
+                    $"keyvault show --name {vaultName} --query properties.publicNetworkAccess -o tsv",
+                    silent: true);
+                publicAccess = kvJson.Trim();
+            }
+            catch { }
+
+            var kvSuccess = false;
+
+            if (publicAccess.Equals("Disabled", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("    ⚠️ publicNetworkAccess: Disabled (Azure Policy による制限)");
+                Console.WriteLine("    → 外部からの KV アクセス不可。手動登録情報を表示します。");
+            }
+            else
+            {
                 try
                 {
-                    var userOid = await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true);
-                    await _az.RunAsync(
-                        $"role assignment create --role \"Key Vault Secrets Officer\" " +
-                        $"--assignee {userOid.Trim()} " +
-                        $"--scope /subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}",
-                        silent: true);
-                    await Task.Delay(10000);
-                }
-                catch { /* 既に割り当て済みの場合は無視 */ }
-
-                // publicNetworkAccess を Enabled に設定
-                try
-                {
-                    await _az.RunAsync(
-                        $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
-                        silent: true);
-                }
-                catch { }
-
-                // ARM REST API で直接 publicNetworkAccess を Enabled に PATCH
-                try
-                {
-                    await _az.RunAsync(
-                        $"rest --method PATCH " +
-                        $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}?api-version=2023-07-01\" " +
-                        $"--body \"{{\\\"properties\\\":{{\\\"publicNetworkAccess\\\":\\\"Enabled\\\",\\\"networkAcls\\\":{{\\\"defaultAction\\\":\\\"Allow\\\",\\\"bypass\\\":\\\"AzureServices\\\"}}}}}}\"",
-                        silent: true);
-                }
-                catch { }
-
-                // publicNetworkAccess 反映待ち (最大2分)
-                Console.WriteLine("    ⏳ Key Vault public access 反映待ち...");
-                for (int retry = 0; retry < 12; retry++)
-                {
-                    await Task.Delay(10000);
+                    // RBAC ロール割り当て (Key Vault Secrets Officer)
                     try
                     {
+                        var userOid = await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true);
                         await _az.RunAsync(
-                            $"keyvault secret list --vault-name {vaultName} --maxresults 1",
+                            $"role assignment create --role \"Key Vault Secrets Officer\" " +
+                            $"--assignee {userOid.Trim()} " +
+                            $"--scope /subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}",
                             silent: true);
-                        kvSuccess = true;
-                        break;
+                        await Task.Delay(10000);
                     }
-                    catch
-                    {
-                        if (retry == 11) break; // タイムアウト → フォールバック
-                        Console.Write(".");
-                    }
-                }
-
-                if (kvSuccess)
-                {
-                    Console.WriteLine("    ✓ Key Vault アクセス可能");
+                    catch { }
 
                     // Client Secret は特殊文字を含むため一時ファイル経由で設定
                     var secretFilePath = Path.GetFullPath("./output/tmp_secret.txt");
@@ -173,21 +148,31 @@ public class Step14EntraId : ISetupStep
                     File.Delete(secretFilePath);
                     Console.WriteLine("    ✓ teams-app-client-secret");
                     Console.WriteLine("    ✓ teams-app-client-id");
+                    kvSuccess = true;
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"    ⚠️ Key Vault アクセス失敗: {ex.Message[..Math.Min(100, ex.Message.Length)]}");
-                kvSuccess = false;
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"    ⚠️ Key Vault 書き込み失敗: {ex.Message[..Math.Min(150, ex.Message.Length)]}");
+                }
             }
 
             if (!kvSuccess)
             {
-                Console.WriteLine("    ⚠️ Key Vault に publicNetworkAccess が Azure Policy で制限されています。");
-                Console.WriteLine("    📋 シークレットを setup-state.json に保存します (後で手動で KV に登録してください)。");
-                Console.WriteLine($"    Client ID: {appId}");
-                // secret は state に保存（表示はマスク）
-                Console.WriteLine($"    Client Secret: {clientSecret[..4]}****");
+                Console.WriteLine();
+                Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
+                Console.WriteLine("    ║  📋 Key Vault 手動登録が必要です                            ║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine($"    ║  Vault: {vaultName,-52}║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine("    ║  以下を Azure Portal > Key Vault > Secrets で登録:         ║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine($"    ║  Name:  teams-app-client-id                                ║");
+                Console.WriteLine($"    ║  Value: {appId,-52}║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine($"    ║  Name:  teams-app-client-secret                            ║");
+                Console.WriteLine($"    ║  Value: {clientSecret,-52}║");
+                Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
+                Console.WriteLine();
             }
         }
         else
