@@ -110,6 +110,26 @@ public class Step14EntraId : ISetupStep
                 $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
                 silent: true);
 
+            // publicNetworkAccess 反映待ち (ARM→データプレーン伝播に最大30秒)
+            Console.WriteLine("    ⏳ Key Vault public access 反映待ち...");
+            for (int retry = 0; retry < 6; retry++)
+            {
+                await Task.Delay(10000);
+                try
+                {
+                    await _az.RunAsync(
+                        $"keyvault secret list --vault-name {vaultName} --maxresults 1",
+                        silent: true);
+                    break; // アクセス成功
+                }
+                catch
+                {
+                    if (retry == 5) throw;
+                    Console.Write(".");
+                }
+            }
+            Console.WriteLine("    ✓ Key Vault アクセス可能");
+
             // Client Secret は特殊文字（先頭 '-' やチルダ等）を含むため一時ファイル経由で設定
             var secretFilePath = Path.GetFullPath("./output/tmp_secret.txt");
             Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
