@@ -2,437 +2,452 @@
 
 ## データソース概要
 
-本オントロジーは、ニュース分析エージェントが3つの事業領域（携帯電話事業・SNS事業・SI事業）に対するインパクト判断を行うために必要なデータモデルを定義する。共通基盤・事業別・分析結果の3層で構成され、Microsoft Fabric上のMedallionアーキテクチャに準拠する。
+本システムは、3つの業務領域（携帯電話事業・SNS事業・SI事業）と統合顧客基盤で構成されるマルチドメインデータモデルを Microsoft Fabric 上で管理する。ニュース分析エージェントがビジネスインパクトを診断するために、各レイヤーのデータを横断的に参照する。
 
-### データソース一覧
+### データベース構成
 
-| データベース | 事業領域 | 用途 |
+| データベース | 業務領域 | 説明 |
 |---|---|---|
-| `sqldb_common_01` | 共通基盤 | 統合顧客管理、ニュース分析、通知 |
-| `sqldb_mobile_01` | 携帯電話事業 | 契約・利用・MNP管理 |
-| `sqldb_ecommerce_01` | SNS事業 | ユーザー・アクティビティ・広告収益 |
-| `sqldb_fintech_01` | SI事業 | 法人顧客・プロジェクト・取引管理 |
+| `sqldb_common_01` | 共通基盤 | 統合顧客マスタ、ドメイン間ID紐付け、セグメント |
+| `sqldb_mobile_01` | 携帯電話事業 | 顧客、契約、利用/課金トランザクション、端末在庫 |
+| `sqldb_sns_01` | SNS事業 | ユーザー、有料プラン、広告/課金トランザクション、広告枠 |
+| `sqldb_si_01` | SI事業 | 法人顧客、案件契約、取引/請求、リソース在庫 |
 
 ---
 
 ## エンティティ定義
 
-### 共通基盤エンティティ
+### 共通基盤（sqldb_common_01）
 
-#### `sqldb_common_01.unified_customers`
-**統合顧客マスタ**
+#### unified_customers — 統合顧客マスタ
 
-全事業領域の顧客を一元管理するハブエンティティ。クロスセル分析・統合インパクト評価の基点。
+全業務領域の顧客を一意に管理する統合エンティティ。クロスドメイン分析の起点。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `unified_customer_id` | UNIQUEIDENTIFIER (PK) | 統合顧客ID |
+| `unified_customer_id` | UNIQUEIDENTIFIER | 統合顧客ID（PK） |
 | `customer_name` | NVARCHAR(200) | 顧客名 |
-| `customer_type` | NVARCHAR(20) | 顧客種別（`individual` / `corporate`） |
-| `primary_domain` | NVARCHAR(20) | 主所属事業領域 |
-| `registered_at` | DATETIME2 | 初回登録日 |
-| `status` | NVARCHAR(20) | ステータス（`active` / `inactive` / `churned`） |
-| `lifetime_value` | DECIMAL(18,2) | 全事業横断LTV |
+| `email` | NVARCHAR(256) | メールアドレス |
+| `phone` | NVARCHAR(20) | 電話番号 |
+| `created_at` | DATETIME2 | 登録日時 |
+| `updated_at` | DATETIME2 | 更新日時 |
 
-#### `sqldb_common_01.domain_id_mappings`
-**事業領域間顧客IDマッピング**
+**ビジネス意味**: 企業グループ全体で顧客を統合的に把握し、ドメイン横断のインパクト分析を可能にする中核エンティティ。
 
-統合顧客IDと各事業領域固有IDの対応関係を管理する。
+#### domain_id_mappings — 業務領域間ID紐付け
 
-| カラム | 型 | 説明 |
-|---|---|---|
-| `mapping_id` | UNIQUEIDENTIFIER (PK) | マッピングID |
-| `unified_customer_id` | UNIQUEIDENTIFIER (FK) | 統合顧客ID |
-| `domain` | NVARCHAR(20) | 事業領域（`mobile` / `sns` / `si`） |
-| `domain_customer_id` | NVARCHAR(100) | 事業領域固有の顧客ID |
-| `mapped_at` | DATETIME2 | マッピング作成日 |
-| `confidence_score` | DECIMAL(5,4) | 名寄せ確信度 |
-
-#### `sqldb_common_01.customer_segments`
-**顧客セグメント定義マスタ**
-
-分析・通知のターゲティングに使用するセグメント定義。
+統合顧客IDと各業務領域の固有顧客IDをマッピングするブリッジエンティティ。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `segment_id` | NVARCHAR(50) (PK) | セグメントID |
-| `segment_name` | NVARCHAR(100) | セグメント名称 |
-| `domain` | NVARCHAR(20) | 対象事業領域（`all` / `mobile` / `sns` / `si`） |
-| `criteria_json` | NVARCHAR(MAX) | セグメント条件（JSON） |
-| `customer_count` | INT | 対象顧客数（最終更新時） |
-| `updated_at` | DATETIME2 | 最終更新日 |
+| `mapping_id` | UNIQUEIDENTIFIER | マッピングID（PK） |
+| `unified_customer_id` | UNIQUEIDENTIFIER | 統合顧客ID（FK） |
+| `domain` | NVARCHAR(50) | 業務領域（`mobile` / `sns` / `si`） |
+| `domain_customer_id` | NVARCHAR(100) | 領域固有顧客ID |
 
-#### `sqldb_common_01.news_articles`
-**ニュース記事**
+**ビジネス意味**: 1人の顧客が複数領域を利用する場合のID解決に使用。インパクト分析時に「ニュースAが影響する携帯顧客のうち、SNSも利用している人数」等を算出。
 
-取得・分析対象のニュース記事を格納する。エージェントの入力データ。
+#### customer_segments — 顧客セグメント分類
 
-| カラム | 型 | 説明 |
-|---|---|---|
-| `article_id` | UNIQUEIDENTIFIER (PK) | 記事ID |
-| `title` | NVARCHAR(500) | 記事タイトル |
-| `body` | NVARCHAR(MAX) | 記事本文 |
-| `source` | NVARCHAR(200) | ソース媒体名 |
-| `published_at` | DATETIME2 | 公開日時 |
-| `category` | NVARCHAR(50) | カテゴリ（`economy` / `competition` / `regulation`） |
-| `tags` | NVARCHAR(MAX) | タグ（JSON配列） |
-| `ingested_at` | DATETIME2 | 取込日時 |
-
-#### `sqldb_common_01.impact_assessments`
-**インパクト診断結果**
-
-ニュース記事に対するエージェントの診断結果を格納する。
+顧客の行動・属性に基づくセグメント分類。通知優先度やインパクト規模の推定に利用。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `assessment_id` | UNIQUEIDENTIFIER (PK) | 診断ID |
-| `article_id` | UNIQUEIDENTIFIER (FK) | 対象記事ID |
-| `domain` | NVARCHAR(20) | 事業領域 |
-| `skill_id` | NVARCHAR(100) | 使用スキルID |
-| `impact_score` | INT | インパクトスコア（0-100） |
-| `impact_level` | NVARCHAR(20) | インパクトレベル |
-| `impact_direction` | NVARCHAR(20) | 影響方向（`positive` / `negative`） |
-| `risk_summary` | NVARCHAR(MAX) | リスクサマリー |
-| `recommended_actions` | NVARCHAR(MAX) | 推奨アクション（JSON配列） |
-| `assessed_at` | DATETIME2 | 診断日時 |
+| `unified_customer_id` | UNIQUEIDENTIFIER | 統合顧客ID（FK） |
+| `segment_code` | NVARCHAR(20) | セグメントコード |
+| `segment_name` | NVARCHAR(100) | セグメント名 |
+| `assigned_at` | DATETIME2 | 分類日時 |
 
-#### `sqldb_common_01.notifications`
-**通知履歴**
-
-インパクト診断に基づく各部署への通知履歴。
-
-| カラム | 型 | 説明 |
-|---|---|---|
-| `notification_id` | UNIQUEIDENTIFIER (PK) | 通知ID |
-| `assessment_id` | UNIQUEIDENTIFIER (FK) | 診断ID |
-| `recipient_domain` | NVARCHAR(20) | 通知先事業領域 |
-| `recipient_role` | NVARCHAR(50) | 通知先ロール |
-| `channel` | NVARCHAR(20) | 通知チャネル（`teams` / `email` / `webhook`） |
-| `priority` | NVARCHAR(20) | 優先度（`critical` / `high` / `medium` / `low`） |
-| `sent_at` | DATETIME2 | 送信日時 |
-| `acknowledged_at` | DATETIME2 | 確認日時 |
+**ビジネス意味**: VIP/一般/休眠等のセグメントにより、インパクト通知の優先度と内容をパーソナライズ。
 
 ---
 
-### 携帯電話事業エンティティ
+### 携帯電話事業（sqldb_mobile_01）
 
-#### `sqldb_mobile_01.customers`
-**携帯電話事業顧客**
+#### customers — 携帯電話事業顧客
 
-携帯電話事業における個人・法人顧客情報。
-
-| カラム | 型 | 説明 |
-|---|---|---|
-| `customer_id` | NVARCHAR(50) (PK) | 携帯顧客ID |
-| `customer_name` | NVARCHAR(200) | 顧客名 |
-| `customer_type` | NVARCHAR(20) | 種別（`individual` / `corporate`） |
-| `registered_at` | DATETIME2 | 登録日 |
-| `segment_id` | NVARCHAR(50) (FK) | セグメントID |
-| `prefecture` | NVARCHAR(10) | 都道府県 |
-| `status` | NVARCHAR(20) | ステータス |
-
-#### `sqldb_mobile_01.contracts`
-**携帯電話契約**
-
-回線契約・端末割賦契約の情報。
+携帯電話サービスの契約者マスタ。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `contract_id` | NVARCHAR(50) (PK) | 契約ID |
-| `customer_id` | NVARCHAR(50) (FK) | 顧客ID |
-| `plan_id` | NVARCHAR(50) | 料金プランID |
-| `terminal_id` | NVARCHAR(50) | 端末ID |
-| `contract_start` | DATE | 契約開始日 |
-| `contract_end` | DATE | 契約終了日 |
-| `installment_flag` | BIT | 割賦販売フラグ |
-| `installment_months` | INT | 分割回数 |
+| `customer_id` | NVARCHAR(100) | 顧客ID（PK, `MOB-XXXXXX`形式） |
+| `plan_type` | NVARCHAR(50) | プラン種別 |
+| `status` | NVARCHAR(20) | ステータス（`active`/`suspended`/`churned`） |
+| `created_at` | DATETIME2 | 登録日時 |
+
+**ビジネス意味**: MNP転出リスク分析、プラン変更トレンド、解約予測の基礎データ。
+
+#### contracts — 携帯電話契約
+
+回線・端末・オプション等の個別契約。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `contract_id` | UNIQUEIDENTIFIER | 契約ID（PK） |
+| `customer_id` | NVARCHAR(100) | 顧客ID（FK） |
+| `plan_code` | NVARCHAR(30) | プランコード |
+| `start_date` | DATE | 契約開始日 |
+| `end_date` | DATE | 契約終了日 |
 | `monthly_fee` | DECIMAL(10,2) | 月額料金 |
-| `status` | NVARCHAR(20) | 契約ステータス |
 
-#### `sqldb_mobile_01.usage_billing`
-**利用・課金履歴**
+**ビジネス意味**: 端末割賦残債・更新期顧客の把握。在庫不足時の機種変更抑制シミュレーションに使用。
 
-月次の利用実績と課金情報。
+#### transactions — 携帯電話利用・課金トランザクション
 
-| カラム | 型 | 説明 |
-|---|---|---|
-| `billing_id` | UNIQUEIDENTIFIER (PK) | 課金ID |
-| `contract_id` | NVARCHAR(50) (FK) | 契約ID |
-| `billing_month` | DATE | 課金月 |
-| `data_usage_gb` | DECIMAL(10,3) | データ使用量(GB) |
-| `voice_minutes` | INT | 通話分数 |
-| `total_charge` | DECIMAL(10,2) | 合計請求額 |
-| `payment_status` | NVARCHAR(20) | 入金ステータス |
-
-#### `sqldb_mobile_01.mnp_history`
-**MNP履歴**
-
-番号ポータビリティによる転入・転出履歴。解約予測・競合分析に使用。
+通話/通信/購入/課金等の取引記録。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `mnp_id` | UNIQUEIDENTIFIER (PK) | MNP ID |
-| `customer_id` | NVARCHAR(50) (FK) | 顧客ID |
-| `direction` | NVARCHAR(10) | 方向（`in` / `out`） |
-| `carrier_from` | NVARCHAR(50) | 転出元キャリア |
-| `carrier_to` | NVARCHAR(50) | 転入先キャリア |
-| `reason` | NVARCHAR(100) | 転出理由 |
-| `processed_at` | DATETIME2 | 処理日時 |
+| `transaction_id` | UNIQUEIDENTIFIER | トランザクションID（PK） |
+| `customer_id` | NVARCHAR(100) | 顧客ID（FK） |
+| `transaction_type` | NVARCHAR(30) | 取引種別（`usage`/`purchase`/`payment`/`refund`） |
+| `amount` | DECIMAL(12,2) | 金額 |
+| `transaction_date` | DATETIME2 | 取引日時 |
+
+**ビジネス意味**: 月間ARPU、利用傾向、解約前兆の分析基盤。6ヶ月分108,000件。
+
+#### inventory — 端末在庫
+
+端末のモデル別・倉庫別在庫状況。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `inventory_id` | UNIQUEIDENTIFIER | 在庫ID（PK） |
+| `device_model` | NVARCHAR(100) | 端末モデル名 |
+| `quantity` | INT | 在庫数 |
+| `warehouse_code` | NVARCHAR(20) | 倉庫コード |
+| `updated_at` | DATETIME2 | 更新日時 |
+
+**ビジネス意味**: 半導体供給不足シナリオでの在庫逼迫度・販売機会損失の判断に直結。
 
 ---
 
-### SNS事業エンティティ
+### SNS事業（sqldb_sns_01）
 
-#### `sqldb_ecommerce_01.sns_users`
-**SNSユーザー**
+#### customers — SNS事業ユーザー
 
-SNSプラットフォームのユーザー情報。
-
-| カラム | 型 | 説明 |
-|---|---|---|
-| `user_id` | NVARCHAR(50) (PK) | ユーザーID |
-| `display_name` | NVARCHAR(100) | 表示名 |
-| `user_type` | NVARCHAR(20) | 種別（`general` / `creator` / `business`） |
-| `registered_at` | DATETIME2 | 登録日 |
-| `last_active_at` | DATETIME2 | 最終アクティブ日時 |
-| `follower_count` | INT | フォロワー数 |
-| `subscription_plan` | NVARCHAR(20) | 課金プラン（`free` / `premium`） |
-| `status` | NVARCHAR(20) | ステータス |
-
-#### `sqldb_ecommerce_01.sns_activities`
-**SNSアクティビティ履歴**
-
-投稿・いいね・シェア等のユーザーアクション履歴。
+SNSプラットフォームの登録ユーザーマスタ。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `activity_id` | UNIQUEIDENTIFIER (PK) | アクティビティID |
-| `user_id` | NVARCHAR(50) (FK) | ユーザーID |
-| `activity_type` | NVARCHAR(20) | 種別（`post` / `like` / `share` / `comment`） |
-| `content_id` | NVARCHAR(50) | 対象コンテンツID |
-| `created_at` | DATETIME2 | 発生日時 |
-| `platform` | NVARCHAR(20) | プラットフォーム（`web` / `ios` / `android`） |
+| `customer_id` | NVARCHAR(100) | ユーザーID（PK, `SNS-XXXXXX`形式） |
+| `username` | NVARCHAR(100) | ユーザー名 |
+| `account_tier` | NVARCHAR(20) | アカウント種別（`free`/`premium`/`business`） |
+| `created_at` | DATETIME2 | 登録日時 |
 
-#### `sqldb_ecommerce_01.ad_revenues`
-**SNS広告収益**
+**ビジネス意味**: DAU/MAU算出、課金ユーザー比率、アカウント成長分析の基礎。
 
-広告キャンペーン単位の収益情報。
+#### contracts — SNS有料プラン契約
 
-| カラム | 型 | 説明 |
-|---|---|---|
-| `revenue_id` | UNIQUEIDENTIFIER (PK) | 収益ID |
-| `advertiser_id` | NVARCHAR(50) | 広告主ID |
-| `campaign_id` | NVARCHAR(50) | キャンペーンID |
-| `revenue_date` | DATE | 計上日 |
-| `impressions` | BIGINT | インプレッション数 |
-| `clicks` | INT | クリック数 |
-| `revenue_jpy` | DECIMAL(12,2) | 収益額（円） |
-| `currency` | NVARCHAR(10) | 請求通貨 |
-| `advertiser_industry` | NVARCHAR(50) | 広告主業種 |
-
----
-
-### SI事業エンティティ
-
-#### `sqldb_fintech_01.si_clients`
-**SI事業顧客（法人）**
-
-SI事業のクライアント企業情報。
+プレミアムプラン・ビジネスプラン等の有料サブスクリプション。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `client_id` | NVARCHAR(50) (PK) | 法人顧客ID |
-| `company_name` | NVARCHAR(200) | 企業名 |
-| `industry` | NVARCHAR(50) | 業種 |
-| `employee_count` | INT | 従業員数 |
-| `annual_it_budget_oku` | DECIMAL(10,2) | 年間IT予算（億円） |
-| `tier` | NVARCHAR(10) | 顧客ティア（`S` / `A` / `B` / `C`） |
-| `relationship_start` | DATE | 取引開始日 |
-| `status` | NVARCHAR(20) | ステータス |
-
-#### `sqldb_fintech_01.si_projects`
-**SIプロジェクト**
-
-SI案件のプロジェクト情報。パイプライン〜完了まで管理。
-
-| カラム | 型 | 説明 |
-|---|---|---|
-| `project_id` | NVARCHAR(50) (PK) | プロジェクトID |
-| `client_id` | NVARCHAR(50) (FK) | 法人顧客ID |
-| `project_name` | NVARCHAR(200) | プロジェクト名 |
-| `project_type` | NVARCHAR(30) | 種別（`new_development` / `migration` / `maintenance` / `consulting`） |
-| `contract_type` | NVARCHAR(20) | 契約形態（`fixed_price` / `time_and_material`） |
-| `amount_oku` | DECIMAL(10,2) | 案件金額（億円） |
-| `currency` | NVARCHAR(10) | 契約通貨 |
+| `contract_id` | UNIQUEIDENTIFIER | 契約ID（PK） |
+| `customer_id` | NVARCHAR(100) | ユーザーID（FK） |
+| `plan_code` | NVARCHAR(30) | プランコード |
 | `start_date` | DATE | 開始日 |
-| `planned_end_date` | DATE | 予定完了日 |
-| `status` | NVARCHAR(20) | ステータス（`pipeline` / `active` / `on_hold` / `completed` / `cancelled`） |
-| `offshore_ratio` | DECIMAL(5,4) | オフショア比率 |
+| `monthly_fee` | DECIMAL(10,2) | 月額料金 |
 
-#### `sqldb_fintech_01.si_transactions`
-**SI取引・請求履歴**
+**ビジネス意味**: サブスクリプション収益の安定性評価。規制変更時の解約リスク分析。
 
-プロジェクトに紐づく請求・入金履歴。
+#### transactions — SNS広告・課金トランザクション
+
+広告収入・課金アイテム購入・サブスク決済等の取引記録。
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `transaction_id` | UNIQUEIDENTIFIER (PK) | 取引ID |
-| `project_id` | NVARCHAR(50) (FK) | プロジェクトID |
-| `transaction_type` | NVARCHAR(20) | 種別（`invoice` / `payment` / `adjustment`） |
-| `amount_jpy` | DECIMAL(14,2) | 金額（円） |
-| `currency` | NVARCHAR(10) | 通貨 |
-| `transaction_date` | DATE | 取引日 |
-| `due_date` | DATE | 支払期日 |
-| `status` | NVARCHAR(20) | ステータス |
+| `transaction_id` | UNIQUEIDENTIFIER | トランザクションID（PK） |
+| `customer_id` | NVARCHAR(100) | ユーザーID（FK） |
+| `transaction_type` | NVARCHAR(30) | 取引種別（`ad_revenue`/`subscription`/`in_app_purchase`/`boost`） |
+| `amount` | DECIMAL(12,2) | 金額 |
+| `transaction_date` | DATETIME2 | 取引日時 |
+
+**ビジネス意味**: 広告収益モデルへの依存度分析。DSA規制シナリオでの収益インパクト算出基盤。6ヶ月分270,000件。
+
+#### ad_inventory — 広告枠在庫
+
+広告インプレッション枠の種別・在庫・単価。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `ad_slot_id` | UNIQUEIDENTIFIER | 広告枠ID（PK） |
+| `slot_type` | NVARCHAR(50) | 枠種別（`banner`/`interstitial`/`video`/`native`） |
+| `available_impressions` | INT | 利用可能インプレッション数 |
+| `unit_price` | DECIMAL(10,2) | 単価（CPM） |
+| `updated_at` | DATETIME2 | 更新日時 |
+
+**ビジネス意味**: 広告収益予測と規制影響シミュレーション。DSA適用時のターゲティング制限による単価下落の定量化。
+
+---
+
+### SI事業（sqldb_si_01）
+
+#### customers — SI事業顧客（法人）
+
+システムインテグレーション事業の法人顧客マスタ。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `customer_id` | NVARCHAR(100) | 顧客ID（PK, `SI-XXXXXX`形式） |
+| `company_name` | NVARCHAR(200) | 法人名 |
+| `industry` | NVARCHAR(50) | 業種 |
+| `created_at` | DATETIME2 | 登録日時 |
+
+**ビジネス意味**: 業種別のニュースインパクト集計。通信事業者顧客の特定（規制対応需要分析）。
+
+#### contracts — SI案件契約
+
+プロジェクト単位の契約情報。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `contract_id` | UNIQUEIDENTIFIER | 契約ID（PK） |
+| `customer_id` | NVARCHAR(100) | 顧客ID（FK） |
+| `project_name` | NVARCHAR(200) | プロジェクト名 |
+| `contract_value` | DECIMAL(14,2) | 契約金額 |
+| `start_date` | DATE | 開始日 |
+| `end_date` | DATE | 終了日 |
+
+**ビジネス意味**: ニュースインパクトの金額規模推定（影響を受けるPJ数×契約額）。納期リスクの算出基盤。
+
+#### transactions — SI事業取引・請求トランザクション
+
+マイルストーン請求・月次請求・追加作業等の取引記録。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `transaction_id` | UNIQUEIDENTIFIER | トランザクションID（PK） |
+| `customer_id` | NVARCHAR(100) | 顧客ID（FK） |
+| `contract_id` | UNIQUEIDENTIFIER | 契約ID（FK） |
+| `transaction_type` | NVARCHAR(30) | 取引種別（`milestone`/`monthly`/`change_order`/`penalty`） |
+| `amount` | DECIMAL(14,2) | 金額 |
+| `transaction_date` | DATETIME2 | 取引日時 |
+
+**ビジネス意味**: 収益認識タイミングと遅延リスクの可視化。6ヶ月分162,000件。
+
+#### inventory — SI事業リソース在庫（要員・ライセンス）
+
+エンジニア要員プール、ソフトウェアライセンス、HW在庫の管理。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `inventory_id` | UNIQUEIDENTIFIER | 在庫ID（PK） |
+| `resource_type` | NVARCHAR(50) | リソース種別（`engineer`/`license`/`hardware`） |
+| `resource_name` | NVARCHAR(100) | リソース名 |
+| `available_count` | INT | 利用可能数 |
+| `updated_at` | DATETIME2 | 更新日時 |
+
+**ビジネス意味**: 半導体不足シナリオでのHW調達制約、通信品質基準シナリオでのエンジニア充足度の判断材料。
 
 ---
 
 ## リレーション定義
 
+### エンティティ関係図（ER概念）
+
 ```
-sqldb_common_01.unified_customers
-    │
-    ├──< sqldb_common_01.domain_id_mappings (1:N)
-    │       │
-    │       ├── domain="mobile" → sqldb_mobile_01.customers
-    │       ├── domain="sns"    → sqldb_ecommerce_01.sns_users
-    │       └── domain="si"     → sqldb_fintech_01.si_clients
-    │
-    └──< sqldb_common_01.customer_segments (N:1, via segment_id)
-
-sqldb_mobile_01.customers
-    └──< sqldb_mobile_01.contracts (1:N)
-            ├──< sqldb_mobile_01.usage_billing (1:N)
-            └──< sqldb_mobile_01.mnp_history (via customer_id)
-
-sqldb_ecommerce_01.sns_users
-    └──< sqldb_ecommerce_01.sns_activities (1:N)
-
-sqldb_ecommerce_01.ad_revenues
-    (独立: advertiser_id による広告主単位集計)
-
-sqldb_fintech_01.si_clients
-    └──< sqldb_fintech_01.si_projects (1:N)
-            └──< sqldb_fintech_01.si_transactions (1:N)
-
-sqldb_common_01.news_articles
-    └──< sqldb_common_01.impact_assessments (1:N)
-            └──< sqldb_common_01.notifications (1:N)
+┌─────────────────────────────────────────────────────────────────────┐
+│                        sqldb_common_01                               │
+│                                                                     │
+│  unified_customers ──1:N──> domain_id_mappings                      │
+│        │                         │                                  │
+│        └──1:1──> customer_segments                                  │
+│                                  │                                  │
+└──────────────────────────────────┼──────────────────────────────────┘
+                                   │
+                   domain_customer_id（論理FK）
+                                   │
+         ┌─────────────────────────┼──────────────────────────┐
+         │                         │                          │
+         ▼                         ▼                          ▼
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────────┐
+│  sqldb_mobile_01 │   │   sqldb_sns_01   │   │    sqldb_si_01       │
+│                 │   │                 │   │                     │
+│ customers       │   │ customers       │   │ customers           │
+│   │             │   │   │             │   │   │                 │
+│   ├─1:N─contracts│   │   ├─1:N─contracts│   │   ├─1:N─contracts   │
+│   │             │   │   │             │   │   │   │             │
+│   └─1:N─transactions│   └─1:N─transactions│   │   └─1:N─transactions│
+│                 │   │                 │   │                     │
+│ inventory(独立) │   │ ad_inventory(独立)│   │ inventory(独立)     │
+└─────────────────┘   └─────────────────┘   └─────────────────────┘
 ```
 
-### 主要結合パス
+### リレーション一覧
 
-| 結合目的 | FROM | JOIN | ON |
+| # | 起点エンティティ | 関係 | 終点エンティティ | 結合キー | 結合種別 |
+|---|---|---|---|---|---|
+| 1 | unified_customers | 1:N | domain_id_mappings | `unified_customer_id` | 物理FK |
+| 2 | unified_customers | 1:1 | customer_segments | `unified_customer_id` | 物理FK |
+| 3 | domain_id_mappings | 1:1 | mobile.customers | `domain_customer_id = customer_id` (WHERE domain='mobile') | 論理FK |
+| 4 | domain_id_mappings | 1:1 | sns.customers | `domain_customer_id = customer_id` (WHERE domain='sns') | 論理FK |
+| 5 | domain_id_mappings | 1:1 | si.customers | `domain_customer_id = customer_id` (WHERE domain='si') | 論理FK |
+| 6 | mobile.customers | 1:N | mobile.contracts | `customer_id` | 物理FK |
+| 7 | mobile.customers | 1:N | mobile.transactions | `customer_id` | 物理FK |
+| 8 | sns.customers | 1:N | sns.contracts | `customer_id` | 物理FK |
+| 9 | sns.customers | 1:N | sns.transactions | `customer_id` | 物理FK |
+| 10 | si.customers | 1:N | si.contracts | `customer_id` | 物理FK |
+| 11 | si.customers | 1:N | si.transactions | `customer_id` | 物理FK |
+| 12 | si.contracts | 1:N | si.transactions | `contract_id` | 物理FK |
+
+### クロスドメイン結合パターン
+
+```sql
+-- 統合顧客から全ドメインの取引を横断集計
+SELECT uc.unified_customer_id, uc.customer_name,
+       SUM(CASE WHEN dm.domain = 'mobile' THEN mt.amount ELSE 0 END) AS mobile_total,
+       SUM(CASE WHEN dm.domain = 'sns' THEN st.amount ELSE 0 END) AS sns_total,
+       SUM(CASE WHEN dm.domain = 'si' THEN it.amount ELSE 0 END) AS si_total
+FROM sqldb_common_01.unified_customers uc
+JOIN sqldb_common_01.domain_id_mappings dm ON uc.unified_customer_id = dm.unified_customer_id
+LEFT JOIN sqldb_mobile_01.transactions mt ON dm.domain_customer_id = mt.customer_id AND dm.domain = 'mobile'
+LEFT JOIN sqldb_sns_01.transactions st ON dm.domain_customer_id = st.customer_id AND dm.domain = 'sns'
+LEFT JOIN sqldb_si_01.transactions it ON dm.domain_customer_id = it.customer_id AND dm.domain = 'si'
+GROUP BY uc.unified_customer_id, uc.customer_name;
+```
+
+---
+
+## メダリオン構成（Bronze / Silver / Gold）
+
+### Bronze 層 — Raw Ingestion
+
+ソースDBからの差分・全量取り込み。変換なし、到着順保持。
+
+| Lakehouse テーブル | ソース | 更新頻度 | 形式 |
 |---|---|---|---|
-| 統合顧客→携帯契約 | `unified_customers` | `domain_id_mappings` → `mobile_01.customers` → `contracts` | `unified_customer_id` → `domain_customer_id` = `customer_id` |
-| 統合顧客→SNS活動 | `unified_customers` | `domain_id_mappings` → `ecommerce_01.sns_users` → `sns_activities` | `unified_customer_id` → `domain_customer_id` = `user_id` |
-| 統合顧客→SI案件 | `unified_customers` | `domain_id_mappings` → `fintech_01.si_clients` → `si_projects` | `unified_customer_id` → `domain_customer_id` = `client_id` |
-| ニュース→診断→通知 | `news_articles` | `impact_assessments` → `notifications` | `article_id` → `assessment_id` |
+| `bronze_common_customers` | sqldb_common_01.unified_customers | 日次 | Delta |
+| `bronze_common_mappings` | sqldb_common_01.domain_id_mappings | 日次 | Delta |
+| `bronze_common_segments` | sqldb_common_01.customer_segments | 日次 | Delta |
+| `bronze_mobile_customers` | sqldb_mobile_01.customers | 日次 | Delta |
+| `bronze_mobile_contracts` | sqldb_mobile_01.contracts | 日次 | Delta |
+| `bronze_mobile_transactions` | sqldb_mobile_01.transactions | 時間次 | Delta |
+| `bronze_mobile_inventory` | sqldb_mobile_01.inventory | 時間次 | Delta |
+| `bronze_sns_customers` | sqldb_sns_01.customers | 日次 | Delta |
+| `bronze_sns_contracts` | sqldb_sns_01.contracts | 日次 | Delta |
+| `bronze_sns_transactions` | sqldb_sns_01.transactions | 時間次 | Delta |
+| `bronze_sns_ad_inventory` | sqldb_sns_01.ad_inventory | 時間次 | Delta |
+| `bronze_si_customers` | sqldb_si_01.customers | 日次 | Delta |
+| `bronze_si_contracts` | sqldb_si_01.contracts | 日次 | Delta |
+| `bronze_si_transactions` | sqldb_si_01.transactions | 時間次 | Delta |
+| `bronze_si_inventory` | sqldb_si_01.inventory | 日次 | Delta |
+
+### Silver 層 — Cleansed & Conformed
+
+データ品質チェック済み、型統一、重複排除、SCD Type2 適用。
+
+| Lakehouse テーブル | 説明 | 主な変換 |
+|---|---|---|
+| `silver_dim_customers_unified` | 統合顧客ディメンション | 全ドメイン顧客を統合、SCD2 |
+| `silver_dim_customers_mobile` | 携帯事業顧客ディメンション | status正規化、NULL補完 |
+| `silver_dim_customers_sns` | SNS事業顧客ディメンション | tier正規化 |
+| `silver_dim_customers_si` | SI事業顧客ディメンション | industry正規化 |
+| `silver_dim_contracts_mobile` | 携帯契約ディメンション | 契約期間計算、ステータス付与 |
+| `silver_dim_contracts_sns` | SNS契約ディメンション | MRR計算付与 |
+| `silver_dim_contracts_si` | SI契約ディメンション | 進捗率計算付与 |
+| `silver_fact_transactions_mobile` | 携帯トランザクションファクト | 金額正規化（税別統一）、分類コード付与 |
+| `silver_fact_transactions_sns` | SNSトランザクションファクト | 広告/課金分類、通貨統一 |
+| `silver_fact_transactions_si` | SIトランザクションファクト | マイルストーン/月次分類 |
+| `silver_dim_inventory_mobile` | 端末在庫ディメンション | モデル正規化、カテゴリ付与 |
+| `silver_dim_inventory_sns` | 広告枠ディメンション | 枠種別正規化、eCPM計算 |
+| `silver_dim_inventory_si` | リソース在庫ディメンション | リソース種別正規化 |
+| `silver_bridge_domain_mappings` | ドメイン間ブリッジ | 有効マッピングのみ抽出 |
+| `silver_dim_segments` | セグメントディメンション | コード→名称正規化 |
+
+### Gold 層 — Business-Ready Aggregates
+
+ビジネスKPI・インパクト分析に最適化されたスタースキーマ / 集計テーブル。
+
+| Lakehouse テーブル | 説明 | 粒度 | 更新頻度 |
+|---|---|---|---|
+| `gold_agg_revenue_by_domain` | ドメイン別月次収益 | 月×ドメイン | 日次 |
+| `gold_agg_customer_lifetime_value` | 顧客LTV | 顧客 | 週次 |
+| `gold_agg_churn_risk_scores` | 解約リスクスコア | 顧客×月 | 日次 |
+| `gold_agg_mobile_arpu` | 携帯ARPU | 月×プラン | 日次 |
+| `gold_agg_mobile_inventory_health` | 端末在庫健全性 | モデル×倉庫×日 | 時間次 |
+| `gold_agg_sns_dau_mau` | SNS DAU/MAU | 日 | 日次 |
+| `gold_agg_sns_ad_revenue` | SNS広告収益 | 日×枠種別 | 日次 |
+| `gold_agg_sns_ad_fill_rate` | 広告枠充填率 | 日×枠種別 | 日次 |
+| `gold_agg_si_project_progress` | SI案件進捗 | 契約×週 | 週次 |
+| `gold_agg_si_resource_utilization` | SIリソース稼働率 | 種別×月 | 日次 |
+| `gold_agg_cross_domain_impact` | クロスドメインインパクト | 顧客×シナリオ | オンデマンド |
+| `gold_fact_news_impact_assessments` | ニュースインパクト診断結果 | ニュース×ドメイン | リアルタイム |
+| `gold_dim_news_scenarios` | ニュースシナリオマスタ | シナリオ | オンデマンド |
 
 ---
 
-## メダリオン構成
+## KPI定義（Gold層集計テーブル詳細）
 
-### Bronze層（Raw）
+### 全社共通KPI
 
-生データをそのまま取り込むレイヤー。ソースシステムからの増分取込を管理。
+| KPI名 | テーブル | 計算式 | 閾値 |
+|---|---|---|---|
+| 統合顧客数 | `gold_agg_revenue_by_domain` | COUNT(DISTINCT unified_customer_id) | — |
+| ドメイン横断利用率 | `silver_bridge_domain_mappings` | 2ドメイン以上利用顧客 / 全顧客 | 目標 ≥ 25% |
+| 全社月間収益 | `gold_agg_revenue_by_domain` | SUM(monthly_revenue) | — |
 
-| Lakehouse テーブル | ソース | 取込頻度 |
-|---|---|---|
-| `bronze_mobile_customers` | `sqldb_mobile_01.customers` | 日次 |
-| `bronze_mobile_contracts` | `sqldb_mobile_01.contracts` | 日次 |
-| `bronze_mobile_usage_billing` | `sqldb_mobile_01.usage_billing` | 日次 |
-| `bronze_mobile_mnp_history` | `sqldb_mobile_01.mnp_history` | 日次 |
-| `bronze_sns_users` | `sqldb_ecommerce_01.sns_users` | 日次 |
-| `bronze_sns_activities` | `sqldb_ecommerce_01.sns_activities` | 時間次 |
-| `bronze_sns_ad_revenues` | `sqldb_ecommerce_01.ad_revenues` | 日次 |
-| `bronze_si_clients` | `sqldb_fintech_01.si_clients` | 日次 |
-| `bronze_si_projects` | `sqldb_fintech_01.si_projects` | 日次 |
-| `bronze_si_transactions` | `sqldb_fintech_01.si_transactions` | 日次 |
-| `bronze_news_articles` | `sqldb_common_01.news_articles` | リアルタイム |
-| `bronze_impact_assessments` | `sqldb_common_01.impact_assessments` | リアルタイム |
+### 携帯電話事業KPI
 
-### Silver層（Cleansed & Enriched）
+| KPI名 | テーブル | 計算式 | 警告閾値 |
+|---|---|---|---|
+| ARPU（月間） | `gold_agg_mobile_arpu` | 月間収益 / アクティブ契約数 | < ¥3,500 |
+| 解約率（月間） | `gold_agg_churn_risk_scores` | 月間解約数 / 月初契約数 | > 1.5% |
+| 在庫充足率 | `gold_agg_mobile_inventory_health` | 在庫数 / 月間予測販売数 | < 1.5ヶ月分 |
+| 端末モデル別欠品率 | `gold_agg_mobile_inventory_health` | 欠品モデル数 / 全取扱モデル数 | > 10% |
+| MNP純増減 | `silver_fact_transactions_mobile` | MNP転入 - MNP転出 | < 0（連続2ヶ月） |
 
-データクレンジング、正規化、エンリッチメントを適用したレイヤー。
+### SNS事業KPI
 
-| Lakehouse テーブル | 変換内容 |
-|---|---|
-| `silver_unified_customers` | 名寄せ済み統合顧客（全事業領域のID付与） |
-| `silver_mobile_contracts_enriched` | 契約＋プラン詳細＋端末情報結合 |
-| `silver_mobile_churn_signals` | 解約予兆スコア付与（MNP履歴＋利用量推移） |
-| `silver_sns_user_engagement` | エンゲージメントスコア算出（DAU/MAU, セッション等） |
-| `silver_sns_ad_performance` | 広告KPI算出（CTR, CPC, ROAS） |
-| `silver_si_project_health` | プロジェクト健全性スコア（進捗・収益・リスク） |
-| `silver_si_pipeline_scored` | パイプライン案件の受注確度スコア付与 |
-| `silver_news_classified` | ニュース記事のカテゴリ分類・エンティティ抽出済み |
+| KPI名 | テーブル | 計算式 | 警告閾値 |
+|---|---|---|---|
+| DAU/MAU比率 | `gold_agg_sns_dau_mau` | DAU / MAU | < 30% |
+| 広告収益（日次） | `gold_agg_sns_ad_revenue` | SUM(ad_revenue) | 前週比 -15% |
+| 広告枠充填率 | `gold_agg_sns_ad_fill_rate` | 消化IMP / 利用可能IMP | < 70% |
+| 有料プラン転換率 | `silver_dim_contracts_sns` | 有料契約数 / 全ユーザー数 | < 5% |
+| eCPM | `gold_agg_sns_ad_revenue` | 広告収益 / IMP × 1000 | < ¥200 |
 
-### Gold層（Business-Ready）
+### SI事業KPI
 
-ビジネスユーザー・エージェントが直接利用する集計・分析テーブル。
+| KPI名 | テーブル | 計算式 | 警告閾値 |
+|---|---|---|---|
+| パイプライン総額 | `gold_agg_si_project_progress` | SUM(remaining_value) | 前四半期比 -20% |
+| リソース稼働率 | `gold_agg_si_resource_utilization` | 稼働中 / (稼働中 + 待機) | < 75% または > 95% |
+| 案件遅延率 | `gold_agg_si_project_progress` | 遅延PJ数 / 全PJ数 | > 20% |
+| 顧客業種集中度 | `silver_dim_customers_si` | 最大業種比率 | > 40%（特定業種依存リスク） |
+| 平均案件粗利率 | `gold_agg_si_project_progress` | (売上 - 原価) / 売上 | < 25% |
 
-| Lakehouse テーブル | 用途 |
-|---|---|
-| `gold_mobile_kpi_monthly` | 携帯事業月次KPI集計 |
-| `gold_mobile_arpu_trend` | ARPU推移分析 |
-| `gold_mobile_churn_forecast` | 解約予測サマリー |
-| `gold_sns_kpi_daily` | SNS事業日次KPI集計 |
-| `gold_sns_ad_revenue_forecast` | 広告収益予測 |
-| `gold_sns_creator_ecosystem` | クリエイターエコシステム指標 |
-| `gold_si_pipeline_summary` | SIパイプライン状況サマリー |
-| `gold_si_project_profitability` | プロジェクト収益性分析 |
-| `gold_si_client_health` | 顧客ヘルススコア |
-| `gold_cross_domain_impact` | 事業横断インパクト集計 |
-| `gold_news_impact_dashboard` | ニュースインパクトダッシュボード用 |
+### ニュースインパクト分析KPI
+
+| KPI名 | テーブル | 計算式 | 用途 |
+|---|---|---|---|
+| インパクトスコア | `gold_fact_news_impact_assessments` | スキルロジックにより算出（0-100） | 通知優先度判定 |
+| 影響顧客数 | `gold_agg_cross_domain_impact` | ニュース×ドメインで影響を受ける顧客のCOUNT | 規模感把握 |
+| 想定損失額 | `gold_fact_news_impact_assessments` | スキルロジックにより推定 | 経営判断材料 |
+| 対応緊急度 | `gold_fact_news_impact_assessments` | 施行期限 - 現在日 + リスクレベル | アクション優先順位 |
 
 ---
 
-## KPI定義（Gold層集計テーブル）
+## データフロー概要
 
-### 携帯電話事業KPI (`gold_mobile_kpi_monthly`)
+```
+[ソースDB] ──CDC/差分抽出──> [Bronze] ──品質チェック/型統一──> [Silver] ──集計/KPI計算──> [Gold]
+                                                                                         │
+                                                                                         ▼
+                                                                              [ニュース分析エージェント]
+                                                                                         │
+                                                                              スキル実行 → インパクト判定
+                                                                                         │
+                                                                                         ▼
+                                                                              [通知配信（Teams/Email/Push）]
+```
 
-| KPI | 算出ロジック | 単位 |
-|---|---|---|
-| `subscriber_count` | 月末時点のアクティブ契約数 | 件 |
-| `arpu` | 月間売上 / アクティブ契約数 | 円 |
-| `churn_rate` | 月間解約数 / 月初契約数 | % |
-| `mnp_out_count` | MNP転出件数 | 件 |
-| `mnp_in_count` | MNP転入件数 | 件 |
-| `installment_active_ratio` | 割賦契約中比率 | % |
-| `data_usage_avg_gb` | 平均データ利用量 | GB |
+## 補足: スキルからのデータ参照パターン
 
-### SNS事業KPI (`gold_sns_kpi_daily`)
+各スキル（`.skill.md`）が参照する Fabric テーブルは、主に以下の命名規則に従う:
 
-| KPI | 算出ロジック | 単位 |
-|---|---|---|
-| `dau` | 日次アクティブユーザー数 | 人 |
-| `mau` | 月次アクティブユーザー数 | 人 |
-| `dau_mau_ratio` | DAU / MAU | % |
-| `ad_revenue_daily` | 日次広告収入合計 | 円 |
-| `ad_ctr` | クリック数 / インプレッション数 | % |
-| `premium_conversion_rate` | 有料プラン転換率 | % |
-| `creator_active_count` | アクティブクリエイター数 | 人 |
-| `avg_session_duration` | 平均セッション時間 | 分 |
+- `dim_*` → Silver層のディメンションテーブル、またはGold層のマスタ
+- `fact_*` → Silver層のファクトテーブル、またはGold層のイベント/トランザクション集計
+- `agg_*` → Gold層の事前集計テーブル
 
-### SI事業KPI (`gold_si_pipeline_summary`)
-
-| KPI | 算出ロジック | 単位 |
-|---|---|---|
-| `pipeline_total_oku` | パイプライン案件合計金額 | 億円 |
-| `pipeline_count` | パイプライン案件数 | 件 |
-| `active_project_count` | 進行中プロジェクト数 | 件 |
-| `avg_project_margin` | 平均プロジェクト利益率 | % |
-| `utilization_rate` | 技術者稼働率 | % |
-| `on_hold_count` | 凍結中案件数 | 件 |
-| `quarterly_revenue_oku` | 四半期売上 | 億円 |
-| `bid_win_rate` | 入札勝率 | % |
-
-### 事業横断KPI (`gold_cross_domain_impact`)
-
-| KPI | 算出ロジック | 単位 |
-|---|---|---|
-| `total_impact_assessments` | 期間中のインパクト診断実行数 | 件 |
-| `critical_alerts_count` | critical判定数 | 件 |
-| `avg_response_time_hours` | 通知→確認の平均時間 | 時間 |
-| `cross_sell_opportunity_count` | 事業横断クロスセル検出数 | 件 |
-| `multi_domain_customer_ratio` | 複数事業利用顧客比率 | % |
+スキル内で参照される論理テーブル名（例: `fact_inventory_snapshot`, `dim_terminals`）は、上記メダリオン構成のテーブルに対するセマンティックモデルのビュー名として定義される。

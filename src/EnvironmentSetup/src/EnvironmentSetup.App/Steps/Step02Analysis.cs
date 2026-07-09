@@ -26,28 +26,32 @@ public class Step02Analysis : ISetupStep
 
         Console.WriteLine("  Copilot SDK を使用して業務分析を実行中...\n");
 
-        var systemContext = """
+        var domains = string.Join(", ", assessment.Domains);
+
+        var systemContext = $"""
             あなたはビジネスシステム分析の専門家です。
             ニュースの内容をベースにビジネスインパクトを診断し、各業務領域の部署に通知を行うシステムを構築します。
 
-            既存のデータベース構成として以下のスキーマが存在します:
-            - sqldb_common_01: 統合顧客DB (unified_customers, domain_id_mappings, customer_segments等)
-            - sqldb_mobile_01~05: モバイル事業 (customers, contracts, usage_billing, cost_items, mnp_history等)
-            - sqldb_ecommerce_01~05: EC事業 (products, orders, inventory, point_campaigns, behaviors等)
-            - sqldb_fintech_01~05: 金融事業 (accounts, card_transactions, fx_positions, credit_reviews, loan_balances等)
+            対象業務領域: {domains}
 
-            3つのニュースシナリオを想定します:
-            1. 為替急変シナリオ
-            2. 競合統合シナリオ
-            3. 金融政策転換シナリオ
+            各業務領域ごとにデータベースが存在し、顧客・契約・取引・在庫等のテーブルを保持しています。
+            統合顧客DB (sqldb_common_01) には unified_customers, domain_id_mappings, customer_segments が存在します。
+
+            ニュースシナリオは上記の業務領域に実際に影響を与える可能性がある時事的なリスクイベントを
+            3件、あなた自身が業務領域の特性を踏まえて考案してください。
             """;
+
+        var totalCustomers = assessment.EmployeeCount * 3;
+        var domainList = assessment.Domains.ToList();
+        var txLines = string.Join("\n", domainList.Select((d, i) =>
+            $"            - {d}月間トランザクション: 顧客数 × {(i == 1 ? 5 : i == 2 ? 3 : 2)}"));
 
         var prompt = $$"""
             以下の業務領域に基づいて、ニュース分析・インパクト診断システムのデータモデルを分析してください。
 
-            業務領域: {{string.Join(", ", assessment.Domains)}}
+            業務領域: {{domains}}
             従業員数: {{assessment.EmployeeCount}}名
-            想定顧客数: {{assessment.EmployeeCount * 3}}名 (従業員数×3)
+            想定顧客数: {{totalCustomers}}名 (従業員数×3)
 
             以下をJSON形式で出力してください:
             {
@@ -68,11 +72,12 @@ public class Step02Analysis : ISetupStep
               ]
             }
 
+            newsScenarios は業務領域 ({{domains}}) の特性を踏まえた時事的リスクイベントを3件、あなた自身が考案してください。
+            各シナリオの impactDomains には上記業務領域の中から影響を受ける領域を選んでください。
+
             データ量の計算:
-            - 顧客数 = {{assessment.EmployeeCount}} × 3 = {{assessment.EmployeeCount * 3}}
-            - {{assessment.Domains[0]}}月間トランザクション: 顧客数 × 2
-            - {{assessment.Domains[1]}}月間トランザクション: 顧客数 × 5
-            - {{assessment.Domains[2]}}月間トランザクション: 顧客数 × 3
+            - 顧客数 = {{assessment.EmployeeCount}} × 3 = {{totalCustomers}}
+            {{txLines}}
             - 期間: 6ヶ月分
 
             JSONのみを出力してください。説明文は不要です。

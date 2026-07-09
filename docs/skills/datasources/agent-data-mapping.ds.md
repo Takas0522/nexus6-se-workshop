@@ -2,426 +2,488 @@
 
 ## エージェント構成概要
 
-ニュース分析エージェントシステムは4つのエージェントが連携してニュースの収集→評価→レコメンド→通知を実行するパイプラインで構成される。
+ニュース分析・インパクト診断システムは4つのエージェントがパイプラインとして連携動作する。各エージェントは特定のデータソースへのアクセス権限を持ち、前段の出力を後段が入力として受け取る。
 
 ```
-[Agent 1: Web情報収集]
-        │ news_articles (WRITE)
-        ▼
-[Agent 2: ビジネスインパクト評価]
-        │ impact_assessments (WRITE)
-        ▼
-[Agent 3: 事業部別レコメンド]
-        │ impact_assessments (UPDATE)
-        ▼
-[Agent 4: 通知]
-        │ notifications (WRITE)
-        ▼
-    [Teams / Email]
+[Agent 1: Web情報収集] ──ニュース構造化データ──> [Agent 2: インパクト評価]
+                                                        │
+                                              インパクトスコア+影響領域
+                                                        │
+                                                        ▼
+                                             [Agent 3: 事業部別レコメンド]
+                                                        │
+                                              レコメンド+対象者リスト
+                                                        │
+                                                        ▼
+                                             [Agent 4: 通知配信]
 ```
+
+### エージェント一覧
+
+| Agent ID | 名称 | 役割 | ツール/接続 |
+|---|---|---|---|
+| `agent-web-collector` | Web情報収集エージェント | ニュースのクロール・構造化・カテゴリ分類 | Bing Grounding, Web検索API |
+| `agent-impact-evaluator` | ビジネスインパクト評価エージェント | KPIデータとニュースの照合によるスコアリング | Fabric SQL Endpoint, スキル実行エンジン |
+| `agent-domain-recommender` | 事業部別レコメンドエージェント | 各業務領域固有のアクション策定・対象者特定 | Fabric SQL Endpoint, 各ドメインDB |
+| `agent-notifier` | 通知エージェント | レコメンド内容のフォーマットと配信 | Microsoft Teams, Outlook, Power Automate |
 
 ---
 
 ## Agent 1: Web情報収集エージェント
 
-### 役割
-
-Bing Grounding を使用してWebからニュース記事を収集し、カテゴリ分類・構造化を行い保存する。
-
 ### データソースマッピング
 
-| テーブル | アクセス種別 | 用途 |
-|---|---|---|
-| `sqldb_common_01.news_articles` | **WRITE** | 収集した記事の格納 |
-
-### 外部データソース
-
-| ソース | 種別 | 用途 |
+| データソース | アクセス種別 | 用途 |
 |---|---|---|
 | Bing Grounding API | READ | ニュース記事の検索・取得 |
+| `gold_dim_news_scenarios` | READ | 既知シナリオとの照合 |
+| `gold_fact_news_impact_assessments` | WRITE | 新規ニュースの登録 |
 
-### 取得クエリパターン
+### 入力
 
-```sql
--- 重複チェック（同一記事の再取込防止）
-SELECT article_id FROM sqldb_common_01.news_articles
-WHERE title = @title AND source = @source AND published_at = @published_at;
-
--- 記事の挿入
-INSERT INTO sqldb_common_01.news_articles
-    (article_id, title, body, source, published_at, category, tags, ingested_at)
-VALUES
-    (@article_id, @title, @body, @source, @published_at, @category, @tags, GETUTCDATE());
-
--- 直近の取込状況確認（取込間隔制御用）
-SELECT MAX(ingested_at) AS last_ingested
-FROM sqldb_common_01.news_articles
-WHERE category = @category;
-```
+| パラメータ | ソース | 説明 |
+|---|---|---|
+| `search_keywords` | 設定ファイル | 業務領域に関連するキーワードリスト |
+| `monitoring_categories` | 設定ファイル | 監視対象カテゴリ（サプライチェーン、規制、インフラ等） |
+| `last_crawl_timestamp` | システム状態 | 前回クロール時刻 |
 
 ### 出力スキーマ
 
-| フィールド | 型 | Agent 2 への引渡し |
-|---|---|---|
-| `article_id` | UNIQUEIDENTIFIER | ✓ |
-| `category` | NVARCHAR(50) | ✓（スキル選択に使用） |
-| `title` | NVARCHAR(500) | ✓ |
-| `body` | NVARCHAR(MAX) | ✓ |
-| `published_at` | DATETIME2 | ✓ |
+```json
+{
+  "news_id": "uuid",
+  "title": "ニュースタイトル",
+  "summary": "要約（500文字以内）",
+  "source_url": "https://...",
+  "published_at": "2026-07-09T00:00:00Z",
+  "category": "supply_chain | regulation | infrastructure | competition | economy",
+  "keywords": ["半導体", "供給不足", "端末"],
+  "estimated_domains": ["mobile", "si"],
+  "confidence_score": 0.85,
+  "raw_content": "記事全文"
+}
+```
+
+### クエリパターン
+
+```sql
+-- 既知シナリオとのマッチング確認
+SELECT scenario_id, title, category, impact_domains
+FROM gold_dim_news_scenarios
+WHERE category = @detected_category
+  AND is_active = 1;
+
+-- 新規ニュースの登録
+INSERT INTO gold_fact_news_impact_assessments (
+    news_id, title, category, source_url, published_at,
+    estimated_domains, status, created_at
+) VALUES (
+    @news_id, @title, @category, @source_url, @published_at,
+    @estimated_domains, 'pending_evaluation', GETUTCDATE()
+);
+```
 
 ---
 
 ## Agent 2: ビジネスインパクト評価エージェント
 
-### 役割
-
-収集されたニュース記事に対し、各事業領域のスキルを適用してインパクトスコアを算出する。Fabric上のKPIデータを参照して定量評価を行う。
-
 ### データソースマッピング
 
-| テーブル | アクセス種別 | 用途 |
+| データソース | アクセス種別 | 用途 |
 |---|---|---|
-| `sqldb_common_01.news_articles` | READ | 評価対象記事の取得 |
-| `sqldb_common_01.impact_assessments` | **WRITE** | 診断結果の格納 |
-| `sqldb_common_01.unified_customers` | READ | 影響顧客数の概算 |
-| `sqldb_common_01.domain_id_mappings` | READ | 事業横断影響の判定 |
-| `sqldb_mobile_01.contracts` | READ | 携帯契約KPI参照 |
-| `sqldb_mobile_01.usage_billing` | READ | ARPU算出用 |
-| `sqldb_mobile_01.mnp_history` | READ | 解約トレンド参照 |
-| `sqldb_ecommerce_01.sns_users` | READ | MAU/DAU算出用 |
-| `sqldb_ecommerce_01.ad_revenues` | READ | 広告収益トレンド参照 |
-| `sqldb_fintech_01.si_projects` | READ | パイプライン・プロジェクト状況参照 |
-| `sqldb_fintech_01.si_transactions` | READ | 取引実績参照 |
+| `gold_fact_news_impact_assessments` | READ/WRITE | ニュース情報の取得・スコア書き込み |
+| `gold_agg_revenue_by_domain` | READ | ドメイン別収益でインパクト規模推定 |
+| `gold_agg_mobile_inventory_health` | READ | 在庫健全性（半導体シナリオ） |
+| `gold_agg_mobile_arpu` | READ | ARPU推移（解約リスク算出） |
+| `gold_agg_churn_risk_scores` | READ | 解約リスクスコア |
+| `gold_agg_sns_ad_revenue` | READ | 広告収益トレンド（DSAシナリオ） |
+| `gold_agg_sns_ad_fill_rate` | READ | 広告充填率 |
+| `gold_agg_si_project_progress` | READ | SI案件進捗（納期リスク） |
+| `gold_agg_si_resource_utilization` | READ | リソース稼働率 |
+| `gold_agg_cross_domain_impact` | WRITE | クロスドメイン影響結果書き込み |
 
-### 取得クエリパターン
+### スキル呼び出しマッピング
+
+| ニュースカテゴリ | 影響ドメイン | 実行スキル |
+|---|---|---|
+| `supply_chain` | mobile | `mobile/supplychain-semiconductor-shortage.skill.md` |
+| `supply_chain` | sns | `sns/supplychain-semiconductor-shortage.skill.md` |
+| `supply_chain` | si | `si/supplychain-semiconductor-shortage.skill.md` |
+| `regulation` | mobile | `mobile/regulation-data-privacy-dsa.skill.md` |
+| `regulation` | sns | `sns/regulation-data-privacy-dsa.skill.md` |
+| `regulation` | si | `si/regulation-data-privacy-dsa.skill.md` |
+| `infrastructure` | mobile | `mobile/infrastructure-telecom-quality-standard.skill.md` |
+| `infrastructure` | sns | `sns/infrastructure-telecom-quality-standard.skill.md` |
+| `infrastructure` | si | `si/infrastructure-telecom-quality-standard.skill.md` |
+
+### クエリパターン
 
 ```sql
--- 未評価記事の取得
-SELECT a.article_id, a.title, a.body, a.category, a.published_at
-FROM sqldb_common_01.news_articles a
-WHERE NOT EXISTS (
-    SELECT 1 FROM sqldb_common_01.impact_assessments ia
-    WHERE ia.article_id = a.article_id
+-- 評価対象ニュースの取得
+SELECT news_id, title, category, estimated_domains, raw_content
+FROM gold_fact_news_impact_assessments
+WHERE status = 'pending_evaluation'
+ORDER BY published_at DESC;
+
+-- 携帯事業: 在庫健全性の取得（半導体シナリオ）
+SELECT device_model, quantity, days_of_stock, reorder_point,
+       stockout_risk_level, last_replenishment_date
+FROM gold_agg_mobile_inventory_health
+WHERE snapshot_date = CAST(GETUTCDATE() AS DATE);
+
+-- SNS事業: 広告収益トレンド（DSAシナリオ）
+SELECT report_date, slot_type, revenue_jpy, impressions, ecpm,
+       fill_rate, revenue_change_wow_pct
+FROM gold_agg_sns_ad_revenue
+WHERE report_date >= DATEADD(month, -3, GETUTCDATE())
+ORDER BY report_date DESC;
+
+-- SI事業: リソース稼働率（通信品質シナリオ）
+SELECT resource_type, skill_area, available_count, utilized_count,
+       utilization_rate, avg_project_duration_months
+FROM gold_agg_si_resource_utilization
+WHERE month = FORMAT(GETUTCDATE(), 'yyyy-MM');
+
+-- インパクトスコアの書き込み
+UPDATE gold_fact_news_impact_assessments
+SET impact_score = @score,
+    impact_level = @level,
+    affected_domains = @domains,
+    estimated_financial_impact_jpy = @financial_impact,
+    status = 'evaluated',
+    evaluated_at = GETUTCDATE()
+WHERE news_id = @news_id;
+
+-- クロスドメインインパクトの書き込み
+INSERT INTO gold_agg_cross_domain_impact (
+    news_id, unified_customer_id, domain, impact_type,
+    estimated_impact_jpy, created_at
 )
-ORDER BY a.published_at DESC;
-
--- 携帯事業KPI取得（スキル入力用）
-SELECT
-    COUNT(*) AS subscriber_count,
-    AVG(c.monthly_fee) AS avg_monthly_fee,
-    SUM(CASE WHEN c.installment_flag = 1 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS installment_ratio
-FROM sqldb_mobile_01.contracts c
-WHERE c.status = 'active';
-
--- 携帯MNP転出率（直近3ヶ月）
-SELECT
-    COUNT(*) * 1.0 / (SELECT COUNT(*) FROM sqldb_mobile_01.contracts WHERE status = 'active') AS mnp_out_rate
-FROM sqldb_mobile_01.mnp_history
-WHERE direction = 'out' AND processed_at >= DATEADD(MONTH, -3, GETUTCDATE());
-
--- SNS事業KPI取得
-SELECT
-    COUNT(DISTINCT CASE WHEN last_active_at >= DATEADD(DAY, -1, GETUTCDATE()) THEN user_id END) AS dau,
-    COUNT(DISTINCT CASE WHEN last_active_at >= DATEADD(DAY, -30, GETUTCDATE()) THEN user_id END) AS mau
-FROM sqldb_ecommerce_01.sns_users
-WHERE status = 'active';
-
--- SNS広告収益トレンド（直近3ヶ月）
-SELECT
-    FORMAT(revenue_date, 'yyyy-MM') AS month,
-    SUM(revenue_jpy) AS total_revenue,
-    AVG(revenue_jpy / NULLIF(impressions, 0)) AS avg_unit_price
-FROM sqldb_ecommerce_01.ad_revenues
-WHERE revenue_date >= DATEADD(MONTH, -3, GETUTCDATE())
-GROUP BY FORMAT(revenue_date, 'yyyy-MM');
-
--- SI事業パイプライン状況
-SELECT
-    status,
-    COUNT(*) AS project_count,
-    SUM(amount_oku) AS total_amount_oku,
-    AVG(offshore_ratio) AS avg_offshore_ratio
-FROM sqldb_fintech_01.si_projects
-WHERE status IN ('pipeline', 'active', 'on_hold')
-GROUP BY status;
-
--- SI事業 固定価格契約比率
-SELECT
-    SUM(CASE WHEN contract_type = 'fixed_price' THEN 1 ELSE 0 END) * 1.0 / COUNT(*) AS fixed_price_ratio
-FROM sqldb_fintech_01.si_projects
-WHERE status = 'active';
-
--- 診断結果の挿入
-INSERT INTO sqldb_common_01.impact_assessments
-    (assessment_id, article_id, domain, skill_id, impact_score, impact_level,
-     impact_direction, risk_summary, recommended_actions, assessed_at)
-VALUES
-    (@assessment_id, @article_id, @domain, @skill_id, @impact_score, @impact_level,
-     @impact_direction, @risk_summary, @recommended_actions, GETUTCDATE());
-```
-
-### スキルとデータの対応関係
-
-| スキルID | 事業領域 | シナリオ | 参照テーブル |
-|---|---|---|---|
-| `mobile/economy-fx-impact` | 携帯電話 | 為替急変 | `contracts`, `usage_billing` |
-| `mobile/competition-merger-impact` | 携帯電話 | 競合統合 | `contracts`, `mnp_history` |
-| `mobile/regulation-monetary-policy-impact` | 携帯電話 | 金融政策転換 | `contracts`, `usage_billing` |
-| `sns/economy-fx-impact` | SNS | 為替急変 | `ad_revenues`, `sns_users` |
-| `sns/competition-merger-impact` | SNS | 競合統合 | `sns_users`, `sns_activities`, `ad_revenues` |
-| `sns/regulation-monetary-policy-impact` | SNS | 金融政策転換 | `ad_revenues`, `sns_users` |
-| `si/economy-fx-impact` | SI | 為替急変 | `si_projects`, `si_transactions` |
-| `si/competition-merger-impact` | SI | 競合統合 | `si_projects`, `si_clients` |
-| `si/regulation-monetary-policy-impact` | SI | 金融政策転換 | `si_projects`, `si_clients`, `si_transactions` |
-
-### スキル選択ロジック
-
-```
-INPUT: article.category
-OUTPUT: list[skill_id]
-
-IF category == "economy" THEN
-    skills = [
-        "mobile/economy-fx-impact",
-        "sns/economy-fx-impact",
-        "si/economy-fx-impact"
-    ]
-ELSE IF category == "competition" THEN
-    skills = [
-        "mobile/competition-merger-impact",
-        "sns/competition-merger-impact",
-        "si/competition-merger-impact"
-    ]
-ELSE IF category == "regulation" THEN
-    skills = [
-        "mobile/regulation-monetary-policy-impact",
-        "sns/regulation-monetary-policy-impact",
-        "si/regulation-monetary-policy-impact"
-    ]
+SELECT @news_id, uc.unified_customer_id, dm.domain,
+       @impact_type, @estimated_impact_per_customer, GETUTCDATE()
+FROM silver_dim_customers_unified uc
+JOIN silver_bridge_domain_mappings dm ON uc.unified_customer_id = dm.unified_customer_id
+WHERE dm.domain IN (@affected_domains)
+  AND uc.segment_code IN (@target_segments);
 ```
 
 ---
 
 ## Agent 3: 事業部別レコメンドエージェント
 
-### 役割
-
-インパクト評価結果に基づき、各事業部門の業務コンテキストを加味した具体的アクションレコメンドを生成する。
-
 ### データソースマッピング
 
-| テーブル | アクセス種別 | 用途 |
+| データソース | アクセス種別 | 用途 |
 |---|---|---|
-| `sqldb_common_01.impact_assessments` | READ / **UPDATE** | 診断結果の参照・推奨アクション追記 |
-| `sqldb_common_01.unified_customers` | READ | 影響顧客の特定 |
-| `sqldb_common_01.customer_segments` | READ | セグメント別対応策の策定 |
-| `sqldb_common_01.domain_id_mappings` | READ | 事業横断顧客の特定 |
-| `sqldb_mobile_01.customers` | READ | 携帯顧客属性参照 |
-| `sqldb_mobile_01.contracts` | READ | 契約内容による影響範囲特定 |
-| `sqldb_mobile_01.mnp_history` | READ | 過去の転出パターン分析 |
-| `sqldb_ecommerce_01.sns_users` | READ | ユーザーセグメント参照 |
-| `sqldb_ecommerce_01.sns_activities` | READ | エンゲージメント状況参照 |
-| `sqldb_ecommerce_01.ad_revenues` | READ | 広告主別影響分析 |
-| `sqldb_fintech_01.si_clients` | READ | クライアント業種・規模参照 |
-| `sqldb_fintech_01.si_projects` | READ | 案件別リスク詳細分析 |
-| `sqldb_fintech_01.si_transactions` | READ | 取引履歴による優先度判定 |
+| `gold_fact_news_impact_assessments` | READ | 評価済みインパクト情報 |
+| `gold_agg_cross_domain_impact` | READ | 影響を受ける顧客リスト |
+| `sqldb_common_01.unified_customers` | READ | 顧客基本情報 |
+| `sqldb_common_01.domain_id_mappings` | READ | ドメイン間ID解決 |
+| `sqldb_common_01.customer_segments` | READ | セグメント情報（通知優先度） |
+| `sqldb_mobile_01.customers` | READ | 携帯顧客詳細 |
+| `sqldb_mobile_01.contracts` | READ | 契約状況（更新期・割賦残） |
+| `sqldb_mobile_01.transactions` | READ | 直近取引（アクティブ度判定） |
+| `sqldb_mobile_01.inventory` | READ | 在庫状況（代替提案） |
+| `sqldb_sns_01.customers` | READ | SNSユーザー詳細 |
+| `sqldb_sns_01.contracts` | READ | 有料プラン契約状況 |
+| `sqldb_sns_01.transactions` | READ | 広告/課金トレンド |
+| `sqldb_sns_01.ad_inventory` | READ | 広告枠状況 |
+| `sqldb_si_01.customers` | READ | SI顧客（業種） |
+| `sqldb_si_01.contracts` | READ | 案件契約（影響PJ特定） |
+| `sqldb_si_01.transactions` | READ | 取引状況 |
+| `sqldb_si_01.inventory` | READ | リソース在庫 |
 
-### 取得クエリパターン
+### ドメイン別レコメンドロジック
+
+#### 携帯電話事業
 
 ```sql
--- high以上の診断結果取得（レコメンド対象）
-SELECT ia.*, na.title, na.category
-FROM sqldb_common_01.impact_assessments ia
-JOIN sqldb_common_01.news_articles na ON ia.article_id = na.article_id
-WHERE ia.impact_level IN ('critical', 'high')
-  AND ia.recommended_actions IS NULL
-ORDER BY ia.impact_score DESC;
+-- 影響を受ける顧客の特定（契約更新期 + 在庫不足端末利用者）
+SELECT mc.customer_id, mc.plan_type, mc.status,
+       mcon.plan_code, mcon.end_date, mcon.monthly_fee,
+       cs.segment_code, cs.segment_name
+FROM sqldb_mobile_01.customers mc
+JOIN sqldb_common_01.domain_id_mappings dm
+    ON mc.customer_id = dm.domain_customer_id AND dm.domain = 'mobile'
+JOIN sqldb_common_01.customer_segments cs
+    ON dm.unified_customer_id = cs.unified_customer_id
+LEFT JOIN sqldb_mobile_01.contracts mcon
+    ON mc.customer_id = mcon.customer_id
+WHERE mc.status = 'active'
+  AND mcon.end_date BETWEEN GETUTCDATE() AND DATEADD(month, 3, GETUTCDATE())
+ORDER BY cs.segment_code, mcon.end_date;
 
--- 携帯事業：影響を受ける顧客セグメント特定
-SELECT cs.segment_id, cs.segment_name, cs.customer_count
-FROM sqldb_common_01.customer_segments cs
-WHERE cs.domain IN ('mobile', 'all')
-  AND JSON_VALUE(cs.criteria_json, '$.installment_flag') = 'true';
+-- 代替端末の在庫確認
+SELECT device_model, SUM(quantity) AS total_stock, warehouse_code
+FROM sqldb_mobile_01.inventory
+WHERE quantity > 0
+GROUP BY device_model, warehouse_code
+ORDER BY total_stock DESC;
+```
 
--- 携帯事業：割賦契約中で残月数が長い顧客数（金融政策転換時）
-SELECT COUNT(*) AS affected_customers
-FROM sqldb_mobile_01.contracts
-WHERE installment_flag = 1 AND status = 'active'
-  AND installment_months - DATEDIFF(MONTH, contract_start, GETUTCDATE()) > 12;
+#### SNS事業
 
--- SNS事業：影響を受ける広告主の特定（業種別）
-SELECT advertiser_industry, COUNT(DISTINCT advertiser_id) AS advertiser_count,
-       SUM(revenue_jpy) AS total_revenue
-FROM sqldb_ecommerce_01.ad_revenues
-WHERE revenue_date >= DATEADD(MONTH, -1, GETUTCDATE())
-GROUP BY advertiser_industry
-ORDER BY total_revenue DESC;
+```sql
+-- 広告収益への影響を受けるアカウント（ビジネスアカウント＋高額出稿者）
+SELECT sc.customer_id, sc.username, sc.account_tier,
+       SUM(st.amount) AS recent_ad_spend,
+       COUNT(st.transaction_id) AS transaction_count
+FROM sqldb_sns_01.customers sc
+JOIN sqldb_sns_01.transactions st ON sc.customer_id = st.customer_id
+WHERE sc.account_tier IN ('business', 'premium')
+  AND st.transaction_type = 'ad_revenue'
+  AND st.transaction_date >= DATEADD(month, -1, GETUTCDATE())
+GROUP BY sc.customer_id, sc.username, sc.account_tier
+HAVING SUM(st.amount) > 100000
+ORDER BY recent_ad_spend DESC;
 
--- SNS事業：解約リスクの高いプレミアムユーザー
-SELECT COUNT(*) AS at_risk_premium_users
-FROM sqldb_ecommerce_01.sns_users
-WHERE subscription_plan = 'premium'
-  AND last_active_at < DATEADD(DAY, -7, GETUTCDATE());
+-- 広告枠の影響分析
+SELECT slot_type, SUM(available_impressions) AS total_impressions,
+       AVG(unit_price) AS avg_cpm
+FROM sqldb_sns_01.ad_inventory
+GROUP BY slot_type;
+```
 
--- SI事業：凍結リスクのある案件一覧
-SELECT p.project_id, p.project_name, p.amount_oku, p.contract_type,
-       c.company_name, c.industry
-FROM sqldb_fintech_01.si_projects p
-JOIN sqldb_fintech_01.si_clients c ON p.client_id = c.client_id
-WHERE p.status IN ('pipeline', 'active')
-  AND p.project_type = 'new_development'
-ORDER BY p.amount_oku DESC;
+#### SI事業
 
--- SI事業：事業横断で影響を受ける顧客の特定
-SELECT uc.unified_customer_id, uc.customer_name,
-       COUNT(DISTINCT dm.domain) AS affected_domains
-FROM sqldb_common_01.unified_customers uc
-JOIN sqldb_common_01.domain_id_mappings dm ON uc.unified_customer_id = dm.unified_customer_id
-WHERE dm.domain IN ('mobile', 'sns', 'si')
-GROUP BY uc.unified_customer_id, uc.customer_name
-HAVING COUNT(DISTINCT dm.domain) >= 2;
+```sql
+-- 影響を受けるプロジェクトの特定（通信事業者顧客 + インフラ案件）
+SELECT sic.customer_id, sic.company_name, sic.industry,
+       con.contract_id, con.project_name, con.contract_value,
+       con.start_date, con.end_date
+FROM sqldb_si_01.customers sic
+JOIN sqldb_si_01.contracts con ON sic.customer_id = con.customer_id
+WHERE sic.industry IN ('通信', '情報通信', 'ITインフラ')
+  AND con.end_date > GETUTCDATE()
+ORDER BY con.contract_value DESC;
 
--- レコメンド結果の更新
-UPDATE sqldb_common_01.impact_assessments
-SET recommended_actions = @recommended_actions
-WHERE assessment_id = @assessment_id;
+-- リソース充足度の確認
+SELECT resource_type, resource_name, available_count
+FROM sqldb_si_01.inventory
+WHERE resource_type IN ('engineer', 'hardware')
+ORDER BY resource_type, available_count;
+```
+
+### 出力スキーマ
+
+```json
+{
+  "news_id": "uuid",
+  "domain": "mobile | sns | si",
+  "impact_level": "critical | high | medium | low",
+  "recommendations": [
+    {
+      "action_id": "uuid",
+      "priority": 1,
+      "title": "アクションタイトル",
+      "description": "詳細説明",
+      "target_department": "部門名",
+      "deadline_suggestion": "2026-07-16",
+      "estimated_effort": "high | medium | low"
+    }
+  ],
+  "affected_customers": {
+    "count": 1500,
+    "segments": {"vip": 200, "standard": 1000, "basic": 300},
+    "top_risk_customers": ["customer_id_1", "customer_id_2"]
+  },
+  "notification_targets": [
+    {
+      "role": "事業部長",
+      "channel": "teams_direct",
+      "urgency": "immediate"
+    },
+    {
+      "role": "営業担当",
+      "channel": "teams_channel",
+      "urgency": "within_24h"
+    }
+  ]
+}
 ```
 
 ---
 
 ## Agent 4: 通知エージェント
 
-### 役割
-
-インパクト評価・レコメンド結果に基づき、適切な担当者・チームにTeams/Emailで通知を送信する。
-
 ### データソースマッピング
 
-| テーブル | アクセス種別 | 用途 |
+| データソース | アクセス種別 | 用途 |
 |---|---|---|
-| `sqldb_common_01.impact_assessments` | READ | 通知内容の生成元 |
-| `sqldb_common_01.notifications` | **WRITE** | 通知履歴の記録 |
-| `sqldb_common_01.news_articles` | READ | 通知に含める記事情報 |
+| Agent 3 出力 | READ | レコメンド内容・対象者リスト |
+| Microsoft Teams API | WRITE | チャネル/DM通知送信 |
+| Microsoft Outlook API | WRITE | メール通知送信 |
+| Power Automate | TRIGGER | ワークフロー起動 |
+| `gold_fact_news_impact_assessments` | WRITE | 通知ステータス更新 |
 
-### 外部サービス
+### 通知チャネル選択ロジック
 
-| サービス | 種別 | 用途 |
-|---|---|---|
-| Microsoft Teams (Webhook / Graph API) | WRITE | 通知メッセージ送信 |
-| Microsoft 365 Email (Graph API) | WRITE | メール通知送信 |
+| インパクトレベル | 対象ロール | チャネル | タイミング |
+|---|---|---|---|
+| critical | 経営層 + 事業部長 | Teams DM + Email | 即座 |
+| critical | 部門マネージャー | Teams チャネル | 即座 |
+| high | 事業部長 | Teams チャネル | 1時間以内 |
+| high | 担当者 | Teams チャネル | 4時間以内 |
+| medium | 部門マネージャー | Teams チャネル | 24時間以内 |
+| medium | 担当者 | Email（日次ダイジェスト） | 翌営業日朝 |
+| low | 関連者 | Email（週次レポート） | 週次 |
 
-### 取得クエリパターン
+### Teams Adaptive Card テンプレート
 
-```sql
--- 未通知の診断結果取得
-SELECT ia.assessment_id, ia.domain, ia.impact_score, ia.impact_level,
-       ia.risk_summary, ia.recommended_actions,
-       na.title AS article_title, na.published_at
-FROM sqldb_common_01.impact_assessments ia
-JOIN sqldb_common_01.news_articles na ON ia.article_id = na.article_id
-WHERE NOT EXISTS (
-    SELECT 1 FROM sqldb_common_01.notifications n
-    WHERE n.assessment_id = ia.assessment_id
-)
-AND ia.impact_level IN ('critical', 'high')
-ORDER BY ia.impact_score DESC;
-
--- 通知履歴の挿入
-INSERT INTO sqldb_common_01.notifications
-    (notification_id, assessment_id, recipient_domain, recipient_role,
-     channel, priority, sent_at)
-VALUES
-    (@notification_id, @assessment_id, @recipient_domain, @recipient_role,
-     @channel, @priority, GETUTCDATE());
-
--- 通知確認の更新
-UPDATE sqldb_common_01.notifications
-SET acknowledged_at = GETUTCDATE()
-WHERE notification_id = @notification_id;
-
--- 通知抑制チェック（同一記事への重複通知防止）
-SELECT COUNT(*) AS existing_notifications
-FROM sqldb_common_01.notifications n
-JOIN sqldb_common_01.impact_assessments ia ON n.assessment_id = ia.assessment_id
-WHERE ia.article_id = @article_id AND n.recipient_domain = @domain
-  AND n.sent_at >= DATEADD(HOUR, -1, GETUTCDATE());
+```json
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "style": "attention",
+      "items": [
+        {"type": "TextBlock", "text": "⚠️ ビジネスインパクト通知", "weight": "bolder", "size": "large"},
+        {"type": "TextBlock", "text": "${news_title}", "weight": "bolder"},
+        {"type": "FactSet", "facts": [
+          {"title": "カテゴリ", "value": "${category}"},
+          {"title": "影響領域", "value": "${affected_domains}"},
+          {"title": "インパクトスコア", "value": "${impact_score}/100 (${impact_level})"},
+          {"title": "影響顧客数", "value": "${affected_customer_count}名"},
+          {"title": "想定影響額", "value": "¥${estimated_financial_impact}"}
+        ]}
+      ]
+    },
+    {
+      "type": "Container",
+      "items": [
+        {"type": "TextBlock", "text": "推奨アクション", "weight": "bolder"},
+        {"type": "TextBlock", "text": "${recommendations_summary}", "wrap": true}
+      ]
+    }
+  ],
+  "actions": [
+    {"type": "Action.OpenUrl", "title": "詳細を確認", "url": "${detail_url}"},
+    {"type": "Action.Submit", "title": "対応開始", "data": {"action": "acknowledge", "news_id": "${news_id}"}}
+  ]
+}
 ```
 
-### 通知ルーティング
+### クエリパターン
 
-| impact_level | domain | recipient_role | channel | priority |
-|---|---|---|---|---|
-| critical | mobile | 事業部長, 経営企画 | teams, email | critical |
-| critical | sns | 事業部長, 経営企画 | teams, email | critical |
-| critical | si | 事業部長, 経営企画 | teams, email | critical |
-| high | mobile | 部門マネージャー | teams | high |
-| high | sns | 部門マネージャー | teams | high |
-| high | si | 部門マネージャー, PMO | teams | high |
-| medium | mobile | 担当リーダー | teams | medium |
-| medium | sns | 担当リーダー | teams | medium |
-| medium | si | 担当リーダー | teams | medium |
-| low | all | — | — (レポートのみ) | low |
+```sql
+-- 通知ステータスの更新
+UPDATE gold_fact_news_impact_assessments
+SET notification_status = 'sent',
+    notified_at = GETUTCDATE(),
+    notification_channels = @channels,
+    notification_recipients_count = @recipient_count
+WHERE news_id = @news_id;
+```
 
 ---
 
-## データフロー全体図
+## データフロー詳細
+
+### 全体フロー（時系列）
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        外部データ                                 │
-│  [Bing Grounding API] ─── ニュース記事 ───┐                     │
-└───────────────────────────────────────────┼─────────────────────┘
-                                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent 1: Web情報収集                                            │
-│  WRITE → news_articles                                          │
-└───────────────────────────────────────────┬─────────────────────┘
-                                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent 2: ビジネスインパクト評価                                   │
-│  READ  ← news_articles                                          │
-│  READ  ← contracts, usage_billing, mnp_history    (携帯KPI)      │
-│  READ  ← sns_users, sns_activities, ad_revenues  (SNS KPI)      │
-│  READ  ← si_projects, si_clients, si_transactions (SI KPI)      │
-│  READ  ← unified_customers, domain_id_mappings   (横断分析)      │
-│  WRITE → impact_assessments                                      │
-└───────────────────────────────────────────┬─────────────────────┘
-                                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent 3: 事業部別レコメンド                                      │
-│  READ  ← impact_assessments                                      │
-│  READ  ← customer_segments, unified_customers     (顧客分析)     │
-│  READ  ← 各事業領域テーブル（全テーブル）          (詳細分析)      │
-│  UPDATE → impact_assessments (recommended_actions)               │
-└───────────────────────────────────────────┬─────────────────────┘
-                                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent 4: 通知                                                   │
-│  READ  ← impact_assessments, news_articles                       │
-│  WRITE → notifications                                           │
-│  WRITE → [Microsoft Teams] / [Email]                             │
-└─────────────────────────────────────────────────────────────────┘
+T+0min   [Agent 1] Bing Grounding でニュース検出
+           ├─ 読取: Bing API, gold_dim_news_scenarios
+           └─ 書込: gold_fact_news_impact_assessments (status='pending_evaluation')
+
+T+1min   [Agent 2] インパクト評価実行
+           ├─ 読取: gold_fact_news_impact_assessments, gold_agg_* (各種KPI)
+           ├─ 実行: 該当スキル（カテゴリ×ドメインで最大3スキル並列）
+           ├─ 書込: gold_fact_news_impact_assessments (status='evaluated', score付与)
+           └─ 書込: gold_agg_cross_domain_impact (顧客別影響)
+
+T+3min   [Agent 3] 事業部別レコメンド策定
+           ├─ 読取: gold_fact_news_impact_assessments, gold_agg_cross_domain_impact
+           ├─ 読取: sqldb_common_01.* (顧客・セグメント)
+           ├─ 読取: sqldb_mobile_01.* / sqldb_sns_01.* / sqldb_si_01.* (業務データ)
+           └─ 出力: レコメンドJSON（アクション・対象者・通知先）
+
+T+5min   [Agent 4] 通知配信
+           ├─ 読取: Agent 3 出力
+           ├─ 書込: Teams API (Adaptive Card送信)
+           ├─ 書込: Outlook API (メール送信)
+           └─ 書込: gold_fact_news_impact_assessments (notification_status='sent')
 ```
 
-### テーブル別アクセス権限サマリー
+### データアクセス権限マトリクス
 
-| テーブル | Agent 1 | Agent 2 | Agent 3 | Agent 4 |
+| テーブル/リソース | Agent 1 | Agent 2 | Agent 3 | Agent 4 |
 |---|---|---|---|---|
-| `news_articles` | **W** | R | — | R |
-| `impact_assessments` | — | **W** | R/U | R |
-| `notifications` | — | — | — | **W** |
-| `unified_customers` | — | R | R | — |
-| `domain_id_mappings` | — | R | R | — |
-| `customer_segments` | — | — | R | — |
-| `mobile_01.customers` | — | — | R | — |
-| `mobile_01.contracts` | — | R | R | — |
-| `mobile_01.usage_billing` | — | R | — | — |
-| `mobile_01.mnp_history` | — | R | R | — |
-| `ecommerce_01.sns_users` | — | R | R | — |
-| `ecommerce_01.sns_activities` | — | — | R | — |
-| `ecommerce_01.ad_revenues` | — | R | R | — |
-| `fintech_01.si_clients` | — | — | R | — |
-| `fintech_01.si_projects` | — | R | R | — |
-| `fintech_01.si_transactions` | — | R | R | — |
+| Bing Grounding API | R | - | - | - |
+| `gold_dim_news_scenarios` | R | R | - | - |
+| `gold_fact_news_impact_assessments` | W | R/W | R | W |
+| `gold_agg_revenue_by_domain` | - | R | - | - |
+| `gold_agg_mobile_inventory_health` | - | R | - | - |
+| `gold_agg_mobile_arpu` | - | R | - | - |
+| `gold_agg_churn_risk_scores` | - | R | - | - |
+| `gold_agg_sns_ad_revenue` | - | R | - | - |
+| `gold_agg_sns_ad_fill_rate` | - | R | - | - |
+| `gold_agg_si_project_progress` | - | R | - | - |
+| `gold_agg_si_resource_utilization` | - | R | - | - |
+| `gold_agg_cross_domain_impact` | - | W | R | - |
+| `sqldb_common_01.unified_customers` | - | - | R | - |
+| `sqldb_common_01.domain_id_mappings` | - | - | R | - |
+| `sqldb_common_01.customer_segments` | - | - | R | - |
+| `sqldb_mobile_01.customers` | - | - | R | - |
+| `sqldb_mobile_01.contracts` | - | - | R | - |
+| `sqldb_mobile_01.transactions` | - | - | R | - |
+| `sqldb_mobile_01.inventory` | - | - | R | - |
+| `sqldb_sns_01.customers` | - | - | R | - |
+| `sqldb_sns_01.contracts` | - | - | R | - |
+| `sqldb_sns_01.transactions` | - | - | R | - |
+| `sqldb_sns_01.ad_inventory` | - | - | R | - |
+| `sqldb_si_01.customers` | - | - | R | - |
+| `sqldb_si_01.contracts` | - | - | R | - |
+| `sqldb_si_01.transactions` | - | - | R | - |
+| `sqldb_si_01.inventory` | - | - | R | - |
+| Microsoft Teams API | - | - | - | W |
+| Microsoft Outlook API | - | - | - | W |
+| Power Automate | - | - | - | T |
 
-> R = READ, W = WRITE, U = UPDATE, — = アクセスなし
+> R=Read, W=Write, R/W=Read+Write, T=Trigger
+
+---
+
+## スキルとデータの対応関係
+
+### 携帯電話事業スキル
+
+| スキルファイル | 主要参照テーブル | 主要KPI |
+|---|---|---|
+| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_mobile_inventory_health`, `sqldb_mobile_01.inventory`, `sqldb_mobile_01.contracts` | 在庫充足率、欠品率、MNP純増減 |
+| `regulation-data-privacy-dsa.skill.md` | `gold_agg_mobile_arpu`, `sqldb_mobile_01.transactions`, `sqldb_mobile_01.customers` | ARPU、顧客データ利用率 |
+| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_churn_risk_scores`, `sqldb_mobile_01.contracts`, `gold_agg_revenue_by_domain` | 解約率、設備投資比率 |
+
+### SNS事業スキル
+
+| スキルファイル | 主要参照テーブル | 主要KPI |
+|---|---|---|
+| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_sns_dau_mau`, `sqldb_sns_01.customers`, `sqldb_sns_01.transactions` | DAU/MAU比率、新規登録数 |
+| `regulation-data-privacy-dsa.skill.md` | `gold_agg_sns_ad_revenue`, `gold_agg_sns_ad_fill_rate`, `sqldb_sns_01.ad_inventory` | eCPM、充填率、広告収益 |
+| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_sns_dau_mau`, `gold_agg_sns_ad_revenue`, `sqldb_sns_01.transactions` | DAU/MAU、広告収益、可用性 |
+
+### SI事業スキル
+
+| スキルファイル | 主要参照テーブル | 主要KPI |
+|---|---|---|
+| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_si_project_progress`, `sqldb_si_01.contracts`, `sqldb_si_01.inventory` | 案件遅延率、HW在庫 |
+| `regulation-data-privacy-dsa.skill.md` | `gold_agg_si_project_progress`, `gold_agg_si_resource_utilization`, `sqldb_si_01.customers` | パイプライン総額、リソース稼働率 |
+| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_si_resource_utilization`, `sqldb_si_01.contracts`, `sqldb_si_01.inventory` | リソース稼働率、通信セクター比率 |
+
+---
+
+## 接続・認証設定
+
+| 接続先 | 認証方式 | 備考 |
+|---|---|---|
+| Fabric SQL Endpoint | Managed Identity (Entra ID) | Lakehouse/Warehouse 経由 |
+| sqldb_common_01 | Managed Identity | Azure SQL Database |
+| sqldb_mobile_01 | Managed Identity | Azure SQL Database |
+| sqldb_sns_01 | Managed Identity | Azure SQL Database |
+| sqldb_si_01 | Managed Identity | Azure SQL Database |
+| Bing Grounding | API Key (Key Vault) | AI Foundry 組み込み |
+| Microsoft Teams | Managed Identity (Graph API) | アプリ権限: ChannelMessage.Send |
+| Microsoft Outlook | Managed Identity (Graph API) | アプリ権限: Mail.Send |
+| Power Automate | HTTP Trigger | Webhook URL (Key Vault) |
