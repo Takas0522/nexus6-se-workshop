@@ -206,3 +206,14 @@ resource deployerStorageBlobContributor 'Microsoft.Authorization/roleAssignments
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageBlobDataContributor)
   }
 }
+
+// Deployer → Storage Blob Data Contributor (Portal - ニュースサイトアップロード用)
+resource deployerPortalBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(portalStorage.id, deployerPrincipalId, roleIds.storageBlobDataContributor)
+  scope: portalStorage
+  properties: {
+    principalId: deployerPrincipalId
+    principalType: 'User'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleIds.storageBlobDataContributor)
+  }
+}

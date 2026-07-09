@@ -9,13 +9,15 @@ namespace EnvironmentSetup.App.Steps;
 public class Step10NewsSite : ISetupStep
 {
     private readonly CopilotService _copilot;
+    private readonly AzureCliWrapper _az;
 
     public int StepNumber => 10;
     public string Name => "ニュースサイト作成";
 
-    public Step10NewsSite(CopilotService copilot)
+    public Step10NewsSite(CopilotService copilot, AzureCliWrapper az)
     {
         _copilot = copilot;
+        _az = az;
     }
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
@@ -114,9 +116,35 @@ public class Step10NewsSite : ISetupStep
         var portalStorage = state.Deployment?.StorageAccountPortal;
         if (!string.IsNullOrEmpty(portalStorage))
         {
-            Console.WriteLine($"\n  Storage Account ({portalStorage}) にアップロード中...");
-            Console.WriteLine($"    az storage blob upload-batch -s {outputDir} -d '$web' --account-name {portalStorage} --overwrite");
-            // 実際のアップロードはaz CLIで実行
+            Console.WriteLine($"\n  📤 Storage Account ({portalStorage}) の $web コンテナにアップロード中...");
+            try
+            {
+                await _az.RunAsync(
+                    $"storage blob upload-batch " +
+                    $"--source \"{outputDir}\" " +
+                    $"--destination \"$web\" " +
+                    $"--account-name {portalStorage} " +
+                    $"--auth-mode login " +
+                    $"--overwrite",
+                    silent: true);
+                Console.WriteLine("    ✓ アップロード完了");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"    ⚠️ アップロード失敗: {ex.Message[..Math.Min(120, ex.Message.Length)]}");
+                Console.WriteLine();
+                Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
+                Console.WriteLine("    ║  📋 手動アップロードが必要です                              ║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine($"    ║  コマンド:                                                  ║");
+                Console.WriteLine($"    ║  az storage blob upload-batch \\                             ║");
+                Console.WriteLine($"    ║    --source \"{outputDir}\" \\");
+                Console.WriteLine($"    ║    --destination \"$web\" \\");
+                Console.WriteLine($"    ║    --account-name {portalStorage} \\");
+                Console.WriteLine($"    ║    --auth-mode login --overwrite                            ║");
+                Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
+                Console.WriteLine();
+            }
         }
         else
         {
