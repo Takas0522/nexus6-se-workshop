@@ -92,68 +92,103 @@ public class Step14EntraId : ISetupStep
             var vaultName = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
             Console.WriteLine($"  🔒 Key Vault ({vaultName}) にシークレットを保存中...");
 
-            // RBAC ロール割り当て (Key Vault Secrets Officer) を確認・追加
+            var kvSuccess = false;
             try
             {
-                var userOid = await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true);
-                await _az.RunAsync(
-                    $"role assignment create --role \"Key Vault Secrets Officer\" " +
-                    $"--assignee {userOid.Trim()} " +
-                    $"--scope /subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}",
-                    silent: true);
-                // 伝播待機
-                await Task.Delay(10000);
-            }
-            catch { /* 既に割り当て済みの場合は無視 */ }
+                // RBAC ロール割り当て (Key Vault Secrets Officer) を確認・追加
+                try
+                {
+                    var userOid = await _az.RunAsync("ad signed-in-user show --query id -o tsv", silent: true);
+                    await _az.RunAsync(
+                        $"role assignment create --role \"Key Vault Secrets Officer\" " +
+                        $"--assignee {userOid.Trim()} " +
+                        $"--scope /subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}",
+                        silent: true);
+                    await Task.Delay(10000);
+                }
+                catch { /* 既に割り当て済みの場合は無視 */ }
 
-            await _az.RunAsync(
-                $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
-                silent: true);
-
-            // publicNetworkAccess 反映待ち (ARM→データプレーン伝播に最大30秒)
-            Console.WriteLine("    ⏳ Key Vault public access 反映待ち...");
-            for (int retry = 0; retry < 6; retry++)
-            {
-                await Task.Delay(10000);
+                // publicNetworkAccess を Enabled に設定
                 try
                 {
                     await _az.RunAsync(
-                        $"keyvault secret list --vault-name {vaultName} --maxresults 1",
+                        $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
                         silent: true);
-                    break; // アクセス成功
                 }
-                catch
+                catch { }
+
+                // ARM REST API で直接 publicNetworkAccess を Enabled に PATCH
+                try
                 {
-                    if (retry == 5) throw;
-                    Console.Write(".");
+                    await _az.RunAsync(
+                        $"rest --method PATCH " +
+                        $"--url \"https://management.azure.com/subscriptions/{azure.SubscriptionId}/resourceGroups/{azure.ResourceGroup}/providers/Microsoft.KeyVault/vaults/{vaultName}?api-version=2023-07-01\" " +
+                        $"--body \"{{\\\"properties\\\":{{\\\"publicNetworkAccess\\\":\\\"Enabled\\\",\\\"networkAcls\\\":{{\\\"defaultAction\\\":\\\"Allow\\\",\\\"bypass\\\":\\\"AzureServices\\\"}}}}}}\"",
+                        silent: true);
+                }
+                catch { }
+
+                // publicNetworkAccess 反映待ち (最大2分)
+                Console.WriteLine("    ⏳ Key Vault public access 反映待ち...");
+                for (int retry = 0; retry < 12; retry++)
+                {
+                    await Task.Delay(10000);
+                    try
+                    {
+                        await _az.RunAsync(
+                            $"keyvault secret list --vault-name {vaultName} --maxresults 1",
+                            silent: true);
+                        kvSuccess = true;
+                        break;
+                    }
+                    catch
+                    {
+                        if (retry == 11) break; // タイムアウト → フォールバック
+                        Console.Write(".");
+                    }
+                }
+
+                if (kvSuccess)
+                {
+                    Console.WriteLine("    ✓ Key Vault アクセス可能");
+
+                    // Client Secret は特殊文字を含むため一時ファイル経由で設定
+                    var secretFilePath = Path.GetFullPath("./output/tmp_secret.txt");
+                    Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
+                    await File.WriteAllTextAsync(secretFilePath, clientSecret);
+
+                    await _az.RunAsync(
+                        $"keyvault secret set --vault-name {vaultName} " +
+                        $"--name teams-app-client-secret " +
+                        $"--file \"{secretFilePath}\" --encoding utf-8",
+                        silent: true);
+
+                    await File.WriteAllTextAsync(secretFilePath, appId);
+                    await _az.RunAsync(
+                        $"keyvault secret set --vault-name {vaultName} " +
+                        $"--name teams-app-client-id " +
+                        $"--file \"{secretFilePath}\" --encoding utf-8",
+                        silent: true);
+
+                    File.Delete(secretFilePath);
+                    Console.WriteLine("    ✓ teams-app-client-secret");
+                    Console.WriteLine("    ✓ teams-app-client-id");
                 }
             }
-            Console.WriteLine("    ✓ Key Vault アクセス可能");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"    ⚠️ Key Vault アクセス失敗: {ex.Message[..Math.Min(100, ex.Message.Length)]}");
+                kvSuccess = false;
+            }
 
-            // Client Secret は特殊文字（先頭 '-' やチルダ等）を含むため一時ファイル経由で設定
-            var secretFilePath = Path.GetFullPath("./output/tmp_secret.txt");
-            Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
-            await File.WriteAllTextAsync(secretFilePath, clientSecret);
-
-            await _az.RunAsync(
-                $"keyvault secret set --vault-name {vaultName} " +
-                $"--name teams-app-client-secret " +
-                $"--file \"{secretFilePath}\" --encoding utf-8",
-                silent: true);
-
-            // appId は安全な文字列だが統一してファイル経由
-            await File.WriteAllTextAsync(secretFilePath, appId);
-            await _az.RunAsync(
-                $"keyvault secret set --vault-name {vaultName} " +
-                $"--name teams-app-client-id " +
-                $"--file \"{secretFilePath}\" --encoding utf-8",
-                silent: true);
-
-            // 一時ファイル削除
-            File.Delete(secretFilePath);
-
-            Console.WriteLine("    ✓ teams-app-client-secret");
-            Console.WriteLine("    ✓ teams-app-client-id");
+            if (!kvSuccess)
+            {
+                Console.WriteLine("    ⚠️ Key Vault に publicNetworkAccess が Azure Policy で制限されています。");
+                Console.WriteLine("    📋 シークレットを setup-state.json に保存します (後で手動で KV に登録してください)。");
+                Console.WriteLine($"    Client ID: {appId}");
+                // secret は state に保存（表示はマスク）
+                Console.WriteLine($"    Client Secret: {clientSecret[..4]}****");
+            }
         }
         else
         {
