@@ -216,12 +216,37 @@ public class Step14EntraId : ISetupStep
             if (!string.IsNullOrEmpty(deployment.KeyVaultUri))
             {
                 var vaultName2 = new Uri(deployment.KeyVaultUri).Host.Split('.')[0];
-                await _az.RunAsync(
-                    $"keyvault secret set --vault-name {vaultName2} " +
-                    $"--name teams-graph-refresh-token " +
-                    $"--value \"{refreshToken}\"",
-                    silent: true);
-                Console.WriteLine("    ✓ teams-graph-refresh-token → Key Vault 保存完了");
+                var tokenFilePath = Path.GetFullPath("./output/tmp_refresh_token.txt");
+                Directory.CreateDirectory(Path.GetDirectoryName(tokenFilePath)!);
+                await File.WriteAllTextAsync(tokenFilePath, refreshToken);
+
+                try
+                {
+                    await _az.RunAsync(
+                        $"keyvault secret set --vault-name {vaultName2} " +
+                        $"--name teams-graph-refresh-token " +
+                        $"--file \"{tokenFilePath}\" --encoding utf-8",
+                        silent: true);
+                    Console.WriteLine("    ✓ teams-graph-refresh-token → Key Vault 保存完了");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"    ⚠️ Key Vault 書き込み失敗 (RBAC伝播遅延の可能性): {ex.Message[..Math.Min(100, ex.Message.Length)]}");
+                    Console.WriteLine();
+                    Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
+                    Console.WriteLine("    ║  📋 Key Vault 手動登録が必要です                            ║");
+                    Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                    Console.WriteLine($"    ║  Vault: {vaultName2,-52}║");
+                    Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                    Console.WriteLine($"    ║  Name:  teams-graph-refresh-token                          ║");
+                    Console.WriteLine($"    ║  Value: (output/tmp_refresh_token.txt に保存済み)           ║");
+                    Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
+                    Console.WriteLine();
+                }
+                finally
+                {
+                    // トークンファイルは残す（手動登録用）
+                }
             }
 
             // Container App 環境変数に追加
