@@ -110,17 +110,27 @@ public class Step14EntraId : ISetupStep
                 $"keyvault update --name {vaultName} --resource-group {azure.ResourceGroup} --public-network-access Enabled",
                 silent: true);
 
-            await _az.RunAsync(
-                $"keyvault secret set --vault-name {vaultName} " +
-                $"--name teams-app-client-secret " +
-                $"--value {clientSecret}",
-                silent: true);
+            // Client Secret は特殊文字（先頭 '-' やチルダ等）を含むため一時ファイル経由で設定
+            var secretFilePath = Path.GetFullPath("./output/tmp_secret.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(secretFilePath)!);
+            await File.WriteAllTextAsync(secretFilePath, clientSecret);
 
             await _az.RunAsync(
                 $"keyvault secret set --vault-name {vaultName} " +
-                $"--name teams-app-client-id " +
-                $"--value {appId}",
+                $"--name teams-app-client-secret " +
+                $"--file \"{secretFilePath}\" --encoding utf-8",
                 silent: true);
+
+            // appId は安全な文字列だが統一してファイル経由
+            await File.WriteAllTextAsync(secretFilePath, appId);
+            await _az.RunAsync(
+                $"keyvault secret set --vault-name {vaultName} " +
+                $"--name teams-app-client-id " +
+                $"--file \"{secretFilePath}\" --encoding utf-8",
+                silent: true);
+
+            // 一時ファイル削除
+            File.Delete(secretFilePath);
 
             Console.WriteLine("    ✓ teams-app-client-secret");
             Console.WriteLine("    ✓ teams-app-client-id");
