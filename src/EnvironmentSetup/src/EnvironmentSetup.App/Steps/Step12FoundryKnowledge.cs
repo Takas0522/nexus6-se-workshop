@@ -225,11 +225,6 @@ public class Step12FoundryKnowledge : ISetupStep
     private async Task<string> CreateVectorStoreAsync(
         string projectEndpoint, string apiVersion, List<string> fileIds, CancellationToken ct)
     {
-        var token = await GetCognitiveServicesTokenAsync();
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        httpClient.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
         var payload = JsonSerializer.Serialize(new
         {
             name = "nexus6-knowledge-base",
@@ -237,14 +232,41 @@ public class Step12FoundryKnowledge : ISetupStep
         });
 
         var url = $"{BuildApiBase(projectEndpoint)}/vector_stores?api-version={apiVersion}";
-        var response = await httpClient.PostAsync(url,
-            new StringContent(payload, Encoding.UTF8, "application/json"), ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        response.EnsureSuccessStatusCode();
 
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.GetProperty("id").GetString()
-            ?? throw new InvalidOperationException("Vector Store ID not returned");
+        // 500 エラーはサーバー側の一時的な問題のため、リトライする
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            var token = await GetCognitiveServicesTokenAsync();
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await httpClient.PostAsync(url,
+                new StringContent(payload, Encoding.UTF8, "application/json"), ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(body);
+                return doc.RootElement.GetProperty("id").GetString()
+                    ?? throw new InvalidOperationException("Vector Store ID not returned");
+            }
+
+            Console.WriteLine($"    ⚠️ Vector Store 作成失敗 (HTTP {(int)response.StatusCode}, attempt {attempt}/3)");
+            if (attempt < 3)
+            {
+                var waitSec = attempt * 30;
+                Console.WriteLine($"    {waitSec}秒後にリトライ...");
+                await Task.Delay(TimeSpan.FromSeconds(waitSec), ct);
+            }
+            else
+            {
+                Console.WriteLine($"    レスポンス: {body[..Math.Min(200, body.Length)]}");
+                response.EnsureSuccessStatusCode(); // throw
+            }
+        }
+
+        throw new InvalidOperationException("Vector Store 作成に失敗しました");
     }
 
     private async Task WaitForVectorStoreReadyAsync(
