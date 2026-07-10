@@ -150,6 +150,14 @@ public class Step10NewsSite : ISetupStep
                 Console.WriteLine($"    ║      --account-name {portalStorage} --overwrite --auth-mode login");
                 Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                 Console.WriteLine();
+
+                state.ManualActions.Add(new ManualAction
+                {
+                    Step = 10,
+                    Target = "Storage: ニュースポータル ($web)",
+                    Description = $"{portalStorage} の $web コンテナに news-portal ファイルをアップロード",
+                    Details = [$"ソース: {outputDir}"]
+                });
             }
         }
         else

@@ -135,6 +135,14 @@ public class Step09DomainConfigUpload : ISetupStep
                 var blobUri2 = $"https://{storageAccount}.blob.core.windows.net/config/domain-config.json";
                 Console.WriteLine($"\n    📍 Blob URI: {blobUri2}");
                 state.DomainConfigBlobUri = blobUri2;
+
+                state.ManualActions.Add(new ManualAction
+                {
+                    Step = 9,
+                    Target = "Storage: domain-config.json",
+                    Description = $"{storageAccount} の config コンテナに domain-config.json をアップロード",
+                    Details = [$"ファイル: {configPath}"]
+                });
             }
         }
         else

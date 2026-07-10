@@ -123,4 +123,25 @@ ConsoleApp.Run(args, async (
 
     Console.WriteLine("  ─────────────────────────────────────────────────────────");
     Console.WriteLine();
+
+    // 手動対応が必要な項目を表示
+    if (state.ManualActions.Count > 0)
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║  ⚠️  手動対応が必要な項目があります                     ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        foreach (var action in state.ManualActions)
+        {
+            Console.WriteLine($"  📌 [Step{action.Step}] {action.Target}");
+            Console.WriteLine($"     {action.Description}");
+            foreach (var detail in action.Details)
+            {
+                Console.WriteLine($"     {detail}");
+            }
+            Console.WriteLine();
+        }
+        Console.WriteLine("  ─────────────────────────────────────────────────────────");
+        Console.WriteLine();
+    }
 });

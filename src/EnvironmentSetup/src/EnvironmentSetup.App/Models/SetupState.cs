@@ -36,6 +36,30 @@ public class SetupState
 
     [JsonPropertyName("domainConfigBlobUri")]
     public string? DomainConfigBlobUri { get; set; }
+
+    /// <summary>
+    /// 手動対応が必要な項目リスト (最終サマリーで表示)
+    /// </summary>
+    [JsonPropertyName("manualActions")]
+    public List<ManualAction> ManualActions { get; set; } = [];
+}
+
+/// <summary>
+/// 手動対応が必要な項目
+/// </summary>
+public class ManualAction
+{
+    [JsonPropertyName("step")]
+    public int Step { get; set; }
+
+    [JsonPropertyName("target")]
+    public string Target { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("details")]
+    public List<string> Details { get; set; } = [];
 }
 
 /// <summary>

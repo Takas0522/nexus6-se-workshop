@@ -178,6 +178,18 @@ public class Step14EntraId : ISetupStep
                 Console.WriteLine($"    ║      --name teams-app-client-secret --value \"<上記Value>\"");
                 Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                 Console.WriteLine();
+
+                state.ManualActions.Add(new ManualAction
+                {
+                    Step = 14,
+                    Target = "Key Vault: Teams アプリ資格情報",
+                    Description = $"{vaultName} に以下のシークレットを登録",
+                    Details =
+                    [
+                        $"teams-app-client-id = {appId}",
+                        $"teams-app-client-secret = {clientSecret}"
+                    ]
+                });
             }
         }
         else
@@ -253,6 +265,14 @@ public class Step14EntraId : ISetupStep
                     Console.WriteLine($"    ║      --file output/tmp_refresh_token.txt --encoding utf-8");
                     Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                     Console.WriteLine();
+
+                    state.ManualActions.Add(new ManualAction
+                    {
+                        Step = 14,
+                        Target = "Key Vault: Refresh Token",
+                        Description = $"{vaultName2} に teams-graph-refresh-token を登録",
+                        Details = ["ファイル: output/tmp_refresh_token.txt"]
+                    });
                 }
                 finally
                 {
