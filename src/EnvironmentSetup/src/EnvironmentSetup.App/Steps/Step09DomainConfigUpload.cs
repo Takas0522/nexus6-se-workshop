@@ -114,10 +114,27 @@ public class Step09DomainConfigUpload : ISetupStep
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"    ⚠️ Blob アップロード失敗: {ex.Message}");
-                Console.WriteLine("    手動でアップロードしてください:");
-                Console.WriteLine($"    az storage blob upload --account-name {storageAccount} " +
-                    $"--container-name config --name domain-config.json --file {configPath} --auth-mode key");
+                Console.WriteLine($"    ⚠️ Blob アップロード失敗: {ex.Message[..Math.Min(100, ex.Message.Length)]}");
+                Console.WriteLine();
+                Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
+                Console.WriteLine("    ║  📋 手動アップロードが必要です                              ║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine("    ║  方法1: Azure Portal > Storage Browser > config コンテナ    ║");
+                Console.WriteLine($"    ║         にファイルをアップロード                             ║");
+                Console.WriteLine("    ║  方法2: Key認証が有効な環境から:                            ║");
+                Console.WriteLine($"    ║    az storage blob upload --account-name {storageAccount} \\");
+                Console.WriteLine($"    ║      --container-name config --name domain-config.json \\");
+                Console.WriteLine($"    ║      --file {configPath} --overwrite --auth-mode key");
+                Console.WriteLine("    ║  方法3: RBAC認証が有効な環境から:                           ║");
+                Console.WriteLine($"    ║    az storage blob upload --account-name {storageAccount} \\");
+                Console.WriteLine($"    ║      --container-name config --name domain-config.json \\");
+                Console.WriteLine($"    ║      --file {configPath} --overwrite --auth-mode login");
+                Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
+
+                // Blob URI は設定しておく (後で手動アップ後に使える)
+                var blobUri2 = $"https://{storageAccount}.blob.core.windows.net/config/domain-config.json";
+                Console.WriteLine($"\n    📍 Blob URI: {blobUri2}");
+                state.DomainConfigBlobUri = blobUri2;
             }
         }
         else

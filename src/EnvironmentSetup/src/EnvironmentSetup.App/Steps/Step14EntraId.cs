@@ -164,13 +164,18 @@ public class Step14EntraId : ISetupStep
                 Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
                 Console.WriteLine($"    ║  Vault: {vaultName,-52}║");
                 Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
-                Console.WriteLine("    ║  以下を Azure Portal > Key Vault > Secrets で登録:         ║");
-                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
                 Console.WriteLine($"    ║  Name:  teams-app-client-id                                ║");
                 Console.WriteLine($"    ║  Value: {appId,-52}║");
-                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine("    ╠──────────────────────────────────────────────────────────────╣");
                 Console.WriteLine($"    ║  Name:  teams-app-client-secret                            ║");
                 Console.WriteLine($"    ║  Value: {clientSecret,-52}║");
+                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                Console.WriteLine("    ║  方法1: Azure Portal > Key Vault > Secrets > Generate       ║");
+                Console.WriteLine("    ║  方法2: ネットワークアクセス可能な環境から:                  ║");
+                Console.WriteLine($"    ║    az keyvault secret set --vault-name {vaultName} \\");
+                Console.WriteLine($"    ║      --name teams-app-client-id --value \"{appId}\"");
+                Console.WriteLine($"    ║    az keyvault secret set --vault-name {vaultName} \\");
+                Console.WriteLine($"    ║      --name teams-app-client-secret --value \"<上記Value>\"");
                 Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                 Console.WriteLine();
             }
@@ -239,7 +244,13 @@ public class Step14EntraId : ISetupStep
                     Console.WriteLine($"    ║  Vault: {vaultName2,-52}║");
                     Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
                     Console.WriteLine($"    ║  Name:  teams-graph-refresh-token                          ║");
-                    Console.WriteLine($"    ║  Value: (output/tmp_refresh_token.txt に保存済み)           ║");
+                    Console.WriteLine($"    ║  Value: output/tmp_refresh_token.txt に保存済み             ║");
+                    Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
+                    Console.WriteLine("    ║  方法1: Azure Portal > Key Vault > Secrets > Generate       ║");
+                    Console.WriteLine("    ║  方法2: ネットワークアクセス可能な環境から:                  ║");
+                    Console.WriteLine($"    ║    az keyvault secret set --vault-name {vaultName2} \\");
+                    Console.WriteLine($"    ║      --name teams-graph-refresh-token \\");
+                    Console.WriteLine($"    ║      --file output/tmp_refresh_token.txt --encoding utf-8");
                     Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                     Console.WriteLine();
                 }

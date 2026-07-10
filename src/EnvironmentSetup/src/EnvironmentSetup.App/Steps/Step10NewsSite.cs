@@ -136,12 +136,18 @@ public class Step10NewsSite : ISetupStep
                 Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
                 Console.WriteLine("    ║  📋 手動アップロードが必要です                              ║");
                 Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
-                Console.WriteLine($"    ║  コマンド:                                                  ║");
-                Console.WriteLine($"    ║  az storage blob upload-batch \\                             ║");
-                Console.WriteLine($"    ║    --source \"{outputDir}\" \\");
-                Console.WriteLine($"    ║    --destination \"$web\" \\");
-                Console.WriteLine($"    ║    --account-name {portalStorage} \\");
-                Console.WriteLine($"    ║    --auth-mode login --overwrite                            ║");
+                Console.WriteLine("    ║  方法1: Azure Portal > Storage Browser > $web コンテナ      ║");
+                Console.WriteLine($"    ║         に output/news-portal/ 内のファイルをアップロード    ║");
+                Console.WriteLine("    ║  方法2: Key認証が有効な環境から:                            ║");
+                Console.WriteLine($"    ║    az storage blob upload-batch \\");
+                Console.WriteLine($"    ║      --source \"{outputDir}\" \\");
+                Console.WriteLine($"    ║      --destination \"$web\" \\");
+                Console.WriteLine($"    ║      --account-name {portalStorage} --overwrite --auth-mode key");
+                Console.WriteLine("    ║  方法3: RBAC認証が有効な環境から:                           ║");
+                Console.WriteLine($"    ║    az storage blob upload-batch \\");
+                Console.WriteLine($"    ║      --source \"{outputDir}\" \\");
+                Console.WriteLine($"    ║      --destination \"$web\" \\");
+                Console.WriteLine($"    ║      --account-name {portalStorage} --overwrite --auth-mode login");
                 Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
                 Console.WriteLine();
             }
