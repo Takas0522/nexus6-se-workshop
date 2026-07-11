@@ -23,6 +23,7 @@ WORKDIR /app
 COPY --from=api-build /app/publish .
 COPY --from=client-build /app/client/dist ./wwwroot
 COPY news-portal/ ./news-portal
+COPY news-analysis-webapp/api/domain-config.json ./domain-config.json
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "NewsAnalysisWebApp.Api.dll"]

@@ -25,6 +25,7 @@ builder.WebHost.UseUrls(builder.Configuration["Urls"] ?? "http://localhost:5000"
 
 // --- Blob-based domain configuration loading ---
 var domainConfigBlobUri = builder.Configuration["DomainConfig:BlobUri"];
+var domainConfigLoaded = false;
 if (!string.IsNullOrWhiteSpace(domainConfigBlobUri))
 {
     try
@@ -35,10 +36,22 @@ if (!string.IsNullOrWhiteSpace(domainConfigBlobUri))
         var configJson = downloadResult.Value.Content.ToString();
         var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(configJson));
         builder.Configuration.AddJsonStream(memoryStream);
+        domainConfigLoaded = true;
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"⚠️ DomainConfig Blob load failed ({ex.Message}). Using appsettings fallback.");
+        Console.WriteLine($"⚠️ DomainConfig Blob load failed ({ex.Message}). Trying local fallback...");
+    }
+}
+
+// Fallback: load local domain-config.json if blob load failed
+if (!domainConfigLoaded)
+{
+    var localConfigPath = Path.Combine(AppContext.BaseDirectory, "domain-config.json");
+    if (File.Exists(localConfigPath))
+    {
+        builder.Configuration.AddJsonFile(localConfigPath, optional: true);
+        Console.WriteLine($"✓ DomainConfig loaded from local file: {localConfigPath}");
     }
 }
 builder.Services.Configure<DivisionsConfig>(builder.Configuration.GetSection("Divisions").Exists()
