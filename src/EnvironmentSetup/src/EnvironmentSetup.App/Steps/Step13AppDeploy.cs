@@ -32,6 +32,9 @@ public class Step13AppDeploy : ISetupStep
         // リポジトリルートを特定
         var repoRoot = FindRepoRoot();
 
+        // ユニークイメージタグ（latest だと Container Apps が新イメージをプルしない）
+        var imageTag = $"v{DateTime.UtcNow:yyyyMMddHHmmss}";
+
         // ポータルURL決定: Container App の /news-portal/ パスで配信（Static Website は MCAPS Policy で外部アクセス不可）
         if (!string.IsNullOrEmpty(deployment.ContainerAppUrl))
         {
@@ -80,13 +83,13 @@ public class Step13AppDeploy : ISetupStep
         Console.WriteLine("  🐳 news-analysis-agent をビルド・デプロイ中...");
         if (!string.IsNullOrEmpty(deployment.AcrLoginServer))
         {
-            var imageName = $"{deployment.AcrLoginServer}/news-analysis-agent:latest";
+            var imageName = $"{deployment.AcrLoginServer}/news-analysis-agent:{imageTag}";
             Console.WriteLine($"    ACR ビルド: {imageName}");
             var dockerfilePath = Path.Combine(repoRoot, "src", "news-analysis-agent", "Dockerfile");
             var contextPath = Path.Combine(repoRoot, "src", "news-analysis-agent");
             await _az.RunAsync(
                 $"acr build --registry {deployment.AcrLoginServer.Split('.')[0]} " +
-                $"--image news-analysis-agent:latest " +
+                $"--image news-analysis-agent:{imageTag} " +
                 $"--file {dockerfilePath} {contextPath}",
                 silent: true);
 
@@ -142,12 +145,12 @@ public class Step13AppDeploy : ISetupStep
         var webappDockerfile = Path.Combine(repoRoot, "src", "news-analysis-webapp", "Dockerfile");
         if (!string.IsNullOrEmpty(deployment.AcrLoginServer) && File.Exists(webappDockerfile))
         {
-            var webappImage = $"{deployment.AcrLoginServer}/news-analysis-webapp:latest";
+            var webappImage = $"{deployment.AcrLoginServer}/news-analysis-webapp:{imageTag}";
             Console.WriteLine($"    ACR ビルド: {webappImage}");
             var webappContext = Path.Combine(repoRoot, "src");
             await _az.RunAsync(
                 $"acr build --registry {deployment.AcrLoginServer.Split('.')[0]} " +
-                $"--image news-analysis-webapp:latest " +
+                $"--image news-analysis-webapp:{imageTag} " +
                 $"--file {webappDockerfile} {webappContext}",
                 silent: true);
 
