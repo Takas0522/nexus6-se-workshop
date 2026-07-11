@@ -236,6 +236,22 @@ public class Step13AppDeploy : ISetupStep
             }
 
             Console.WriteLine("    ✓ Webapp デプロイ完了");
+
+            // webapp の FQDN を取得して PortalBaseUrl を更新
+            try
+            {
+                var webappFqdn = (await _az.RunAsync(
+                    $"containerapp show --name {deployment.ContainerAppNameWebapp} " +
+                    $"--resource-group {azure.ResourceGroup} --query properties.configuration.ingress.fqdn -o tsv",
+                    silent: true)).Trim();
+                if (!string.IsNullOrEmpty(webappFqdn))
+                {
+                    deployment.ContainerAppUrl = $"https://{webappFqdn}";
+                    deployment.PortalBaseUrl = $"https://{webappFqdn}/news-portal/";
+                    Console.WriteLine($"    📋 Webapp URL: https://{webappFqdn}");
+                }
+            }
+            catch { /* FQDN取得失敗は致命的ではない */ }
         }
         else
         {

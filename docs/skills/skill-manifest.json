@@ -23,6 +23,42 @@
     "title_ja": "日銀利上げと端末分割払い影響",
     "owner": "モバイル事業 ファイナンス"
   },
+  "mobile_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約インパクト判断",
+    "owner": "携帯電話事業 端末調達"
+  },
+  "mobile_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法インパクト判断",
+    "owner": "携帯電話事業 コンプライアンス"
+  },
+  "mobile_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃インパクト判断",
+    "owner": "携帯電話事業 IT基盤・CSIRT"
+  },
+  "sns_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約によるSNSインフラ影響判断",
+    "owner": "SNS事業 インフラ・広告基盤"
+  },
+  "sns_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法によるSNS広告収益影響判断",
+    "owner": "SNS事業 プライバシー・広告戦略"
+  },
+  "sns_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃によるSNSプラットフォーム影響判断",
+    "owner": "SNS事業 インフラ・CSIRT"
+  },
+  "si_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約によるSIプロジェクト納期影響判断",
+    "owner": "SI事業 プロジェクト管理・調達"
+  },
+  "si_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法によるSI事業影響判断",
+    "owner": "SI事業 法務・コンプライアンス"
+  },
+  "si_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃による顧客システム影響判断",
+    "owner": "SI事業 運用管理・CSIRT"
+  },
   "ecommerce_skill_consumer-sentiment.md": {
     "title_ja": "消費者マインド悪化時の需要判断",
     "owner": "EC事業 需要予測"
