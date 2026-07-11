@@ -248,6 +248,13 @@ if (Directory.Exists(newsPortalPath))
 // Health check
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
+// Domain config (divisions list)
+app.MapGet("/api/domain-config", (IOptions<DivisionsConfig> divisionsConfig) =>
+{
+    var divisions = divisionsConfig.Value.Divisions.Select(d => new { id = d.Id, label = d.Label }).ToArray();
+    return Results.Ok(new { divisions });
+});
+
 // News articles list
 app.MapGet("/api/news", () =>
 {

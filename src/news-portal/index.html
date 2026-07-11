@@ -72,9 +72,8 @@ footer a { color: #ef9a9a; text-decoration: none; }
       <li><a href="#">経済・為替</a></li>
       <li><a href="#">競合・市場</a></li>
       <li><a href="#">金融政策</a></li>
-      <li><a href="#">携帯電話事業</a></li>
-      <li><a href="#">SNS事業</a></li>
-      <li><a href="#">SI事業</a></li>
+      <!-- 分析対象事業（domain-config から動的に挿入） -->
+      <li id="nav-divisions"></li>
     </ul>
   </nav>
 </header>
@@ -180,6 +179,26 @@ footer a { color: #ef9a9a; text-decoration: none; }
   var now = new Date();
   var opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
   document.getElementById('current-date').textContent = now.toLocaleDateString('ja-JP', opts);
+
+  // domain-config から分析対象事業を動的に読み込み
+  fetch('/api/domain-config')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      var placeholder = document.getElementById('nav-divisions');
+      if (placeholder && data.divisions) {
+        var fragment = document.createDocumentFragment();
+        data.divisions.forEach(function(d) {
+          var li = document.createElement('li');
+          var a = document.createElement('a');
+          a.href = '#';
+          a.textContent = d.label;
+          li.appendChild(a);
+          fragment.appendChild(li);
+        });
+        placeholder.parentNode.replaceChild(fragment, placeholder);
+      }
+    })
+    .catch(function(err) { console.warn('domain-config load failed:', err); });
 })();
 </script>
 </body>
