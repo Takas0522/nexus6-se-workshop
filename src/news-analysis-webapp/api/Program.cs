@@ -230,20 +230,25 @@ builder.Services.AddResiliencePipeline("agent-retry", pipeline =>
 var app = builder.Build();
 app.UseCors();
 
-// Serve React SPA from wwwroot
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// Redirect /news-portal (no trailing slash) to /news-portal/
+// Serve /news-portal/ directly as index.html from news-portal directory
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (path == "/news-portal")
+    {
+        context.Response.StatusCode = 301;
+        context.Response.Headers.Location = "/news-portal/";
+        return;
+    }
+    await next();
+});
 
-// Serve news-portal static files under /news-portal/
+// Serve news-portal static files under /news-portal/ (before SPA so it takes priority)
 var newsPortalPath = Path.Combine(app.Environment.ContentRootPath, "news-portal");
 if (Directory.Exists(newsPortalPath))
 {
     var newsPortalFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(newsPortalPath);
-    app.UseDefaultFiles(new DefaultFilesOptions
-    {
-        FileProvider = newsPortalFileProvider,
-        RequestPath = "/news-portal"
-    });
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = newsPortalFileProvider,
@@ -251,8 +256,9 @@ if (Directory.Exists(newsPortalPath))
     });
 }
 
-// Redirect /news-portal to /news-portal/ so static files resolve correctly
-app.MapGet("/news-portal", () => Results.Redirect("/news-portal/", permanent: true));
+// Serve React SPA from wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // Health check
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
@@ -362,6 +368,15 @@ app.MapGet("/api/analysis/latest", (WorkflowExecutionStore store) =>
         context.CompletedAt);
 
     return Results.Ok(response);
+});
+
+// Serve /news-portal/ as index.html from the news-portal directory
+app.MapGet("/news-portal/", () =>
+{
+    var filePath = Path.Combine(AppContext.BaseDirectory, "news-portal", "index.html");
+    if (File.Exists(filePath))
+        return Results.File(filePath, "text/html");
+    return Results.NotFound();
 });
 
 // SPA fallback: non-API routes serve index.html
