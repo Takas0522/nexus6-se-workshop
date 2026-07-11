@@ -328,19 +328,30 @@ public class Step07MedallionSetup : ISetupStep
             throw;
         }
 
-        // 作成されたIDを取得
-        itemsJson = await _az.RunAsync(
-            $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Lakehouse\" --resource \"{FabricResource}\"",
-            silent: true);
-        doc = JsonDocument.Parse(itemsJson);
-        var created = doc.RootElement.GetProperty("value").EnumerateArray()
-            .First(i => i.GetProperty("displayName").GetString() == name);
-
-        return new LakehouseInfo
+        // 作成されたIDを取得 (結果整合性のためリトライ)
+        for (var attempt = 0; attempt < 10; attempt++)
         {
-            Id = created.GetProperty("id").GetString()!,
-            Name = name
-        };
+            if (attempt > 0)
+                await Task.Delay(3000, ct);
+
+            itemsJson = await _az.RunAsync(
+                $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Lakehouse\" --resource \"{FabricResource}\"",
+                silent: true);
+            doc = JsonDocument.Parse(itemsJson);
+            var created = doc.RootElement.GetProperty("value").EnumerateArray()
+                .FirstOrDefault(i => i.GetProperty("displayName").GetString() == name);
+
+            if (created.ValueKind != JsonValueKind.Undefined)
+                return new LakehouseInfo
+                {
+                    Id = created.GetProperty("id").GetString()!,
+                    Name = name
+                };
+
+            Console.WriteLine($"    ⏳ Lakehouse '{name}' の作成完了を待機中... ({attempt + 1}/10)");
+        }
+
+        throw new InvalidOperationException($"Lakehouse '{name}' が作成後にリストに見つかりません。Step 7 を再実行してください。");
     }
 
     private async Task UploadSeedDataAsync(string wsId, LakehouseInfo bronze, AnalysisResult analysis, CancellationToken ct)
@@ -490,15 +501,26 @@ public class Step07MedallionSetup : ISetupStep
             Console.WriteLine($"    ℹ️ Notebook '{name}' は既に存在します。続行します。");
         }
 
-        // 作成されたIDを取得
-        itemsJson = await _az.RunAsync(
-            $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Notebook\" --resource \"{FabricResource}\"",
-            silent: true);
-        doc = JsonDocument.Parse(itemsJson);
-        var created = doc.RootElement.GetProperty("value").EnumerateArray()
-            .First(i => i.GetProperty("displayName").GetString() == name);
+        // 作成されたIDを取得 (結果整合性のためリトライ)
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            if (attempt > 0)
+                await Task.Delay(3000, ct);
 
-        return created.GetProperty("id").GetString()!;
+            itemsJson = await _az.RunAsync(
+                $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Notebook\" --resource \"{FabricResource}\"",
+                silent: true);
+            doc = JsonDocument.Parse(itemsJson);
+            var created = doc.RootElement.GetProperty("value").EnumerateArray()
+                .FirstOrDefault(i => i.GetProperty("displayName").GetString() == name);
+
+            if (created.ValueKind != JsonValueKind.Undefined)
+                return created.GetProperty("id").GetString()!;
+
+            Console.WriteLine($"    ⏳ Notebook '{name}' の作成完了を待機中... ({attempt + 1}/10)");
+        }
+
+        throw new InvalidOperationException($"Notebook '{name}' が作成後にリストに見つかりません。Fabric API の結果整合性の問題の可能性があります。Step 7 を再実行してください。");
     }
 
     private async Task RunNotebookAsync(string wsId, string notebookId, CancellationToken ct)
