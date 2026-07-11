@@ -4,6 +4,7 @@ using NewsAnalysisAgent.Agents.Infrastructure.Knowledge;
 using NewsAnalysisAgent.Models;
 using NewsAnalysisAgent.Tools;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace NewsAnalysisAgent.Agents.BusinessImpact;
 
@@ -11,6 +12,7 @@ public sealed class BusinessImpactAgent(
     IFoundryAgentClient foundryAgentClient,
     IFabricDataPlugin fabricDataPlugin,
     IKnowledgeProvider knowledgeProvider,
+    IOptions<DivisionsConfig> divisionsConfig,
     ILogger<BusinessImpactAgent> logger) : IWorkflowStep<NewsAnalysisContext>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -24,8 +26,9 @@ public sealed class BusinessImpactAgent(
         logger.LogInformation("BusinessImpactAgent invoked for {YearMonth}. Web research present: {HasWebResearch}", yearMonth, ctx.WebResearchResult is not null);
 
         var monthlyRevenueJson = await fabricDataPlugin.GetMonthlyRevenueAsync(yearMonth, ct);
+        var divisionIds = divisionsConfig.Value.Divisions.Select(d => d.Id).ToArray();
         var divisionSnapshots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var division in new[] { "mobile", "ecommerce", "fintech" })
+        foreach (var division in divisionIds)
         {
             divisionSnapshots[division] = await fabricDataPlugin.GetDivisionKpiSnapshotAsync(division, yearMonth, ct);
         }
@@ -48,11 +51,11 @@ public sealed class BusinessImpactAgent(
                 division_snapshots = divisionSnapshots.ToDictionary(pair => pair.Key, pair => SafeJson(pair.Value), StringComparer.OrdinalIgnoreCase)
             },
             knowledge_snippets = knowledge.Select(item => new { item.Division, item.Topic, item.Snippet }),
-            output_schema = SafeJson(BusinessImpactPrompts.OutputJsonSchema)
+            output_schema = SafeJson(BusinessImpactPrompts.BuildOutputJsonSchema(divisionsConfig.Value.Divisions))
         }, JsonOptions);
 
         var response = await foundryAgentClient.InvokeAsync(
-            BusinessImpactPrompts.SystemPrompt,
+            BusinessImpactPrompts.BuildSystemPrompt(divisionsConfig.Value.Divisions),
             userMessage,
             new object[] { fabricDataPlugin },
             ct);
@@ -70,9 +73,10 @@ public sealed class BusinessImpactAgent(
             using var document = JsonDocument.Parse(ExtractJsonObject(response));
             var root = document.RootElement;
             var scores = ReadImpactScores(root).ToArray();
-            if (scores.Length != 3 || scores.Select(static score => score.Division).Distinct().Count() != 3)
+            var expectedCount = divisionsConfig.Value.Divisions.Count;
+            if (scores.Length != expectedCount || scores.Select(static score => score.Division).Distinct().Count() != expectedCount)
             {
-                throw new JsonException("Impact score output must contain all three divisions exactly once.");
+                throw new JsonException($"Impact score output must contain all {expectedCount} divisions exactly once.");
             }
 
             scores = scores.OrderByDescending(static score => score.Score).ToArray();
@@ -138,7 +142,11 @@ public sealed class BusinessImpactAgent(
     private static BusinessImpactResult BuildHeuristicFallback(string monthlyRevenueJson, IReadOnlyDictionary<string, string> divisionSnapshots)
     {
         var metrics = ReadRevenueMetrics(monthlyRevenueJson);
-        var divisions = metrics.Keys.Any() ? metrics.Keys.ToArray() : new[] { "mobile", "ecommerce", "fintech" };
+        var divisions = metrics.Keys.Any()
+            ? metrics.Keys.ToArray()
+            : divisionSnapshots.Keys.Any()
+                ? divisionSnapshots.Keys.ToArray()
+                : ["division1", "division2", "division3"];
         var scores = divisions
             .Select(division => BuildHeuristicScore(division, metrics.GetValueOrDefault(division), divisionSnapshots.GetValueOrDefault(division)))
             .OrderByDescending(static score => score.Score)
@@ -163,12 +171,7 @@ public sealed class BusinessImpactAgent(
             score += 0.4;
         }
 
-        score += division.ToLowerInvariant() switch
-        {
-            "fintech" => 0.2,
-            "mobile" => 0.1,
-            _ => 0
-        };
+        score += 0.1; // base bonus
 
         var clamped = Math.Round(Math.Clamp(score, 0, 5), 1);
         return new ImpactScore(division, clamped, RiskLevelFromScore(clamped));

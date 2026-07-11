@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NewsAnalysisAgent.Agents.BusinessImpact;
 using NewsAnalysisAgent.Agents.Infrastructure;
 using NewsAnalysisAgent.Agents.Infrastructure.Knowledge;
@@ -81,6 +82,14 @@ public sealed class BusinessImpactAgentTests
         foundryAgentClient,
         new MockFabricDataPlugin(),
         new StaticKnowledgeProvider(),
+        Options.Create(new DivisionsConfig
+        {
+            Divisions = [
+                new DivisionConfig { Id = "mobile", Label = "Mobile" },
+                new DivisionConfig { Id = "ecommerce", Label = "Ecommerce" },
+                new DivisionConfig { Id = "fintech", Label = "Fintech" }
+            ]
+        }),
         NullLogger<BusinessImpactAgent>.Instance);
 
     private sealed class StaticFoundryAgentClient(string response) : IFoundryAgentClient

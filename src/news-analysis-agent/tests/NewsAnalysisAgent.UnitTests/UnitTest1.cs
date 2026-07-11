@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NewsAnalysisAgent.Agents;
 using NewsAnalysisAgent.Agents.BusinessImpact;
 using NewsAnalysisAgent.Agents.DivisionRecommend;
@@ -58,6 +59,14 @@ public sealed class CoreWorkflowTests
                 new MockFoundryAgentClient(),
                 new MockFabricDataPlugin(),
                 new LocalFolderKnowledgeProvider(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "knowledge"), NullLogger<LocalFolderKnowledgeProvider>.Instance),
+                Options.Create(new DivisionsConfig
+                {
+                    Divisions = [
+                        new DivisionConfig { Id = "mobile", Label = "Mobile" },
+                        new DivisionConfig { Id = "ecommerce", Label = "Ecommerce" },
+                        new DivisionConfig { Id = "fintech", Label = "Fintech" }
+                    ]
+                }),
                 NullLogger<BusinessImpactAgent>.Instance),
             new DivisionRecommendAgentFactory(
                 new MockMobileDataPlugin(),

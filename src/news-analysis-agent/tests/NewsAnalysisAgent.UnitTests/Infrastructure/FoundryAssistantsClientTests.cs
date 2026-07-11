@@ -29,7 +29,7 @@ public sealed class FoundryAssistantsClientTests
             NullLogger<FoundryAssistantsClient>.Instance,
             new MockFoundryAgentClient());
 
-        var response = await client.InvokeAsync(BusinessImpactPrompts.SystemPrompt, "{}", [], CancellationToken.None);
+        var response = await client.InvokeAsync("test system prompt", "{}", [], CancellationToken.None);
 
         Assert.Contains("mobile_skill_competitor-mnp.md", response);
         Assert.Contains("/api/projects/proj-PartnerIQ/threads", handler.RequestPaths);
