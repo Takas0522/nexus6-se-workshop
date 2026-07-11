@@ -46,23 +46,23 @@ public class Step10NewsSite : ISetupStep
             ニュースシナリオ:
             {string.Join("\n", scenarios.Select((n, i) => $"{i + 1}. [{n.Category}] {n.Title}: {n.Summary}"))}
 
-            業務領域: {string.Join(", ", domains)}
-
             生成するファイル:
             1. index.html - メインページ
                - <!DOCTYPE html> で始まる完全なHTML5
                - インラインCSS（赤系ヘッダー、新聞風レイアウト）
                - ヘッダーに「Nexus6 ニュースポータル」
-               - 業務領域のナビゲーションタブ
+               - カテゴリ別のナビゲーションタブ（ニュースシナリオのカテゴリから）
                - 速報ティッカー（各シナリオの見出し）
                - 3記事カード（article-1.html, article-2.html, article-3.html へのリンク）
                - レスポンシブデザイン、日本語、年号2026年
+               - 注意: 事業部への影響分析は記載しない（純粋なニュースサイトとして構成）
 
             2. article-1.html, article-2.html, article-3.html - 各記事ページ
                - index.htmlと統一デザイン
-               - 800〜1200文字の記事本文
-               - 公開日2026年、カテゴリ、影響領域
+               - 1000〜1500文字の具体的な記事本文（数値、企業名、地域等を含む詳細な報道）
+               - 公開日2026年、カテゴリ表示
                - ←トップに戻るリンク (index.html)
+               - 注意: 「○○事業に影響」等の事業部影響分析は記載しない
 
             すべてのファイルを実際に生成してください。
             """;
@@ -134,7 +134,8 @@ public class Step10NewsSite : ISetupStep
 
     private static string BuildFallbackIndexHtml(List<string> domains, List<NewsScenario> scenarios)
     {
-        var navTabs = string.Join("\n", domains.Select(d => $"            <span class=\"nav-tab\">{d}</span>"));
+        var categories = scenarios.Select(s => s.Category).Distinct().ToList();
+        var navTabs = string.Join("\n", categories.Select(c => $"            <span class=\"nav-tab\">{c}</span>"));
         var ticker = string.Join(" ｜ ", scenarios.Select(s => $"【{s.Category}】{s.Title}"));
         var cards = string.Join("\n", scenarios.Select((s, i) => $"""
                     <div class="card">
@@ -208,8 +209,6 @@ public class Step10NewsSite : ISetupStep
                 article p { line-height: 1.8; margin-bottom: 1rem; }
                 .back { display: inline-block; margin-top: 2rem; color: #c0392b; text-decoration: none; }
                 .back:hover { text-decoration: underline; }
-                .impact { margin-top: 1.5rem; padding: 1rem; background: #fdf2f2; border-radius: 4px; }
-                .impact h4 { color: #c0392b; margin-bottom: 0.5rem; }
                 footer { text-align: center; padding: 2rem; color: #999; font-size: 0.8rem; }
               </style>
             </head>
@@ -222,12 +221,6 @@ public class Step10NewsSite : ISetupStep
                   </div>
                   <h2>{{scenario.Title}}</h2>
                   <p>{{scenario.Summary}}</p>
-                  <p>本ニュースは{{string.Join("、", domains)}}の各事業領域に影響を及ぼす可能性があります。特に{{string.Join("、", scenario.ImpactDomains)}}への影響が注目されます。</p>
-                  <p>企業は戦略的対応を検討し、事業リスクの最小化と機会の最大化を図る必要があります。詳細な影響分析については、AI分析エンジンによるレポートをご確認ください。</p>
-                  <div class="impact">
-                    <h4>影響領域</h4>
-                    <p>{{string.Join("、", scenario.ImpactDomains)}}</p>
-                  </div>
                   <a href="index.html" class="back">← トップに戻る</a>
                 </article>
               </main>
