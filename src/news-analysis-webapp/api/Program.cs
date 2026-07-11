@@ -179,6 +179,7 @@ builder.Services.AddSingleton(sp => new BusinessImpactAgent(
     (IFoundryAgentClient?)sp.GetService<FoundryAssistantsClient>() ?? sp.GetRequiredService<MockFoundryAgentClient>(),
     sp.GetRequiredService<IFabricDataPlugin>(),
     sp.GetRequiredService<IKnowledgeProvider>(),
+    sp.GetRequiredService<IOptions<DivisionsConfig>>(),
     sp.GetRequiredService<ILogger<BusinessImpactAgent>>()));
 builder.Services.AddSingleton<IDivisionRecommendAgentFactory>(sp => new DivisionRecommendAgentFactory(
     sp.GetRequiredService<IMobileDataPlugin>(),
