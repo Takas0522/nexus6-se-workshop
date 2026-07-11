@@ -21,10 +21,10 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
     private readonly Func<string, CancellationToken, Task<string>> _detailedKpis;
     private readonly ILogger<DivisionRecommendAgent> _logger;
 
-    public DivisionKind Division { get; }
+    public string Division { get; }
 
     public DivisionRecommendAgent(
-        DivisionKind division,
+        string division,
         IMobileDataPlugin dataPlugin,
         IFoundryAgentClient foundryAgentClient,
         IKnowledgeProvider knowledgeProvider,
@@ -34,7 +34,7 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
     }
 
     public DivisionRecommendAgent(
-        DivisionKind division,
+        string division,
         IEcommerceDataPlugin dataPlugin,
         IFoundryAgentClient foundryAgentClient,
         IKnowledgeProvider knowledgeProvider,
@@ -44,7 +44,7 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
     }
 
     public DivisionRecommendAgent(
-        DivisionKind division,
+        string division,
         IFintechDataPlugin dataPlugin,
         IFoundryAgentClient foundryAgentClient,
         IKnowledgeProvider knowledgeProvider,
@@ -54,7 +54,7 @@ public sealed class DivisionRecommendAgent : IWorkflowStep<NewsAnalysisContext>
     }
 
     private DivisionRecommendAgent(
-        DivisionKind division,
+        string division,
         object dataPlugin,
         Func<string, CancellationToken, Task<string>> representativeKpis,
         Func<string, CancellationToken, Task<string>> detailedKpis,

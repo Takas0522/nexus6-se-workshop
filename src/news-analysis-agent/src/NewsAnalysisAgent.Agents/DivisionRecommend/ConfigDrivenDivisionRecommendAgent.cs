@@ -99,15 +99,6 @@ public sealed class ConfigDrivenDivisionRecommendAgent : IWorkflowStep<NewsAnaly
 
     private DivisionRecommendation ParseResultOrFallback(string response)
     {
-        // DivisionKind を推定（後方互換）
-        var divisionKind = _config.Id.ToLowerInvariant() switch
-        {
-            "mobile" => DivisionKind.Mobile,
-            "ecommerce" => DivisionKind.Ecommerce,
-            "fintech" => DivisionKind.Fintech,
-            _ => DivisionKind.Mobile // 未知の場合もデフォルトで処理
-        };
-
         try
         {
             using var document = JsonDocument.Parse(ExtractJsonObject(response));
@@ -119,9 +110,9 @@ public sealed class ConfigDrivenDivisionRecommendAgent : IWorkflowStep<NewsAnaly
             var kpiReferences = ReadKpiReferences(root).ToArray();
 
             if (string.IsNullOrWhiteSpace(headline) || nextActions.Length == 0)
-                return FallbackRecommendation(divisionKind);
+                return FallbackRecommendation();
 
-            return new DivisionRecommendation(divisionKind, headline, nextActions, dataReferences)
+            return new DivisionRecommendation(_config.Id, headline, nextActions, dataReferences)
             {
                 SourceFiles = sourceFiles,
                 KpiReferences = kpiReferences
@@ -129,12 +120,12 @@ public sealed class ConfigDrivenDivisionRecommendAgent : IWorkflowStep<NewsAnaly
         }
         catch (JsonException)
         {
-            return FallbackRecommendation(divisionKind);
+            return FallbackRecommendation();
         }
     }
 
-    private DivisionRecommendation FallbackRecommendation(DivisionKind kind) =>
-        new(kind, "(LLM parse failed)",
+    private DivisionRecommendation FallbackRecommendation() =>
+        new(_config.Id, "(LLM parse failed)",
             [new NextAction("KPI を再確認", "対象 KPI と Skill/DS 根拠を再確認する。")],
             [$"{_config.FabricTable}"]);
 

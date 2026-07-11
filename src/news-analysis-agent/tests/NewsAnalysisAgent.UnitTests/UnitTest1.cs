@@ -26,10 +26,10 @@ public sealed class CoreWorkflowTests
             OriginalNewsText = "円安ニュース",
             WebResearchResult = new WebResearchResult("summary", ["fx"], ["https://example.com"]),
             ImpactResult = new BusinessImpactResult(
-                [new ImpactScore(DivisionKind.Mobile, 4.5, "high")],
+                [new ImpactScore("Mobile", 4.5, "high")],
                 ["reason"],
-                [DivisionKind.Mobile]),
-            Recommendations = [new DivisionRecommendation(DivisionKind.Mobile, "headline", [new NextAction("act", "")], ["data"])],
+                ["Mobile"]),
+            Recommendations = [new DivisionRecommendation("Mobile", "headline", [new NextAction("act", "")], ["data"])],
             NotificationResult = new NotificationResult(true, ["mock"], "{}")
         };
 
@@ -39,7 +39,7 @@ public sealed class CoreWorkflowTests
         Assert.NotNull(actual);
         Assert.Equal(context.OriginalNewsText, actual!.OriginalNewsText);
         Assert.Equal("summary", actual.WebResearchResult!.Summary);
-        Assert.Equal(DivisionKind.Mobile, actual.ImpactResult!.ImpactScores[0].Division);
+        Assert.Equal("Mobile", actual.ImpactResult!.ImpactScores[0].Division);
         Assert.Single(actual.Recommendations);
         Assert.True(actual.NotificationResult!.Sent);
     }

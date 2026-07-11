@@ -68,8 +68,8 @@ public sealed class NotificationAgent(
         }
     }
 
-    private static string ResolveRiskLevel(NewsAnalysisContext ctx, DivisionKind division) =>
-        ctx.ImpactResult?.ImpactScores.FirstOrDefault(score => score.Division == division)?.RiskLevel ?? "unknown";
+    private static string ResolveRiskLevel(NewsAnalysisContext ctx, string division) =>
+        ctx.ImpactResult?.ImpactScores.FirstOrDefault(score => string.Equals(score.Division, division, StringComparison.OrdinalIgnoreCase))?.RiskLevel ?? "unknown";
 
     private sealed record NotificationPayload(string Division, string CardPayloadJson);
 

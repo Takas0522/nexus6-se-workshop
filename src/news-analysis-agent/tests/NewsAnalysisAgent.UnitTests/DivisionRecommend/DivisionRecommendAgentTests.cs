@@ -21,17 +21,17 @@ public sealed class DivisionRecommendAgentTests
         var knowledge = new StaticKnowledgeProvider();
         var agents = new[]
         {
-            new DivisionRecommendAgent(DivisionKind.Mobile, mobile, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
-            new DivisionRecommendAgent(DivisionKind.Ecommerce, ecommerce, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
-            new DivisionRecommendAgent(DivisionKind.Fintech, fintech, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance)
+            new DivisionRecommendAgent("Mobile", mobile, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
+            new DivisionRecommendAgent("Ecommerce", ecommerce, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
+            new DivisionRecommendAgent("Fintech", fintech, foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance)
         };
 
         await Task.WhenAll(agents.Select(agent => agent.RunAsync(context, CancellationToken.None)));
 
         Assert.Equal(3, context.Recommendations.Count);
-        Assert.Contains(context.Recommendations, rec => rec.Division == DivisionKind.Mobile);
-        Assert.Contains(context.Recommendations, rec => rec.Division == DivisionKind.Ecommerce);
-        Assert.Contains(context.Recommendations, rec => rec.Division == DivisionKind.Fintech);
+        Assert.Contains(context.Recommendations, rec => rec.Division == "Mobile");
+        Assert.Contains(context.Recommendations, rec => rec.Division == "Ecommerce");
+        Assert.Contains(context.Recommendations, rec => rec.Division == "Fintech");
         Assert.Equal(1, mobile.RepresentativeCalls);
         Assert.Equal(1, ecommerce.RepresentativeCalls);
         Assert.Equal(1, fintech.RepresentativeCalls);
@@ -49,9 +49,9 @@ public sealed class DivisionRecommendAgentTests
             var knowledge = new StaticKnowledgeProvider();
             var agents = new[]
             {
-                new DivisionRecommendAgent(DivisionKind.Mobile, new CountingMobilePlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
-                new DivisionRecommendAgent(DivisionKind.Ecommerce, new CountingEcommercePlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
-                new DivisionRecommendAgent(DivisionKind.Fintech, new CountingFintechPlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance)
+                new DivisionRecommendAgent("Mobile", new CountingMobilePlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
+                new DivisionRecommendAgent("Ecommerce", new CountingEcommercePlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance),
+                new DivisionRecommendAgent("Fintech", new CountingFintechPlugin(), foundry, knowledge, NullLogger<DivisionRecommendAgent>.Instance)
             };
 
             await Task.WhenAll(agents.Select(agent => agent.RunAsync(context, CancellationToken.None)));
@@ -66,7 +66,7 @@ public sealed class DivisionRecommendAgentTests
     {
         var context = CreateContext();
         var agent = new DivisionRecommendAgent(
-            DivisionKind.Mobile,
+            "Mobile",
             new CountingMobilePlugin(),
             new MalformedFoundryClient(),
             new StaticKnowledgeProvider(),
@@ -75,7 +75,7 @@ public sealed class DivisionRecommendAgentTests
         await agent.RunAsync(context, CancellationToken.None);
 
         var recommendation = Assert.Single(context.Recommendations);
-        Assert.Equal(DivisionKind.Mobile, recommendation.Division);
+        Assert.Equal("Mobile", recommendation.Division);
         Assert.Equal("(LLM parse failed)", recommendation.Headline);
         Assert.Equal("KPI を再確認", recommendation.NextActions.Single().Title);
     }
@@ -96,9 +96,9 @@ public sealed class DivisionRecommendAgentTests
             NullLogger<DivisionRecommendAgent>.Instance);
 
         await Task.WhenAll(
-            factory.Create(DivisionKind.Mobile).RunAsync(context, CancellationToken.None),
-            factory.Create(DivisionKind.Ecommerce).RunAsync(context, CancellationToken.None),
-            factory.Create(DivisionKind.Fintech).RunAsync(context, CancellationToken.None));
+            factory.Create("Mobile").RunAsync(context, CancellationToken.None),
+            factory.Create("Ecommerce").RunAsync(context, CancellationToken.None),
+            factory.Create("Fintech").RunAsync(context, CancellationToken.None));
 
         Assert.Equal(3, context.Recommendations.Count);
         Assert.Equal(1, mobile.DetailedCalls);
@@ -112,12 +112,12 @@ public sealed class DivisionRecommendAgentTests
         WebResearchResult = new WebResearchResult("為替と競合影響", ["fx", "competition"], ["https://example.com"]),
         ImpactResult = new BusinessImpactResult(
             [
-                new ImpactScore(DivisionKind.Mobile, 4.0, "high"),
-                new ImpactScore(DivisionKind.Ecommerce, 3.0, "medium"),
-                new ImpactScore(DivisionKind.Fintech, 4.5, "high")
+                new ImpactScore("Mobile", 4.0, "high"),
+                new ImpactScore("Ecommerce", 3.0, "medium"),
+                new ImpactScore("Fintech", 4.5, "high")
             ],
             ["mobile reason", "ec reason", "fintech reason"],
-            [DivisionKind.Fintech, DivisionKind.Mobile, DivisionKind.Ecommerce])
+            ["Fintech", "Mobile", "Ecommerce"])
     };
 
     private sealed class RecommendationFoundryClient : IFoundryAgentClient

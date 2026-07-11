@@ -11,6 +11,10 @@ const riskColors: Record<string, string> = {
 };
 
 const divisionLabels: Record<string, string> = {
+  携帯電話事業: '携帯電話事業',
+  sns事業: 'SNS事業',
+  si事業: 'SI事業',
+  // Legacy fallback
   Mobile: 'モバイル通信',
   Ecommerce: 'Eコマース',
   Fintech: 'フィンテック',

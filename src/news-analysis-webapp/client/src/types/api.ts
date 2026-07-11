@@ -13,7 +13,7 @@ export interface WebResearchResult {
 }
 
 export interface ImpactScore {
-  division: 'Mobile' | 'Ecommerce' | 'Fintech';
+  division: string;
   score: number;
   riskLevel: string;
 }
@@ -41,7 +41,7 @@ export interface BusinessImpactResult {
 }
 
 export interface DivisionRecommendation {
-  division: 'Mobile' | 'Ecommerce' | 'Fintech';
+  division: string;
   headline: string;
   nextActions: NextAction[];
   dataReferences: string[];

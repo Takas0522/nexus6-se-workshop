@@ -42,9 +42,9 @@ public sealed class NewsAnalysisWorkflowBuilder
         // Re-evaluate Microsoft.Agents.AI.Workflows in tracks F/G/H/I and replace this adapter when the API stabilizes.
         var divisionSteps = new[]
         {
-            ("mobile", _recommendAgentFactory.Create(DivisionKind.Mobile)),
-            ("ecommerce", _recommendAgentFactory.Create(DivisionKind.Ecommerce)),
-            ("fintech", _recommendAgentFactory.Create(DivisionKind.Fintech))
+            ("mobile", _recommendAgentFactory.Create("Mobile")),
+            ("ecommerce", _recommendAgentFactory.Create("Ecommerce")),
+            ("fintech", _recommendAgentFactory.Create("Fintech"))
         };
 
         return new NewsAnalysisWorkflow(

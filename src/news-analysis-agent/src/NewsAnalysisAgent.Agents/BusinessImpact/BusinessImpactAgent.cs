@@ -79,7 +79,7 @@ public sealed class BusinessImpactAgent(
             var reasons = ReadStringArray(root, "impact_reasons").Take(3).ToArray();
             if (reasons.Length == 0)
             {
-                reasons = scores.Select(score => $"{ToJsonDivision(score.Division)}: LLM score {score.Score:0.0} ({score.RiskLevel}).").ToArray();
+                reasons = scores.Select(score => $"{score.Division}: LLM score {score.Score:0.0} ({score.RiskLevel}).").ToArray();
             }
 
             var dataReferences = ReadStringArray(root, "data_references")
@@ -115,7 +115,12 @@ public sealed class BusinessImpactAgent(
 
         foreach (var item in array.EnumerateArray())
         {
-            if (!item.TryGetProperty("division", out var divisionElement) || !TryParseDivision(divisionElement.GetString(), out var division))
+            if (!item.TryGetProperty("division", out var divisionElement))
+            {
+                continue;
+            }
+            var division = divisionElement.GetString();
+            if (string.IsNullOrWhiteSpace(division))
             {
                 continue;
             }
@@ -133,16 +138,17 @@ public sealed class BusinessImpactAgent(
     private static BusinessImpactResult BuildHeuristicFallback(string monthlyRevenueJson, IReadOnlyDictionary<string, string> divisionSnapshots)
     {
         var metrics = ReadRevenueMetrics(monthlyRevenueJson);
-        var scores = Enum.GetValues<DivisionKind>()
-            .Select(division => BuildHeuristicScore(division, metrics.GetValueOrDefault(division), divisionSnapshots.GetValueOrDefault(ToJsonDivision(division))))
+        var divisions = metrics.Keys.Any() ? metrics.Keys.ToArray() : new[] { "mobile", "ecommerce", "fintech" };
+        var scores = divisions
+            .Select(division => BuildHeuristicScore(division, metrics.GetValueOrDefault(division), divisionSnapshots.GetValueOrDefault(division)))
             .OrderByDescending(static score => score.Score)
             .ToArray();
 
-        var reasons = scores.Select(score => $"{ToJsonDivision(score.Division)}: Fabric KPI heuristic fallback score {score.Score:0.0} based on margin, churn, FX exposure, and risk summary volume.").ToArray();
+        var reasons = scores.Select(score => $"{score.Division}: Fabric KPI heuristic fallback score {score.Score:0.0} based on margin, churn, FX exposure, and risk summary volume.").ToArray();
         return new BusinessImpactResult(scores, reasons, scores.Select(static score => score.Division).ToArray());
     }
 
-    private static ImpactScore BuildHeuristicScore(DivisionKind division, RevenueMetric? metric, string? snapshotJson)
+    private static ImpactScore BuildHeuristicScore(string division, RevenueMetric? metric, string? snapshotJson)
     {
         var score = 1.0;
         if (metric is not null)
@@ -157,10 +163,10 @@ public sealed class BusinessImpactAgent(
             score += 0.4;
         }
 
-        score += division switch
+        score += division.ToLowerInvariant() switch
         {
-            DivisionKind.Fintech => 0.2,
-            DivisionKind.Mobile => 0.1,
+            "fintech" => 0.2,
+            "mobile" => 0.1,
             _ => 0
         };
 
@@ -168,9 +174,9 @@ public sealed class BusinessImpactAgent(
         return new ImpactScore(division, clamped, RiskLevelFromScore(clamped));
     }
 
-    private static Dictionary<DivisionKind, RevenueMetric> ReadRevenueMetrics(string json)
+    private static Dictionary<string, RevenueMetric> ReadRevenueMetrics(string json)
     {
-        var result = new Dictionary<DivisionKind, RevenueMetric>();
+        var result = new Dictionary<string, RevenueMetric>(StringComparer.OrdinalIgnoreCase);
         try
         {
             using var document = JsonDocument.Parse(ExtractJsonObject(json));
@@ -181,7 +187,12 @@ public sealed class BusinessImpactAgent(
 
             foreach (var row in rows.EnumerateArray())
             {
-                if (!row.TryGetProperty("division", out var divisionElement) || !TryParseDivision(divisionElement.GetString(), out var division))
+                if (!row.TryGetProperty("division", out var divisionElement))
+                {
+                    continue;
+                }
+                var division = divisionElement.GetString();
+                if (string.IsNullOrWhiteSpace(division))
                 {
                     continue;
                 }
@@ -294,34 +305,6 @@ public sealed class BusinessImpactAgent(
 
         return text[start..(end + 1)];
     }
-
-    private static bool TryParseDivision(string? value, out DivisionKind division)
-    {
-        switch (value?.Trim().ToLowerInvariant())
-        {
-            case "mobile":
-                division = DivisionKind.Mobile;
-                return true;
-            case "ecommerce":
-            case "ec":
-                division = DivisionKind.Ecommerce;
-                return true;
-            case "fintech":
-                division = DivisionKind.Fintech;
-                return true;
-            default:
-                division = default;
-                return false;
-        }
-    }
-
-    private static string ToJsonDivision(DivisionKind division) => division switch
-    {
-        DivisionKind.Mobile => "mobile",
-        DivisionKind.Ecommerce => "ecommerce",
-        DivisionKind.Fintech => "fintech",
-        _ => division.ToString().ToLowerInvariant()
-    };
 
     private static string NormalizeRiskLevel(string? riskLevel, double score)
     {

@@ -3,7 +3,7 @@ namespace NewsAnalysisAgent.Models;
 public sealed record BusinessImpactResult(
     ImpactScore[] ImpactScores,
     string[] ImpactReasons,
-    DivisionKind[] PriorityOrder)
+    string[] PriorityOrder)
 {
     public string[] DataReferences { get; init; } = [];
     public string[] SourceFiles { get; init; } = [];
@@ -11,13 +11,6 @@ public sealed record BusinessImpactResult(
 }
 
 public sealed record ImpactScore(
-    DivisionKind Division,
+    string Division,
     double Score,
     string RiskLevel);
-
-public enum DivisionKind
-{
-    Mobile,
-    Ecommerce,
-    Fintech
-}

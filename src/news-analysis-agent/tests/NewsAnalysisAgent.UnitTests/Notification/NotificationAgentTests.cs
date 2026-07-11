@@ -23,8 +23,8 @@ public sealed class NotificationAgentTests
 
         Assert.NotNull(context.NotificationResult);
         Assert.True(context.NotificationResult!.Sent);
-        Assert.Equal(["captured:Mobile", "captured:Ecommerce", "captured:Fintech"], context.NotificationResult.Channels);
-        Assert.Equal(["Mobile", "Ecommerce", "Fintech"], plugin.Calls.Select(call => call.Division).ToArray());
+        Assert.Equal(["captured:Ecommerce", "captured:Fintech", "captured:Mobile"], context.NotificationResult.Channels);
+        Assert.Equal(["Ecommerce", "Fintech", "Mobile"], plugin.Calls.Select(call => call.Division).ToArray());
         Assert.All(plugin.Calls, call => AssertAdaptiveCardShape(call.CardPayloadJson));
     }
 
@@ -127,7 +127,7 @@ public sealed class NotificationAgentTests
     public void AdaptiveCardTemplate_IncludesRequiredTeamsWorkflowEnvelopeAndCardElements()
     {
         var card = AdaptiveCardTemplates.Build(
-            new DivisionRecommendation(DivisionKind.Mobile, "headline loan_balance", [new NextAction("action loan_balance", "26325000.0000 JPY を確認")], ["mobile_skill_competitor-mnp.md"])
+            new DivisionRecommendation("Mobile", "headline loan_balance", [new NextAction("action loan_balance", "26325000.0000 JPY を確認")], ["mobile_skill_competitor-mnp.md"])
             {
                 SourceFiles = ["mobile_skill_competitor-mnp.md"],
                 KpiReferences = [new KpiReference("loan_balance", "", "26325", "JPY", "fintech_ai.loan_balances")]
@@ -152,7 +152,7 @@ public sealed class NotificationAgentTests
     public void AdaptiveCardTemplate_FiltersMockWebReferencesAndFormatsPercentAndCounts()
     {
         var card = AdaptiveCardTemplates.Build(
-            new DivisionRecommendation(DivisionKind.Fintech, "headline", [new NextAction("利上げ確認", "平均貸出金利 0.0500 % と 2.0000 件を確認")], [])
+            new DivisionRecommendation("Fintech", "headline", [new NextAction("利上げ確認", "平均貸出金利 0.0500 % と 2.0000 件を確認")], [])
             {
                 CategorizedReferences = new CategorizedReferences(
                     [
@@ -179,17 +179,17 @@ public sealed class NotificationAgentTests
         OriginalNewsText = "テスト",
         ImpactResult = new BusinessImpactResult(
             [
-                new ImpactScore(DivisionKind.Mobile, 4.5, "high"),
-                new ImpactScore(DivisionKind.Ecommerce, 3.1, "medium"),
-                new ImpactScore(DivisionKind.Fintech, 4.8, "high")
+                new ImpactScore("Mobile", 4.5, "high"),
+                new ImpactScore("Ecommerce", 3.1, "medium"),
+                new ImpactScore("Fintech", 4.8, "high")
             ],
             ["reason"],
-            [DivisionKind.Mobile, DivisionKind.Fintech, DivisionKind.Ecommerce]),
+            ["Mobile", "Fintech", "Ecommerce"]),
         Recommendations =
         [
-            new DivisionRecommendation(DivisionKind.Mobile, "Mobile headline", [new NextAction("Mobile action", "")], ["mobile-data"]),
-            new DivisionRecommendation(DivisionKind.Ecommerce, "Ecommerce headline", [new NextAction("Ecommerce action", "")], ["ecommerce-data"]),
-            new DivisionRecommendation(DivisionKind.Fintech, "Fintech headline", [new NextAction("Fintech action", "")], ["fintech-data"])
+            new DivisionRecommendation("Mobile", "Mobile headline", [new NextAction("Mobile action", "")], ["mobile-data"]),
+            new DivisionRecommendation("Ecommerce", "Ecommerce headline", [new NextAction("Ecommerce action", "")], ["ecommerce-data"]),
+            new DivisionRecommendation("Fintech", "Fintech headline", [new NextAction("Fintech action", "")], ["fintech-data"])
         ]
     };
 
@@ -223,7 +223,7 @@ public sealed class NotificationAgentTests
     }
 
     private static string SampleCard() => AdaptiveCardTemplates.Build(
-        new DivisionRecommendation(DivisionKind.Mobile, "headline", [new NextAction("action", "")], ["mobile_skill_competitor-mnp.md"])
+        new DivisionRecommendation("Mobile", "headline", [new NextAction("action", "")], ["mobile_skill_competitor-mnp.md"])
         {
             SourceFiles = ["mobile_skill_competitor-mnp.md"]
         },

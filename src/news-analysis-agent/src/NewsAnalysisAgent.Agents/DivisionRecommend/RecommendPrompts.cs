@@ -1,5 +1,3 @@
-using NewsAnalysisAgent.Models;
-
 namespace NewsAnalysisAgent.Agents.DivisionRecommend;
 
 public static class RecommendPrompts
@@ -21,48 +19,25 @@ public static class RecommendPrompts
 
     public const string OutputJsonSchema = """
         {
-          "division": "mobile | ecommerce | fintech",
+          "division": "<事業部ID>",
           "headline": "300文字以内の要約",
           "next_actions": [
             { "title": "30字以内の要点", "body": "具体施策と数値根拠" }
           ],
           "data_references": ["根拠データ参照"],
-          "source_files": ["mobile_skill_competitor-mnp.md"],
+          "source_files": ["skill_file.md"],
           "kpi_references": [
-            { "physical_name": "mnp_out_rate", "value": "4.1", "unit": "%", "table": "mobile_ai.risk_summary" }
+            { "physical_name": "kpi_name", "value": "4.1", "unit": "%", "table": "division_ai.risk_summary" }
           ]
         }
         """;
 
-    public static string SystemPrompt(DivisionKind division) => $"""
+    public static string SystemPrompt(string division) => $"""
         {CommonSystemPrompt}
 
-        対象事業部: {DivisionLabel(division)}
-        関心領域:
-        {InterestAreas(division)}
+        対象事業部: {division}
         """;
 
-    public static string DivisionToken(DivisionKind division) => division switch
-    {
-        DivisionKind.Mobile => "mobile",
-        DivisionKind.Ecommerce => "ecommerce",
-        DivisionKind.Fintech => "fintech",
-        _ => division.ToString().ToLowerInvariant()
-    };
-
-    private static string DivisionLabel(DivisionKind division) => division switch
-    {
-        DivisionKind.Mobile => "モバイル通信",
-        DivisionKind.Ecommerce => "Eコマース",
-        DivisionKind.Fintech => "Fintech",
-        _ => division.ToString()
-    };
-
-    private static string InterestAreas(DivisionKind division) => division switch
-    {
-        DivisionKind.Mobile => "- 端末コスト、MNP 転出率、分割払い残高、解約問い合わせ、施策配信履歴",
-        DivisionKind.Ecommerce => "- 在庫、越境 EC 仕入コスト、ポイント還元、会員行動、キャンペーン ROI",
-        DivisionKind.Fintech => "- FX ポジション、海外カード決済、ローン残高、延滞率、与信審査",
-        _ => "- 事業部 KPI とリスクサマリ"
-    };
+    /// <summary>Legacy DivisionKind 互換用のトークン変換。config-driven では config.Id をそのまま使用。</summary>
+    public static string DivisionToken(string division) => division.ToLowerInvariant();
 }

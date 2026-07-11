@@ -88,11 +88,11 @@ public static class AdaptiveCardTemplates
             .Replace("{{categorizedReferences}}", BuildCategorizedReferenceBlocks(recommendation), StringComparison.Ordinal);
     }
 
-    private static string HeaderColor(DivisionKind division) => division switch
+    private static string HeaderColor(string division) => division.ToLowerInvariant() switch
     {
-        DivisionKind.Mobile => "Accent",
-        DivisionKind.Ecommerce => "Good",
-        DivisionKind.Fintech => "Attention",
+        "mobile" or "携帯電話事業" => "Accent",
+        "ecommerce" or "sns事業" => "Good",
+        "fintech" or "si事業" => "Attention",
         _ => "Default"
     };
 

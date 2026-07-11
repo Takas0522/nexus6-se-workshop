@@ -1,7 +1,7 @@
 namespace NewsAnalysisAgent.Models;
 
 public sealed record DivisionRecommendation(
-    DivisionKind Division,
+    string Division,
     string Headline,
     NextAction[] NextActions,
     string[] DataReferences)

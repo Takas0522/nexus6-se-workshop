@@ -34,9 +34,9 @@ public sealed class BusinessImpactAgentTests
 
         Assert.NotNull(context.ImpactResult);
         Assert.Equal(3, context.ImpactResult!.ImpactScores.Length);
-        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == DivisionKind.Mobile);
-        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == DivisionKind.Ecommerce);
-        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == DivisionKind.Fintech);
+        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == "mobile");
+        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == "ecommerce");
+        Assert.Contains(context.ImpactResult.ImpactScores, score => score.Division == "fintech");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class BusinessImpactAgentTests
         var context = new NewsAnalysisContext { OriginalNewsText = "ポイント競争" };
         await agent.RunAsync(context, CancellationToken.None);
 
-        Assert.Equal([DivisionKind.Ecommerce, DivisionKind.Fintech, DivisionKind.Mobile], context.ImpactResult!.PriorityOrder);
+        Assert.Equal(["ecommerce", "fintech", "mobile"], context.ImpactResult!.PriorityOrder);
         Assert.Equal([5.0, 3.0, 1.0], context.ImpactResult.ImpactScores.Select(score => score.Score).ToArray());
     }
 

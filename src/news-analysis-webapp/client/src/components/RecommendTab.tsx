@@ -5,18 +5,27 @@ interface Props {
 }
 
 const divisionLabels: Record<string, string> = {
+  携帯電話事業: '携帯電話事業',
+  sns事業: 'SNS事業',
+  si事業: 'SI事業',
   Mobile: 'モバイル通信',
   Ecommerce: 'Eコマース',
   Fintech: 'フィンテック',
 };
 
 const divisionIcons: Record<string, string> = {
+  携帯電話事業: '📱',
+  sns事業: '💬',
+  si事業: '🖥️',
   Mobile: '📱',
   Ecommerce: '🛒',
   Fintech: '💳',
 };
 
 const divisionColors: Record<string, string> = {
+  携帯電話事業: 'border-l-blue-500',
+  sns事業: 'border-l-purple-500',
+  si事業: 'border-l-emerald-500',
   Mobile: 'border-l-blue-500',
   Ecommerce: 'border-l-purple-500',
   Fintech: 'border-l-emerald-500',
