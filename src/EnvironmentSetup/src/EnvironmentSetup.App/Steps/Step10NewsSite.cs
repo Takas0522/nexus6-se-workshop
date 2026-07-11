@@ -4,20 +4,19 @@ using EnvironmentSetup.App.Services;
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ10: ニュースサイト作成 - Copilot SDKでデモニュースサイトを生成しStorageにデプロイ
+/// ステップ10: ニュースサイト作成 - Copilot SDKでデモニュースサイトを生成し src/news-portal/ にコピー
+/// Container App の Docker ビルド時に最新の成果物が含まれるようにする
 /// </summary>
 public class Step10NewsSite : ISetupStep
 {
     private readonly CopilotService _copilot;
-    private readonly AzureCliWrapper _az;
 
     public int StepNumber => 10;
     public string Name => "ニュースサイト作成";
 
-    public Step10NewsSite(CopilotService copilot, AzureCliWrapper az)
+    public Step10NewsSite(CopilotService copilot)
     {
         _copilot = copilot;
-        _az = az;
     }
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
@@ -112,58 +111,32 @@ public class Step10NewsSite : ISetupStep
 
         Console.WriteLine($"\n  ✓ ニュースサイト生成完了: {outputDir}");
 
-        // Storage へのデプロイ
-        var portalStorage = state.Deployment?.StorageAccountPortal;
-        if (!string.IsNullOrEmpty(portalStorage))
-        {
-            Console.WriteLine($"\n  📤 Storage Account ({portalStorage}) の $web コンテナにアップロード中...");
-            try
-            {
-                await _az.RunAsync(
-                    $"storage blob upload-batch " +
-                    $"--source \"{outputDir}\" " +
-                    $"--destination \"$web\" " +
-                    $"--account-name {portalStorage} " +
-                    $"--auth-mode login " +
-                    $"--overwrite",
-                    silent: true);
-                Console.WriteLine("    ✓ アップロード完了");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"    ⚠️ アップロード失敗: {ex.Message[..Math.Min(120, ex.Message.Length)]}");
-                Console.WriteLine();
-                Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
-                Console.WriteLine("    ║  📋 手動アップロードが必要です                              ║");
-                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
-                Console.WriteLine("    ║  方法1: Azure Portal > Storage Browser > $web コンテナ      ║");
-                Console.WriteLine($"    ║         に output/news-portal/ 内のファイルをアップロード    ║");
-                Console.WriteLine("    ║  方法2: Key認証が有効な環境から:                            ║");
-                Console.WriteLine($"    ║    az storage blob upload-batch \\");
-                Console.WriteLine($"    ║      --source \"{outputDir}\" \\");
-                Console.WriteLine($"    ║      --destination \"$web\" \\");
-                Console.WriteLine($"    ║      --account-name {portalStorage} --overwrite --auth-mode key");
-                Console.WriteLine("    ║  方法3: RBAC認証が有効な環境から:                           ║");
-                Console.WriteLine($"    ║    az storage blob upload-batch \\");
-                Console.WriteLine($"    ║      --source \"{outputDir}\" \\");
-                Console.WriteLine($"    ║      --destination \"$web\" \\");
-                Console.WriteLine($"    ║      --account-name {portalStorage} --overwrite --auth-mode login");
-                Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
-                Console.WriteLine();
+        // 生成した成果物を src/news-portal/ にコピー（Docker ビルドで最新版が含まれるように）
+        var repoRoot = FindRepoRoot();
+        var srcNewsPortal = Path.Combine(repoRoot, "src", "news-portal");
+        Directory.CreateDirectory(srcNewsPortal);
 
-                state.ManualActions.Add(new ManualAction
-                {
-                    Step = 10,
-                    Target = "Storage: ニュースポータル ($web)",
-                    Description = $"{portalStorage} の $web コンテナに news-portal ファイルをアップロード",
-                    Details = [$"ソース: {outputDir}"]
-                });
-            }
-        }
-        else
+        Console.WriteLine($"\n  📂 src/news-portal/ に成果物をコピー中...");
+        foreach (var file in Directory.GetFiles(outputDir))
         {
-            Console.WriteLine("\n  ℹ️  Storage Account が未設定のため、手動アップロードが必要です。");
+            var destFile = Path.Combine(srcNewsPortal, Path.GetFileName(file));
+            File.Copy(file, destFile, overwrite: true);
+            Console.WriteLine($"    → {Path.GetFileName(file)}");
         }
+        Console.WriteLine($"    ✓ {Directory.GetFiles(outputDir).Length} ファイルをコピー完了");
+        Console.WriteLine("    ℹ️  Step 13 の Docker ビルドで Container App に含まれます");
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = Directory.GetCurrentDirectory();
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir, ".git")))
+                return dir;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+        return Directory.GetCurrentDirectory();
     }
 
     private static string ExtractHtml(string response)

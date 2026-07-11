@@ -151,6 +151,35 @@ public class Step09DomainConfigUpload : ISetupStep
         }
 
         Console.WriteLine($"\n  ✓ ドメイン設定生成完了 ({divisions.Count} 事業部)");
+
+        // 5. domain-config.json をソースにコピー（Docker ビルドでローカルファイルとして埋め込み）
+        var repoRoot = FindRepoRoot();
+        var copyTargets = new[]
+        {
+            Path.Combine(repoRoot, "src", "news-analysis-agent", "src", "NewsAnalysisAgent.Host", "domain-config.json"),
+            Path.Combine(repoRoot, "src", "news-analysis-webapp", "api", "domain-config.json")
+        };
+
+        Console.WriteLine("\n  📂 domain-config.json をソースにコピー中...");
+        foreach (var target in copyTargets)
+        {
+            File.Copy(configPath, target, overwrite: true);
+            var relativePath = Path.GetRelativePath(repoRoot, target);
+            Console.WriteLine($"    → {relativePath}");
+        }
+        Console.WriteLine("    ✓ Docker ビルド時にローカルファイルとして埋め込まれます");
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = Directory.GetCurrentDirectory();
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir, ".git")))
+                return dir;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+        return Directory.GetCurrentDirectory();
     }
 
     private static string NormalizeDivisionId(string domain)
