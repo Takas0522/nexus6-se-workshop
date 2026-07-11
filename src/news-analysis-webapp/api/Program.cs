@@ -238,12 +238,21 @@ app.UseStaticFiles();
 var newsPortalPath = Path.Combine(app.Environment.ContentRootPath, "news-portal");
 if (Directory.Exists(newsPortalPath))
 {
+    var newsPortalFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(newsPortalPath);
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = newsPortalFileProvider,
+        RequestPath = "/news-portal"
+    });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(newsPortalPath),
+        FileProvider = newsPortalFileProvider,
         RequestPath = "/news-portal"
     });
 }
+
+// Redirect /news-portal to /news-portal/ so static files resolve correctly
+app.MapGet("/news-portal", () => Results.Redirect("/news-portal/", permanent: true));
 
 // Health check
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
