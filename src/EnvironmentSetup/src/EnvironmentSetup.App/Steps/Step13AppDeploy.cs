@@ -32,8 +32,12 @@ public class Step13AppDeploy : ISetupStep
         // リポジトリルートを特定
         var repoRoot = FindRepoRoot();
 
-        // ポータルURL決定
-        if (string.IsNullOrEmpty(deployment.PortalBaseUrl) && !string.IsNullOrEmpty(deployment.StorageAccountPortal))
+        // ポータルURL決定: Container App の /news-portal/ パスで配信（Static Website は MCAPS Policy で外部アクセス不可）
+        if (!string.IsNullOrEmpty(deployment.ContainerAppUrl))
+        {
+            deployment.PortalBaseUrl = deployment.ContainerAppUrl.TrimEnd('/') + "/news-portal/";
+        }
+        else if (string.IsNullOrEmpty(deployment.PortalBaseUrl) && !string.IsNullOrEmpty(deployment.StorageAccountPortal))
         {
             deployment.PortalBaseUrl = $"https://{deployment.StorageAccountPortal}.z1.web.core.windows.net";
         }
