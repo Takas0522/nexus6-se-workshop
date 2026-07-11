@@ -16,7 +16,7 @@ public sealed class FoundryAgentClient(
     MockFoundryAgentClient fallback) : IFoundryAgentClient
 {
     private const string DefaultApiVersion = "2024-10-21";
-    private const int DefaultMaxCompletionTokens = 4096;
+    private const int DefaultMaxCompletionTokens = 16384;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<string> InvokeAsync(
