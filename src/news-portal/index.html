@@ -1,1006 +1,186 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS経済ニュース - ビジネス・金融・テクノロジー</title>
-  <style>
-    :root {
-      --cp-bg: #f7f4ef;
-      --cp-bg-elevated: #fcfbf8;
-      --cp-surface: #ffffff;
-      --cp-surface-soft: #f5f5f5;
-      --cp-border: #dedede;
-      --cp-border-strong: #919191;
-      --cp-text: #242424;
-      --cp-text-muted: #5c5c5c;
-      --cp-text-soft: #6f6f6f;
-      --cp-accent: #b11f4b;
-      --cp-accent-hover: #9a1a41;
-      --cp-accent-soft: rgba(177, 31, 75, 0.08);
-      --cp-accent-fg: #ffffff;
-      --cp-success: #16a34a;
-      --cp-danger: #dc2626;
-      --cp-warning: #f59e0b;
-      --cp-link: #0078d4;
-      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-      --cp-highlight: rgba(177, 31, 75, 0.12);
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: "Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic UI","MS PGothic","Segoe UI",sans-serif;
-      background: var(--cp-bg);
-      color: var(--cp-text);
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    a { color: var(--cp-link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* ─── SITE HEADER ─── */
-    .site-header-band {
-      background: var(--cp-accent);
-      padding: 0;
-    }
-    .site-header-inner {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .site-logo {
-      color: var(--cp-accent-fg);
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      line-height: 1;
-      white-space: nowrap;
-    }
-    .site-logo-sub {
-      color: rgba(255,255,255,0.75);
-      font-size: 11px;
-      font-weight: 400;
-      letter-spacing: 0;
-      display: block;
-      margin-top: 2px;
-    }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    .header-search {
-      display: flex;
-      border: 1px solid rgba(255,255,255,0.5);
-    }
-    .header-search input {
-      padding: 4px 8px;
-      font-size: 12px;
-      border: none;
-      background: rgba(255,255,255,0.92);
-      color: var(--cp-text);
-      width: 180px;
-      outline: none;
-    }
-    .header-search button {
-      padding: 4px 10px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: #fff;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .header-date {
-      font-size: 11px;
-      color: rgba(255,255,255,0.8);
-      white-space: nowrap;
-    }
-
-    /* ─── NAV TABS ─── */
-    .nav-tabs {
-      background: var(--cp-surface);
-      border-bottom: 2px solid var(--cp-accent);
-    }
-    .nav-tabs-inner {
-      max-width: 980px;
-      margin: 0 auto;
-      display: flex;
-      overflow-x: auto;
-    }
-    .nav-tabs a {
-      display: block;
-      padding: 7px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--cp-text);
-      border-right: 1px solid var(--cp-border);
-      white-space: nowrap;
-      text-decoration: none;
-    }
-    .nav-tabs a:hover, .nav-tabs a.active {
-      background: var(--cp-accent);
-      color: var(--cp-accent-fg);
-    }
-    .nav-tabs a:first-child { border-left: 1px solid var(--cp-border); }
-
-    /* ─── TICKER ─── */
-    .ticker-bar {
-      background: var(--cp-surface-soft);
-      border-bottom: 1px solid var(--cp-border);
-      padding: 4px 0;
-      overflow: hidden;
-    }
-    .ticker-inner {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .ticker-label {
-      background: var(--cp-danger);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 900;
-      padding: 1px 5px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .ticker-wrap { overflow: hidden; flex: 1; }
-    .ticker-text {
-      display: inline-block;
-      white-space: nowrap;
-      font-size: 12px;
-      color: var(--cp-text);
-      animation: ticker 40s linear infinite;
-    }
-    @keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
-
-    /* ─── MAIN LAYOUT ─── */
-    .page-wrap {
-      max-width: 980px;
-      margin: 8px auto;
-      padding: 0 12px;
-      display: flex;
-      gap: 16px;
-    }
-    .main-col { flex: 1; min-width: 0; }
-    .side-col { width: 220px; flex-shrink: 0; }
-    @media(max-width:680px){ .page-wrap{flex-direction:column;} .side-col{width:100%;} }
-
-    /* ─── SECTION HEADING ─── */
-    .section-head {
-      border-left: 4px solid var(--cp-accent);
-      background: var(--cp-surface-soft);
-      border-bottom: 1px solid var(--cp-border);
-      padding: 5px 8px;
-      font-size: 13px;
-      font-weight: 900;
-      color: var(--cp-text);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0;
-    }
-    .section-head a { font-size: 11px; font-weight: 400; color: var(--cp-accent); }
-    .section-wrap { border: 1px solid var(--cp-border); margin-bottom: 14px; background: var(--cp-surface); }
-
-    /* ─── TOP HEADLINE BOX ─── */
-    .headline-box {
-      border-bottom: 1px solid var(--cp-border);
-      padding: 10px;
-      display: flex;
-      gap: 10px;
-    }
-    .headline-badge {
-      font-size: 10px;
-      font-weight: 900;
-      padding: 1px 5px;
-      color: #fff;
-      white-space: nowrap;
-      flex-shrink: 0;
-      align-self: flex-start;
-      margin-top: 2px;
-    }
-    .badge-fx { background: var(--cp-danger); }
-    .badge-comp { background: #e07b00; }
-    .badge-boj { background: #1a5fa0; }
-    .badge-hot { background: var(--cp-accent); }
-    .headline-link {
-      font-size: 15px;
-      font-weight: 900;
-      line-height: 1.45;
-      color: var(--cp-text);
-      cursor: pointer;
-    }
-    .headline-link:hover { color: var(--cp-accent); text-decoration: underline; }
-    .headline-desc {
-      font-size: 12px;
-      color: var(--cp-text-muted);
-      margin-top: 4px;
-      line-height: 1.55;
-    }
-    .headline-meta {
-      font-size: 11px;
-      color: var(--cp-text-soft);
-      margin-top: 4px;
-    }
-
-    /* ─── NEWS LIST ─── */
-    .news-row {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      padding: 6px 10px;
-      border-bottom: 1px dotted var(--cp-border);
-      cursor: pointer;
-    }
-    .news-row:last-child { border-bottom: none; }
-    .news-row:hover { background: var(--cp-accent-soft); }
-    .news-row-badge {
-      font-size: 10px;
-      font-weight: 900;
-      padding: 0px 4px;
-      color: #fff;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .news-row-title {
-      font-size: 13px;
-      color: var(--cp-text);
-      line-height: 1.45;
-      flex: 1;
-    }
-    .news-row-title:hover { color: var(--cp-accent); text-decoration: underline; }
-    .news-row-time {
-      font-size: 11px;
-      color: var(--cp-text-soft);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    /* ─── THREE-COL CARD STRIP ─── */
-    .card-strip {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      border-top: none;
-    }
-    .strip-card {
-      padding: 8px 10px;
-      border-right: 1px solid var(--cp-border);
-      cursor: pointer;
-    }
-    .strip-card:last-child { border-right: none; }
-    .strip-card:hover { background: var(--cp-accent-soft); }
-    .strip-card-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--cp-text);
-      line-height: 1.4;
-    }
-    .strip-card-meta { font-size: 11px; color: var(--cp-text-soft); margin-top: 4px; }
-
-    /* ─── SIDEBAR ─── */
-    .side-widget { border: 1px solid var(--cp-border); margin-bottom: 12px; background: var(--cp-surface); }
-    .side-widget-head {
-      background: var(--cp-surface-soft);
-      border-bottom: 2px solid var(--cp-accent);
-      padding: 5px 8px;
-      font-size: 12px;
-      font-weight: 900;
-      color: var(--cp-text);
-    }
-    .side-widget-body { padding: 6px 0; }
-
-    .rank-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      padding: 5px 8px;
-      border-bottom: 1px dotted var(--cp-border);
-      cursor: pointer;
-    }
-    .rank-row:last-child { border-bottom: none; }
-    .rank-row:hover { background: var(--cp-accent-soft); }
-    .rank-num {
-      font-size: 14px;
-      font-weight: 900;
-      color: var(--cp-text-muted);
-      width: 18px;
-      flex-shrink: 0;
-      line-height: 1.3;
-    }
-    .rank-num.r1,.rank-num.r2,.rank-num.r3 { color: var(--cp-danger); }
-    .rank-title { font-size: 12px; color: var(--cp-text); line-height: 1.4; flex: 1; }
-    .rank-count { font-size: 11px; color: var(--cp-text-soft); margin-top: 2px; }
-
-    .market-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .market-table td { padding: 4px 8px; border-bottom: 1px dotted var(--cp-border); }
-    .market-table tr:last-child td { border-bottom: none; }
-    .market-name { color: var(--cp-text); }
-    .market-val { text-align: right; font-weight: 700; }
-    .market-chg { text-align: right; font-size: 11px; }
-    .up { color: var(--cp-danger); }
-    .dn { color: var(--cp-link); }
-
-    .keyword-list { padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 4px; }
-    .kw {
-      font-size: 11px;
-      border: 1px solid var(--cp-border);
-      padding: 1px 6px;
-      color: var(--cp-link);
-      cursor: pointer;
-      background: var(--cp-surface);
-    }
-    .kw:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); color: var(--cp-accent); }
-    .kw.hot { border-color: var(--cp-danger); color: var(--cp-danger); font-weight: 700; }
-
-    /* ─── ARTICLE DETAIL PAGE ─── */
-    #detail-view { display: none; }
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      color: var(--cp-link);
-      padding: 6px 0;
-      cursor: pointer;
-      margin-bottom: 8px;
-    }
-    .back-link:hover { text-decoration: underline; }
-    .article-wrap {
-      background: var(--cp-surface);
-      border: 1px solid var(--cp-border);
-      padding: 20px 22px;
-    }
-    .article-category {
-      font-size: 11px;
-      font-weight: 900;
-      color: #fff;
-      padding: 1px 6px;
-      display: inline-block;
-      margin-bottom: 8px;
-    }
-    .article-title {
-      font-size: 20px;
-      font-weight: 900;
-      line-height: 1.4;
-      color: var(--cp-text);
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--cp-border);
-      padding-bottom: 10px;
-    }
-    .article-byline {
-      font-size: 11px;
-      color: var(--cp-text-soft);
-      margin-bottom: 16px;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .article-body {
-      font-size: 13px;
-      line-height: 1.9;
-      color: var(--cp-text);
-    }
-    .article-body p { margin-bottom: 14px; }
-    .article-body strong { color: var(--cp-accent); font-weight: 700; }
-    .impact-section {
-      margin: 18px 0;
-      border: 1px solid var(--cp-border);
-    }
-    .impact-section-head {
-      background: var(--cp-surface-soft);
-      border-bottom: 1px solid var(--cp-border);
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 900;
-      color: var(--cp-text);
-      border-left: 3px solid var(--cp-accent);
-    }
-    .impact-section-body {
-      padding: 8px 10px;
-      font-size: 12px;
-    }
-    .impact-section-body ul { padding-left: 16px; }
-    .impact-section-body li { margin-bottom: 4px; line-height: 1.5; }
-    .article-related {
-      margin-top: 20px;
-      border-top: 2px solid var(--cp-accent);
-      padding-top: 10px;
-    }
-    .article-related-head { font-size: 12px; font-weight: 900; margin-bottom: 6px; }
-    .article-related a {
-      display: block;
-      font-size: 12px;
-      color: var(--cp-link);
-      padding: 4px 0;
-      border-bottom: 1px dotted var(--cp-border);
-    }
-    .article-related a:hover { text-decoration: underline; }
-
-    /* ─── FOOTER ─── */
-    footer {
-      background: var(--cp-surface);
-      border-top: 2px solid var(--cp-accent);
-      margin-top: 20px;
-      padding: 14px 12px;
-    }
-    .footer-inner {
-      max-width: 980px;
-      margin: 0 auto;
-    }
-    .footer-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0;
-      margin-bottom: 8px;
-    }
-    .footer-links a {
-      font-size: 11px;
-      color: var(--cp-text-muted);
-      padding: 2px 10px;
-      border-right: 1px solid var(--cp-border);
-    }
-    .footer-links a:first-child { padding-left: 0; }
-    .footer-copy {
-      font-size: 11px;
-      color: var(--cp-text-soft);
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus6 ビジネスニュース</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif; background: #f5f5f5; color: #333; line-height: 1.7; }
+header { background: linear-gradient(135deg, #b71c1c, #d32f2f); color: #fff; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
+.header-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+.logo { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px; }
+.logo span { font-size: 0.75rem; display: block; font-weight: 400; letter-spacing: 0; opacity: 0.85; }
+.header-date { font-size: 0.85rem; opacity: 0.9; }
+nav { background: rgba(0,0,0,0.15); }
+nav ul { display: flex; list-style: none; padding: 0 24px; overflow-x: auto; }
+nav ul li a { display: block; padding: 10px 18px; color: #fff; text-decoration: none; font-size: 0.9rem; white-space: nowrap; border-bottom: 3px solid transparent; transition: border-color 0.2s; }
+nav ul li a:hover, nav ul li a.active { border-bottom-color: #ffcdd2; background: rgba(255,255,255,0.08); }
+.ticker { background: #1a1a1a; color: #fff; padding: 8px 0; overflow: hidden; }
+.ticker-wrap { display: flex; animation: ticker 30s linear infinite; }
+.ticker-item { white-space: nowrap; padding: 0 40px; font-size: 0.85rem; }
+.ticker-item::before { content: '⚡'; margin-right: 6px; }
+@keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+.section-title { font-size: 1.1rem; font-weight: 700; border-left: 4px solid #d32f2f; padding-left: 12px; margin: 28px 0 16px; }
+.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+.card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+.card a { text-decoration: none; color: inherit; display: block; }
+.card-img { width: 100%; height: 200px; object-fit: cover; background: linear-gradient(135deg, #e8e8e8, #cfcfcf); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+.card-body { padding: 16px; }
+.card-category { display: inline-block; font-size: 0.7rem; font-weight: 700; color: #fff; background: #d32f2f; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px; }
+.card-category.market { background: #1565c0; }
+.card-category.policy { background: #2e7d32; }
+.card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; line-height: 1.5; }
+.card-summary { font-size: 0.85rem; color: #666; line-height: 1.6; }
+.card-meta { margin-top: 12px; font-size: 0.75rem; color: #999; display: flex; justify-content: space-between; }
+.card-featured { grid-column: 1 / -1; }
+.card-featured .card-img { height: 300px; }
+.card-featured .card-title { font-size: 1.4rem; }
+.articles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.sidebar { margin-top: 32px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.sidebar h3 { font-size: 1rem; border-bottom: 2px solid #d32f2f; padding-bottom: 8px; margin-bottom: 12px; }
+.sidebar ul { list-style: none; }
+.sidebar ul li { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+.sidebar ul li:last-child { border-bottom: none; }
+.impact-badge { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; margin-left: 6px; color: #fff; }
+.impact-high { background: #d32f2f; }
+.impact-medium { background: #f57c00; }
+.impact-low { background: #388e3c; }
+footer { background: #1a1a1a; color: #aaa; text-align: center; padding: 24px 16px; margin-top: 48px; font-size: 0.8rem; }
+footer a { color: #ef9a9a; text-decoration: none; }
+@media (max-width: 768px) {
+  .hero { grid-template-columns: 1fr; }
+  .card-featured .card-img { height: 200px; }
+  .card-featured .card-title { font-size: 1.1rem; }
+  nav ul li a { padding: 8px 12px; font-size: 0.8rem; }
+  .header-top { padding: 10px 16px; }
+  .logo { font-size: 1.3rem; }
+}
+</style>
 </head>
 <body>
+<header>
+  <div class="header-top">
+    <div class="logo">Nexus6 ビジネスニュース<span>Business Impact Intelligence</span></div>
+    <div class="header-date" id="current-date"></div>
+  </div>
+  <nav>
+    <ul>
+      <li><a href="#" class="active">トップ</a></li>
+      <li><a href="#">経済・為替</a></li>
+      <li><a href="#">競合・市場</a></li>
+      <li><a href="#">金融政策</a></li>
+      <li><a href="#">携帯電話事業</a></li>
+      <li><a href="#">SNS事業</a></li>
+      <li><a href="#">SI事業</a></li>
+    </ul>
+  </nav>
+</header>
 
-<!-- ヘッダー -->
-<div class="site-header-band">
-  <div class="site-header-inner">
-    <div class="site-logo">
-      NEXUS経済
-      <span class="site-logo-sub">ビジネス・金融・テクノロジー情報</span>
-    </div>
-    <div class="header-right">
-      <div class="header-search">
-        <input type="text" placeholder="キーワードで検索" />
-        <button>検索</button>
-      </div>
-      <span class="header-date" id="headerDate"></span>
-    </div>
+<div class="ticker">
+  <div class="ticker-wrap">
+    <div class="ticker-item">USD/JPY 158.42 (+2.3%) 急激な円安進行で市場に緊張走る</div>
+    <div class="ticker-item">大手通信A社とB社が経営統合を正式発表 ─ 業界再編加速へ</div>
+    <div class="ticker-item">日銀 政策金利0.75%へ引き上げ決定 ─ 追加利上げ観測も</div>
+    <div class="ticker-item">携帯事業：端末調達コスト15%上昇見込み ─ 為替影響分析</div>
+    <div class="ticker-item">SNS広告収益：外資系出稿量の変動に注視</div>
+    <div class="ticker-item">SI事業：顧客企業のIT投資判断に金利政策が影響</div>
+    <div class="ticker-item">USD/JPY 158.42 (+2.3%) 急激な円安進行で市場に緊張走る</div>
+    <div class="ticker-item">大手通信A社とB社が経営統合を正式発表 ─ 業界再編加速へ</div>
+    <div class="ticker-item">日銀 政策金利0.75%へ引き上げ決定 ─ 追加利上げ観測も</div>
+    <div class="ticker-item">携帯事業：端末調達コスト15%上昇見込み ─ 為替影響分析</div>
+    <div class="ticker-item">SNS広告収益：外資系出稿量の変動に注視</div>
+    <div class="ticker-item">SI事業：顧客企業のIT投資判断に金利政策が影響</div>
   </div>
 </div>
 
-<!-- ナビ -->
-<div class="nav-tabs">
-  <div class="nav-tabs-inner">
-    <a href="#" class="active" onclick="showList(event)">トップ</a>
-    <a href="#" onclick="navScrollTo('fx',event)">為替・国際</a>
-    <a href="#" onclick="navScrollTo('comp',event)">通信・EC</a>
-    <a href="#" onclick="navScrollTo('boj',event)">金融政策</a>
-    <a href="#" onclick="navScrollTo('market',event)">マーケット</a>
-    <a href="#" onclick="return false">テクノロジー</a>
-    <a href="#" onclick="return false">Fintech</a>
-    <a href="#" onclick="return false">経済</a>
-    <a href="#" onclick="return false">企業</a>
-    <a href="#" onclick="return false">産業</a>
-  </div>
-</div>
-
-<!-- 速報テロップ -->
-<div class="ticker-bar">
-  <div class="ticker-inner">
-    <span class="ticker-label">速報</span>
-    <div class="ticker-wrap">
-      <span class="ticker-text">
-        ▶ 円相場 一時158円台に急落・地政学リスクで今年最安値を更新 ／
-        ▶ 日銀、0.25→0.5%に追加利上げを決定・17年ぶり高水準 ／
-        ▶ 大手3キャリア×ECプラットフォーム 統合サービス「ONE PASS」を発表 ／
-        ▶ USDJPY 158.42 ▲2.31（15:05現在） ／
-        ▶ 日経平均 38,412円 ▼287円
-      </span>
+<main>
+  <h2 class="section-title">速報・トップニュース</h2>
+  <div class="hero">
+    <div class="card card-featured">
+      <a href="article-1.html">
+        <div class="card-img">💱</div>
+        <div class="card-body">
+          <span class="card-category">経済・為替</span>
+          <h3 class="card-title">【緊急】円相場が1ドル=158円台に急落 ─ 海外調達コスト・外貨建て契約への波及不可避</h3>
+          <p class="card-summary">外国為替市場で急激な円安が進行し、1ドル=158円台を記録。携帯電話事業における端末・基地局の海外調達コスト、SNS事業の外貨建て広告収益、SI事業の海外委託費用など、全事業領域に広範な影響が見込まれる。財務部門は緊急のヘッジポジション見直しに着手。</p>
+          <div class="card-meta">
+            <span>2025年7月8日 14:32</span>
+            <span>影響度: <span class="impact-badge impact-high">高</span></span>
+          </div>
+        </div>
+      </a>
     </div>
   </div>
-</div>
 
-<!-- ======= 一覧ビュー ======= -->
-<div id="list-view">
-  <div class="page-wrap">
-    <div class="main-col">
-
-      <!-- トップ見出し -->
-      <div class="section-wrap" style="margin-bottom:14px;">
-        <div class="section-head">■ 本日の主要ニュース <a href="#">一覧へ ›</a></div>
-        <div class="headline-box" style="background:var(--cp-accent-soft);">
-          <span class="headline-badge badge-fx">【速報】</span>
-          <div>
-            <a class="headline-link" href="article-fx1.html">円が一時158円台に急落　地政学リスクで年初来安値を更新、輸入コスト上昇懸念が広がる</a>
-            <div class="headline-desc">中東情勢の緊迫化と米国の金融引き締め長期化観測が重なり、円売り圧力が急拡大。通信・EC・金融各業界で輸入コストや海外収益への影響を試算する動きが始まった。</div>
-            <div class="headline-meta">NEXUS経済編集部 ・ 2026年6月27日 10:32 ・ 📄 84,201PV</div>
+  <h2 class="section-title">ビジネスインパクト分析</h2>
+  <div class="articles-grid">
+    <div class="card">
+      <a href="article-2.html">
+        <div class="card-img">🏢</div>
+        <div class="card-body">
+          <span class="card-category market">競合・市場</span>
+          <h3 class="card-title">通信大手2社が経営統合を発表 ─ 市場シェア・価格競争・顧客流出リスクに警戒</h3>
+          <p class="card-summary">主要競合である大手通信A社とB社が経営統合を正式発表。統合後のシェアは国内市場の35%超に。携帯電話事業ではMNP流出加速、SNS事業では広告主の出稿先シフト、SI事業では法人顧客の取引見直しリスクが浮上。</p>
+          <div class="card-meta">
+            <span>2025年7月7日 09:15</span>
+            <span>影響度: <span class="impact-badge impact-high">高</span></span>
           </div>
         </div>
-        <div class="headline-box">
-          <span class="headline-badge badge-comp">【大型統合】</span>
-          <div>
-            <a class="headline-link" href="article-comp1.html">大手3キャリア×ECプラットフォームが「ONE PASS」を発表　回線・ポイント・決済を完全統合</a>
-            <div class="headline-desc">回線契約者はEC購入で最大10倍ポイント、QR決済でも5倍還元。競合経済圏との差別化を一気に図る大型アライアンス。</div>
-            <div class="headline-meta">テック経済部 ・ 2026年6月27日 09:15 ・ 📄 61,089PV</div>
-          </div>
-        </div>
-        <div class="headline-box" style="border-bottom:none;">
-          <span class="headline-badge badge-boj">【政策転換】</span>
-          <div>
-            <a class="headline-link" href="article-boj1.html">日銀が政策金利を0.5%に引き上げ決定　17年ぶりの高水準、住宅ローン・リボ払いへの影響注視</a>
-            <div class="headline-desc">植田総裁は「経済・物価の見通しが実現していけば、引き続き政策金利を引き上げる方針」と表明。長期金利も1.12%に上昇。</div>
-            <div class="headline-meta">金融政策部 ・ 2026年6月27日 08:00 ・ 📄 97,443PV</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 為替・円安 -->
-      <div class="section-wrap" id="fx">
-        <div class="section-head">■ 為替・円安ショック関連ニュース <a href="#">もっと見る ›</a></div>
-        <div class="news-row" onclick="openArticle('fx2')">
-          <span class="news-row-badge badge-fx">モバイル</span>
-          <span class="news-row-title">国内大手キャリア、スマートフォン端末価格を最大1.5万円値上げへ　円安で輸入原価が直撃</span>
-          <span class="news-row-time">11:04</span>
-        </div>
-        <div class="news-row" onclick="openArticle('fx3')">
-          <span class="news-row-badge badge-fx">EC</span>
-          <span class="news-row-title">越境EC事業者、円安で仕入れ価格が最大2割上昇　ポイント原資の圧縮を余儀なくされる動き</span>
-          <span class="news-row-time">10:48</span>
-        </div>
-        <div class="news-row" onclick="openArticle('fx4')">
-          <span class="news-row-badge badge-fx">Fintech</span>
-          <span class="news-row-title">FX取引量が急増、個人投資家の円売りポジションが過去最高水準に　暗号資産も連動高</span>
-          <span class="news-row-time">10:20</span>
-        </div>
-        <div class="news-row" onclick="openArticle('fx5')">
-          <span class="news-row-badge" style="background:var(--cp-border-strong);color:var(--cp-text);">関連</span>
-          <span class="news-row-title">円安対応でヘッジ需要が急増、外国為替証拠金取引（FX）口座開設数が前週比3倍に</span>
-          <span class="news-row-time">09:55</span>
-        </div>
-      </div>
-
-      <!-- 競合統合 -->
-      <div class="section-wrap" id="comp">
-        <div class="section-head">■ 競合経済圏の大型統合・ポイント改定 <a href="#">もっと見る ›</a></div>
-        <div class="card-strip">
-          <div class="strip-card" onclick="openArticle('comp2')">
-            <span class="news-row-badge badge-comp" style="font-size:10px;padding:0 4px;font-weight:900;color:#fff;">モバイル</span>
-            <div class="strip-card-title" style="margin-top:4px;">主要キャリア3社が料金改定を相次ぎ発表　「ONE PASS限定端末割引」で乗換促進</div>
-            <div class="strip-card-meta">2026年6月27日 ・ 通信業界ニュース</div>
-          </div>
-          <div class="strip-card" onclick="openArticle('comp3')">
-            <span class="news-row-badge badge-comp" style="font-size:10px;padding:0 4px;font-weight:900;color:#fff;">EC</span>
-            <div class="strip-card-title" style="margin-top:4px;">ポイント還元率競争が激化　大手ECが「回線契約者向け最大10倍還元」を展開</div>
-            <div class="strip-card-meta">2026年6月27日 ・ 流通・EC誌</div>
-          </div>
-          <div class="strip-card" onclick="openArticle('comp4')">
-            <span class="news-row-badge badge-boj" style="font-size:10px;padding:0 4px;font-weight:900;color:#fff;">決済</span>
-            <div class="strip-card-title" style="margin-top:4px;">QR決済シェアが再編局面へ　統合経済圏の台頭で加盟店囲い込み戦略が本格化</div>
-            <div class="strip-card-meta">2026年6月27日 ・ Fintech Journal</div>
-          </div>
-        </div>
-        <div class="news-row" style="border-top:1px solid var(--cp-border);" onclick="openArticle('comp5')">
-          <span class="news-row-badge badge-comp">分析</span>
-          <span class="news-row-title">【解説】経済圏統合の行方　ポイント覇権争いで「離反リスク」が高い顧客セグメントはどこか</span>
-          <span class="news-row-time">08:30</span>
-        </div>
-      </div>
-
-      <!-- 日銀・金利 -->
-      <div class="section-wrap" id="boj">
-        <div class="section-head">■ 日銀金融政策転換・金利上昇 <a href="#">もっと見る ›</a></div>
-        <div class="news-row" onclick="openArticle('boj2')">
-          <span class="news-row-badge badge-boj">住宅金融</span>
-          <span class="news-row-title">変動型住宅ローン金利が0.1〜0.2%上昇へ　大手銀行3行が7月適用分から見直しを発表</span>
-          <span class="news-row-time">09:50</span>
-        </div>
-        <div class="news-row" onclick="openArticle('boj3')">
-          <span class="news-row-badge badge-boj">モバイル</span>
-          <span class="news-row-title">通信キャリア、端末分割ローンの金利負担増で割賦販売戦略を見直しへ　設備投資計画にも影響</span>
-          <span class="news-row-time">09:30</span>
-        </div>
-        <div class="news-row" onclick="openArticle('boj4')">
-          <span class="news-row-badge badge-boj">EC</span>
-          <span class="news-row-title">金利上昇で消費者マインドに急ブレーキ　高単価EC需要の減速を業界が警戒</span>
-          <span class="news-row-time">08:45</span>
-        </div>
-        <div class="news-row" onclick="openArticle('boj5')">
-          <span class="news-row-badge badge-boj">Fintech</span>
-          <span class="news-row-title">リボ払い延滞リスクが上昇懸念　Fintech各社が与信基準の引き締めを検討</span>
-          <span class="news-row-time">08:10</span>
-        </div>
-      </div>
-
-      <!-- マーケット -->
-      <div class="section-wrap" id="market">
-        <div class="section-head">■ マーケット情報</div>
-        <div style="padding:8px 10px;">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-              <tr style="background:var(--cp-surface-soft);">
-                <th style="padding:4px 8px;border:1px solid var(--cp-border);text-align:left;font-weight:700;">指標</th>
-                <th style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">現値</th>
-                <th style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">前日比</th>
-                <th style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">更新時刻</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td style="padding:4px 8px;border:1px solid var(--cp-border);">日経平均株価</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">38,412円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;" class="dn">▼ 287円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;color:var(--cp-text-soft);">15:30</td></tr>
-              <tr><td style="padding:4px 8px;border:1px solid var(--cp-border);">USD/JPY（ドル円）</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">158.42円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;" class="up">▲ 2.31円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;color:var(--cp-text-soft);">15:05</td></tr>
-              <tr><td style="padding:4px 8px;border:1px solid var(--cp-border);">EUR/JPY（ユーロ円）</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">171.08円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;" class="up">▲ 1.84円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;color:var(--cp-text-soft);">15:05</td></tr>
-              <tr><td style="padding:4px 8px;border:1px solid var(--cp-border);">長期金利（10年債）</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">1.12%</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;" class="up">▲ 0.08%</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;color:var(--cp-text-soft);">15:05</td></tr>
-              <tr><td style="padding:4px 8px;border:1px solid var(--cp-border);">BTC/JPY（ビットコイン）</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;font-weight:700;">10,824,000円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;" class="up">▲ 312,000円</td><td style="padding:4px 8px;border:1px solid var(--cp-border);text-align:right;color:var(--cp-text-soft);">15:05</td></tr>
-            </tbody>
-          </table>
-          <div style="font-size:10px;color:var(--cp-text-soft);margin-top:4px;">※ 表示値はデモ用フィクションです。15分遅延相当で掲載。</div>
-        </div>
-      </div>
-
-    </div><!-- /main-col -->
-
-    <!-- サイドバー -->
-    <div class="side-col">
-      <div class="side-widget">
-        <div class="side-widget-head">■ アクセスランキング</div>
-        <div class="side-widget-body">
-          <div class="rank-row" onclick="location.href='article-boj1.html'">
-            <span class="rank-num r1">1</span>
-            <div><div class="rank-title">日銀が政策金利を0.5%に引き上げ、17年ぶり水準</div><div class="rank-count">📄 97,443PV ・ 金融政策</div></div>
-          </div>
-          <div class="rank-row" onclick="location.href='article-fx1.html'">
-            <span class="rank-num r2">2</span>
-            <div><div class="rank-title">円が一時158円台に急落、年初来安値を更新</div><div class="rank-count">📄 84,201PV ・ 為替</div></div>
-          </div>
-          <div class="rank-row" onclick="location.href='article-comp1.html'">
-            <span class="rank-num r3">3</span>
-            <div><div class="rank-title">大手3キャリア×EC「ONE PASS」発表</div><div class="rank-count">📄 61,089PV ・ 通信・EC</div></div>
-          </div>
-          <div class="rank-row" onclick="openArticle('boj2')">
-            <span class="rank-num">4</span>
-            <div><div class="rank-title">変動型住宅ローン金利が0.1〜0.2%上昇へ</div><div class="rank-count">📄 45,902PV ・ 住宅金融</div></div>
-          </div>
-          <div class="rank-row" onclick="openArticle('fx3')">
-            <span class="rank-num">5</span>
-            <div><div class="rank-title">越境EC、円安で仕入れ価格が最大2割上昇</div><div class="rank-count">📄 38,774PV ・ EC</div></div>
-          </div>
-          <div class="rank-row" onclick="openArticle('comp4')">
-            <span class="rank-num">6</span>
-            <div><div class="rank-title">QR決済シェアが再編局面、加盟店囲い込み本格化</div><div class="rank-count">📄 31,205PV ・ Fintech</div></div>
-          </div>
-          <div class="rank-row" onclick="openArticle('boj5')">
-            <span class="rank-num">7</span>
-            <div><div class="rank-title">リボ払い延滞リスクが上昇懸念、与信基準見直しへ</div><div class="rank-count">📄 24,891PV ・ Fintech</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="side-widget">
-        <div class="side-widget-head">■ 為替・株価（速報）</div>
-        <div class="side-widget-body" style="padding:4px 0;">
-          <table class="market-table">
-            <tr><td class="market-name" style="padding-left:8px;">USD/JPY</td><td class="market-val up">158.42</td><td class="market-chg up">▲2.31</td></tr>
-            <tr><td class="market-name" style="padding-left:8px;">EUR/JPY</td><td class="market-val up">171.08</td><td class="market-chg up">▲1.84</td></tr>
-            <tr><td class="market-name" style="padding-left:8px;">日経平均</td><td class="market-val dn">38,412</td><td class="market-chg dn">▼287</td></tr>
-            <tr><td class="market-name" style="padding-left:8px;">長期金利</td><td class="market-val up">1.12%</td><td class="market-chg up">▲0.08</td></tr>
-            <tr><td class="market-name" style="padding-left:8px;">BTC/JPY</td><td class="market-val up">10,824K</td><td class="market-chg up">▲312K</td></tr>
-          </table>
-          <div style="font-size:10px;color:var(--cp-text-soft);padding:2px 8px 4px;">15:05現在（デモ値）</div>
-        </div>
-      </div>
-
-      <div class="side-widget">
-        <div class="side-widget-head">■ 注目キーワード</div>
-        <div class="keyword-list">
-          <span class="kw hot">円安</span>
-          <span class="kw hot">日銀利上げ</span>
-          <span class="kw hot">ONE PASS</span>
-          <span class="kw">住宅ローン</span>
-          <span class="kw">FX</span>
-          <span class="kw">越境EC</span>
-          <span class="kw">暗号資産</span>
-          <span class="kw">端末価格</span>
-          <span class="kw">ポイント経済圏</span>
-          <span class="kw">設備投資</span>
-          <span class="kw">リボ払い</span>
-          <span class="kw">乗換</span>
-          <span class="kw">長期金利</span>
-          <span class="kw hot">MNP競争</span>
-        </div>
-      </div>
-
-      <div class="side-widget">
-        <div class="side-widget-head">■ 新着記事</div>
-        <div class="side-widget-body">
-          <div class="rank-row" onclick="openArticle('fx2')"><span class="rank-num">▶</span><div><div class="rank-title">キャリア端末価格を最大1.5万円値上げへ</div><div class="rank-count">11:04</div></div></div>
-          <div class="rank-row" onclick="openArticle('fx3')"><span class="rank-num">▶</span><div><div class="rank-title">越境EC仕入れ価格が最大2割上昇</div><div class="rank-count">10:48</div></div></div>
-          <div class="rank-row" onclick="openArticle('fx4')"><span class="rank-num">▶</span><div><div class="rank-title">FX取引量が急増、円売りポジション最高水準</div><div class="rank-count">10:20</div></div></div>
-          <div class="rank-row" onclick="openArticle('boj2')"><span class="rank-num">▶</span><div><div class="rank-title">変動型住宅ローン金利0.2%上昇へ</div><div class="rank-count">09:50</div></div></div>
-        </div>
-      </div>
-    </div><!-- /side-col -->
-
-  </div><!-- /page-wrap -->
-</div><!-- /list-view -->
-
-<!-- ======= 記事詳細ビュー ======= -->
-<div id="detail-view">
-  <div class="page-wrap">
-    <div class="main-col">
-      <div class="back-link" onclick="showList(null)">◀ 一覧に戻る</div>
-      <div class="article-wrap" id="articleContent"></div>
+      </a>
     </div>
-    <div class="side-col">
-      <div class="side-widget">
-        <div class="side-widget-head">■ 関連記事</div>
-        <div class="side-widget-body" id="relatedArticles"></div>
-      </div>
-      <div class="side-widget">
-        <div class="side-widget-head">■ アクセスランキング</div>
-        <div class="side-widget-body">
-          <div class="rank-row" onclick="openArticle('boj1')"><span class="rank-num r1">1</span><div><div class="rank-title">日銀が政策金利を0.5%に引き上げ</div><div class="rank-count">📄 97,443PV</div></div></div>
-          <div class="rank-row" onclick="openArticle('fx1')"><span class="rank-num r2">2</span><div><div class="rank-title">円が一時158円台に急落</div><div class="rank-count">📄 84,201PV</div></div></div>
-          <div class="rank-row" onclick="openArticle('comp1')"><span class="rank-num r3">3</span><div><div class="rank-title">大手3キャリア×EC「ONE PASS」</div><div class="rank-count">📄 61,089PV</div></div></div>
+
+    <div class="card">
+      <a href="article-3.html">
+        <div class="card-img">🏦</div>
+        <div class="card-body">
+          <span class="card-category policy">金融政策</span>
+          <h3 class="card-title">日銀が追加利上げ決定 ─ 設備投資・IT予算・広告出稿に連鎖的影響</h3>
+          <p class="card-summary">日本銀行は金融政策決定会合で政策金利の0.75%への引き上げを決定。企業の設備投資判断の慎重化により、SI事業の受注環境が変化。広告主のマーケティング予算圧縮でSNS広告収益にも下押し圧力。携帯事業では基地局投資計画の見直し検討。</p>
+          <div class="card-meta">
+            <span>2025年7月6日 16:45</span>
+            <span>影響度: <span class="impact-badge impact-medium">中</span></span>
+          </div>
         </div>
-      </div>
-      <div class="side-widget">
-        <div class="side-widget-head">■ 注目キーワード</div>
-        <div class="keyword-list">
-          <span class="kw hot">円安</span><span class="kw hot">日銀利上げ</span><span class="kw hot">ONE PASS</span>
-          <span class="kw">住宅ローン</span><span class="kw">FX</span><span class="kw">越境EC</span>
-          <span class="kw">端末価格</span><span class="kw hot">MNP競争</span>
-        </div>
-      </div>
+      </a>
     </div>
   </div>
-</div>
+
+  <div class="sidebar">
+    <h3>事業領域別インパクトサマリ</h3>
+    <ul>
+      <li>📱 <strong>携帯電話事業</strong>：端末調達コスト上昇(+15%)、MNP転出リスク増大、基地局投資見直し<span class="impact-badge impact-high">高</span></li>
+      <li>💬 <strong>SNS事業</strong>：外資系広告主の出稿減、競合プラットフォームへのユーザー流出懸念<span class="impact-badge impact-medium">中</span></li>
+      <li>💻 <strong>SI事業</strong>：顧客企業IT予算縮小(金利上昇)、競合統合による案件集約リスク<span class="impact-badge impact-medium">中</span></li>
+      <li>📊 <strong>全社共通</strong>：為替ヘッジコスト増、人件費圧力、中期経営計画の前提条件見直し<span class="impact-badge impact-high">高</span></li>
+    </ul>
+  </div>
+
+  <div class="sidebar" style="margin-top: 20px;">
+    <h3>通知済み部署</h3>
+    <ul>
+      <li>✅ 携帯電話事業本部 端末調達部 ─ 為替急変シナリオ通知済み</li>
+      <li>✅ SNS事業部 広告営業グループ ─ 競合統合シナリオ通知済み</li>
+      <li>✅ SI事業部 営業企画課 ─ 金融政策転換シナリオ通知済み</li>
+      <li>✅ 経営企画部 リスク管理室 ─ 全シナリオ統合レポート送付済み</li>
+      <li>⏳ 財務部 為替管理課 ─ ヘッジ戦略見直し中</li>
+    </ul>
+  </div>
+</main>
 
 <footer>
-  <div class="footer-inner">
-    <div class="footer-links">
-      <a href="#">NEXUSについて</a>
-      <a href="#">編集方針</a>
-      <a href="#">広告掲載</a>
-      <a href="#">お問い合わせ</a>
-      <a href="#">利用規約</a>
-      <a href="#">プライバシーポリシー</a>
-      <a href="#">著作権について</a>
-      <a href="#">メールマガジン</a>
-      <a href="#">RSS</a>
-    </div>
-    <div class="footer-copy">© 2026 NEXUS経済 All Rights Reserved.　※本サイトの記事・データは全てデモ用フィクションです。</div>
-  </div>
+  <p>&copy; 2025 Nexus6 ビジネスニュース ─ ニュース分析・インパクト診断システム</p>
+  <p style="margin-top: 8px;"><a href="sitemap.xml">サイトマップ</a> | <a href="robots.txt">robots.txt</a></p>
 </footer>
 
 <script>
-  // 日付表示
-  const d = new Date();
-  document.getElementById('headerDate').textContent =
-    `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
-
-  function showList(e) {
-    if (e) e.preventDefault();
-    document.getElementById('list-view').style.display = '';
-    document.getElementById('detail-view').style.display = 'none';
-    window.scrollTo(0,0);
-  }
-
-  function navScrollTo(id, e) {
-    if (e) e.preventDefault();
-    showList(null);
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-  }
-
-  // ─── 記事データ ───
-  const ARTICLES = {
-    fx1: {
-      cat: '為替・緊急', catClass: 'badge-fx',
-      title: '円が一時158円台に急落　地政学リスクで年初来安値を更新、輸入コスト上昇懸念が広がる',
-      byline: 'NEXUS経済編集部', date: '2026年6月27日 10:32', pv: '84,201',
-      body: `<p>外国為替市場で円安が急進し、一時<strong>1ドル=158円42銭</strong>を付け今年の最安値を更新した。中東情勢の緊迫化による原油価格上昇と米国の金融引き締め長期化観測が重なり、円売り・ドル買いの勢いが増した。</p>
-<p>日本銀行は「市場の動向を注視している」とのコメントを発表したが、現時点では為替介入を示唆する発言はなく、市場では当面160円を試す展開も意識され始めている。</p>
-<div class="impact-section"><div class="impact-section-head">■ モバイル通信業界への影響</div><div class="impact-section-body"><ul><li>スマートフォン端末の輸入コストが前年比約18%上昇、秋モデルで1〜1.5万円の値上げ幅が見込まれる</li><li>海外ベンダーとの基地局保守契約（ドル建て）の支払い増加</li><li>端末補助（残価設定型プラン）の原資縮小リスク</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ Eコマース業界への影響</div><div class="impact-section-body"><ul><li>越境ECの海外仕入れ比率が高いカテゴリで原価が2割超上昇</li><li>ポイント還元原資の圧縮・還元率引き下げを検討する動き</li><li>競合との価格競争でクロスセル戦略の抜本見直しが急務</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ Fintech業界への影響</div><div class="impact-section-body"><ul><li>FX取引量が急増、為替手数料収益が拡大</li><li>海外決済カードの利用増加により与信リスクが上昇</li><li>暗号資産（BTC）が円建てで連動高、投資商品の需要増</li></ul></div></div>
-<p>市場関係者は「当面は160円を試す展開も想定される」と分析しており、各業界での価格転嫁と為替ヘッジ戦略の見直しが急ピッチで進んでいる。政府・日銀の対応が注目される。</p>`,
-      related: ['fx2','fx3','fx4','boj1']
-    },
-    fx2: {
-      cat: 'モバイル・為替', catClass: 'badge-fx',
-      title: '国内大手キャリア、スマートフォン端末価格を最大1.5万円値上げへ　円安で輸入原価が直撃',
-      byline: '通信業界レポート編集部', date: '2026年6月27日 11:04', pv: '28,412',
-      body: `<p>円安進行を受け、国内大手通信キャリア各社がスマートフォン端末の販売価格を秋モデルから引き上げる方針を固めた。主要ハイエンドモデルで<strong>1〜1.5万円程度の値上げ</strong>が見込まれ、ミッドレンジモデルでも5,000円前後の価格上昇が予想されるとしている。</p>
-<p>キャリア各社が端末を調達する際の仕入価格は、主にドル建てで契約されている。1ドル=158円台という水準は昨年同期比で約15%の円安であり、ハイエンド端末（税込10万円超の機種）では調達コストの上昇分がそのまま販売価格に転嫁されやすい構造となっている。</p>
-<p>端末補助（残価設定型プランなど）の原資についても再検討を余儀なくされており、補助額の縮小による実質負担増が懸念される。大手キャリア関係者は「補助額を維持しようとすれば収益が悪化し、縮小すれば顧客の解約リスクが高まる。どちらに転んでも難しい判断だ」と話す。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（端末在庫・価格管理）</div><div class="impact-section-body"><ul><li>端末マスタの仕入価格・販売価格フィールドの即時改訂が必要</li><li>残価設定型プランの残価テーブル（device_installment）の再計算が発生</li><li>割賦販売分割払い額の変更に伴う契約者への通知業務が急増</li><li>在庫評価額の見直しと棚卸資産への計上額の更新</li></ul></div></div>
-<p>一部メーカーからは「円安水準が継続する場合、年内さらなる価格改定もあり得る」との見通しが示されており、秋冬商戦を前に業界全体が価格戦略の見直しを迫られている。アナリストは「今年の年末商戦は過去最も"端末の売りにくい"シーズンになる可能性がある」と指摘した。</p>`,
-      related: ['fx1','fx3','comp2','boj3']
-    },
-    fx3: {
-      cat: 'EC・為替', catClass: 'badge-fx',
-      title: '越境EC事業者、円安で仕入れ価格が最大2割上昇　ポイント原資の圧縮を余儀なくされる動き',
-      byline: 'EC産業情報', date: '2026年6月27日 10:48', pv: '38,774',
-      body: `<p>円安の加速により、海外から商品を仕入れるEC事業者の調達コストが急上昇している。特にドル・ユーロ建てで仕入れを行うアパレル、家電、食品カテゴリでは<strong>前年同期比15〜20%の原価増</strong>が報告されており、国内向け価格に転嫁しきれないケースも多発している。</p>
-<p>大手ECプラットフォームで海外商品を取り扱う出店者へのアンケート（NEXUS経済調べ、回答数1,248社）によると、「すでに販売価格を引き上げた」が37%、「今後3ヶ月以内に引き上げ予定」が29%に上った。一方で「価格を据え置いたまま利益率を圧縮している」と答えた出店者も27%おり、体力差が鮮明になっている。</p>
-<p>ポイント還元率の引き下げが検討されるなか、競合ECとのポイント競争は依然として激しく、原資圧縮と会員ロイヤリティ維持という二律背反の課題に直面している。一部ECプラットフォームでは、海外出店者向けの決済手数料体系の見直しや、仕入れ代行サービスの為替ヘッジオプション提供なども検討されている。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（商品・ポイント管理）</div><div class="impact-section-body"><ul><li>商品マスタ（product_master）の原価・販売価格フィールドのバルク更新が必要</li><li>ポイント付与率テーブルの即時改訂と会員向け告知バッチ処理</li><li>越境EC出店者の価格変動を受けたカタログ審査・商品登録業務が増加</li><li>為替レートスナップショットの取得頻度引き上げと商品価格への自動反映ロジック検討</li></ul></div></div>
-<p>流通経済研究所のシニアアナリストは「円安が150円台以上で定着した場合、越境EC経由の輸入商品は最終的に国内メーカー品との価格差が縮まり、消費者行動が国産回帰へ転換する可能性もある。プラットフォーム各社は品揃えの再設計を迫られるだろう」と分析する。</p>`,
-      related: ['fx1','fx2','comp3','boj4']
-    },
-    fx4: {
-      cat: 'Fintech・為替', catClass: 'badge-fx',
-      title: 'FX取引量が急増、個人投資家の円売りポジションが過去最高水準に　暗号資産も連動高',
-      byline: '金融メディア編集部', date: '2026年6月27日 10:20', pv: '19,333',
-      body: `<p>急速な円安を背景に、国内FX業者での1日あたり取引量が過去最高水準に達した。業界団体の速報値では27日の取引量（名目ベース）が約14兆円に迫り、昨年同時期の約2.3倍に膨らんだ。個人投資家の<strong>円売り・ドル買いポジションも過去最大規模</strong>に積み上がっており、為替手数料収益の増加が各Fintech企業の短期業績を下支えしている。</p>
-<p>スプレッド収益に加え、急激な相場変動に伴うロスカット処理も増加。一部のFX事業者では証拠金維持率が急低下した顧客へのコール通知が前日比4倍に達したとのことで、システムへの負荷も急増している。</p>
-<p>暗号資産市場ではビットコインの円建て価格が1,082万円台と連動高。円安時に実質価値が目減りする現金よりも資産価値を保てるとの期待から、仮想通貨取引所への資金流入も続いている。ただし暗号資産そのものの価格変動リスクも高く、当局からは「リスク管理の徹底」を促す声明が出ている。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（FX・与信・暗号資産管理）</div><div class="impact-section-body"><ul><li>FX取引システムの証拠金計算ロジックの確認と処理負荷対策（スケールアウト対応）</li><li>為替レートスナップショット（exchange_rate_snapshot）の取得頻度を1分→10秒間隔に引き上げ</li><li>海外決済カードの与信限度額の動的見直し（payment_health_scoreと連動）</li><li>暗号資産残高の評価額算定サイクルの短縮と時価情報の即時反映</li></ul></div></div>
-<p>一方で、市場関係者からは「個人の円売りポジションが過度に積み上がったことで、将来的な急速な巻き戻しリスクが高まっている」との警戒感も上がっている。過去2015年のスイスフランショックなどでは一夜にして数十万円規模の損失が発生した例もあり、当局は投資家保護の観点からレバレッジ規制の追加的な強化についても検討を始めている。</p>`,
-      related: ['fx1','fx3','boj1','boj5']
-    },
-    fx5: {
-      cat: '為替・Fintech', catClass: 'badge-fx',
-      title: '円安対応でヘッジ需要が急増、外国為替証拠金取引（FX）口座開設数が前週比3倍に',
-      byline: 'NEXUS経済マーケット部', date: '2026年6月27日 09:55', pv: '15,201',
-      body: `<p>急速な円安進行を受け、個人投資家の円安ヘッジ需要が急膨張している。主要FX業者各社によると、直近1週間の新規口座開設数は<strong>前週比3倍超</strong>に達しており、特に30〜40代の個人投資家からの問い合わせが急増している。「貯蓄の目減りを防ぎたい」「外貨預金よりも機動的に動かせる手段を探している」といった声が多いという。</p>
-<p>外貨預金や外国債券への資金流入も増加しており、証券会社・銀行でも外貨建て商品の販売が活発化している。野村証券・SBI証券などの外国株式・外貨MMFの新規購入額も前月比で2倍超となっており、円安ヘッジ目的の資金が幅広い金融商品に流入している。</p>
-<p>一方で、「円安は投機的な動き」との見方も根強く、急激な巻き戻しリスクへの注意を促す専門家も多い。円安が突然反転した場合には、ドル・外貨で組んだポジションが一斉に損失を抱える可能性があり、<strong>金融庁もSNSを通じたFX勧誘に関する注意喚起</strong>を2026年6月25日付で発出している。</p>
-<div class="impact-section"><div class="impact-section-head">■ Fintechシステムへの影響（口座管理・KYC）</div><div class="impact-section-body"><ul><li>新規口座開設急増によるKYC（本人確認）業務の処理遅延リスク</li><li>口座マスタのキャパシティ拡張と申込フォームの負荷分散が必要</li><li>証拠金・残高の初期入金処理の処理キュー増大への対応</li></ul></div></div>
-<p>ヘッジ需要の増大は短期的にはFintechおよび証券会社の手数料収益を押し上げるが、中長期的には「利用者保護と金融リテラシー向上」という業界課題を再浮上させる契機にもなっている。</p>`,
-      related: ['fx1','fx4','boj1']
-    },
-    comp1: {
-      cat: '通信・EC・決済', catClass: 'badge-comp',
-      title: '大手3キャリア×ECプラットフォームが「ONE PASS」を発表　回線・ポイント・決済を完全統合',
-      byline: 'テック経済部', date: '2026年6月27日 09:15', pv: '61,089',
-      body: `<p>国内通信キャリア大手とECプラットフォーム、QR決済事業者が共同で新経済圏サービス<strong>「ONE PASS」</strong>を発表した。回線契約者は決済でポイントが最大5倍、EC購入でさらに最大10倍の還元を受けられる仕組みで、既存経済圏との競争が一気に激化する。</p>
-<p>サービス開始は2026年秋を予定しており、ユーザー基盤は発表時点で約4,200万アカウントに達する見込み。会員証・決済・回線管理を1つのアプリに統合するUI設計も公開された。</p>
-<div class="impact-section"><div class="impact-section-head">■ モバイル業界への影響</div><div class="impact-section-body"><ul><li>他社ユーザーの乗換促進策として「ONE PASS限定端末割引」を展開</li><li>料金競争が激化し、ARPU（契約単価）の下押し圧力が強まる</li><li>離反予兆の高い顧客セグメントへの先回り対応が急務</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ EC業界への影響</div><div class="impact-section-body"><ul><li>自社ポイントプログラムの価値相対化が進む</li><li>競合経済圏に参加する出店者の増加が懸念される</li><li>会員の購買頻度・クロスセル率への影響を即座に測定する必要</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ Fintech・決済業界への影響</div><div class="impact-section-body"><ul><li>QR決済の加盟店囲い込み競争が再燃</li><li>カード利用率・口座振替の流出リスク</li><li>加盟店手数料率の値下げ交渉が増加する可能性</li></ul></div></div>
-<p>アナリストは「回線・ポイント・決済の三位一体型サービスは顧客ロイヤリティを劇的に高める可能性がある一方、対抗策を持たない事業者には深刻な顧客流出リスクをもたらす」と指摘している。</p>`,
-      related: ['comp2','comp3','comp4','comp5']
-    },
-    comp2: {
-      cat: 'モバイル・競合', catClass: 'badge-comp',
-      title: '主要キャリア3社が料金改定を相次ぎ発表　「ONE PASS限定端末割引」で乗換促進、MNP競争が激化',
-      byline: '通信業界ニュース編集部', date: '2026年6月27日 09:00', pv: '22,180',
-      body: `<p>大手3キャリアは「ONE PASS」発表を受け、対抗施策として新料金プランと端末割引キャンペーンを相次ぎ発表した。各社とも新規乗換・MNP転入ユーザーへの特典として<strong>端末価格を最大2万円割引</strong>する施策を打ち出しており、業界内でのMNP転出・転入競争が激化する見通しだ。</p>
-<p>具体的にはA社が「最低利用期間なし・解約金0円」の新プランを7月1日より提供開始、B社は「ONE PASSへ乗換の方限定の残価保証プラン」を発表、C社は月額料金を最大1,000円引き下げるとともに家族3人以上での割引を拡充した。各社のプレスリリースには「離反防止」の意図が色濃く、既存ユーザーへの優遇施策も同時に発表されている。</p>
-<p>業界アナリストは「今回の競争は単純な価格引き下げにとどまらず、ポイント・決済・EC購入という経済圏全体を巻き込んだ囲い込みが軸になる。ARPUの維持には非通信収益（EC・決済・保険）の強化が不可欠で、その点で出遅れたキャリアは3〜5年スパンで顧客基盤が侵食されるリスクがある」と指摘する。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（MNP・契約・料金管理）</div><div class="impact-section-body"><ul><li>MNP転出・転入件数の急増に伴うシステム処理負荷の増大（特にSIMアクティベーション処理）</li><li>新料金プランの適用ロジック追加と既存契約の移行処理バッチ対応</li><li>端末割引キャンペーンの原価管理・精算業務および残価設定額の見直し</li><li>離反予兆スコアリングモデルの再学習と高リスク顧客への先回りアプローチ施策</li></ul></div></div>
-<p>今後1〜2ヶ月でMNP転出件数が年間最高水準に達する可能性もあり、業務フロントシステムのキャパシティ確認が急務となっている。</p>`,
-      related: ['comp1','comp3','fx2','boj3']
-    },
-    comp3: {
-      cat: 'EC・ポイント', catClass: 'badge-comp',
-      title: 'ポイント還元率競争が激化　大手ECが「回線契約者向け最大10倍還元」を展開、会員争奪が本格化',
-      byline: '流通・EC誌', date: '2026年6月27日 08:50', pv: '18,720',
-      body: `<p>ECプラットフォーム各社がキャリア連携によるポイント倍増キャンペーンを相次ぎ発表した。特に「ONE PASS」参加ECプラットフォームでは回線契約者向けに<strong>最大10倍のポイント還元</strong>を提供し、会員の囲い込みを加速させている。</p>
-<p>ポイント原資の財務負担は大幅に増加する見込みだが、各社は「長期的な会員ロイヤリティと購買頻度の向上で回収できる」との試算を示している。EC業界関係者によると「今後12ヶ月間のポイント付与原資として数百億円規模の予算が動く可能性がある」とされており、規模の小さい中堅ECには対抗が難しい水準だ。</p>
-<p>一方で、還元率引き上げ競争が行き詰まる「ポイント疲れ」のリスクも指摘されている。消費者調査では「ポイント還元率より使いやすさ・品揃えを重視する」層が若年層（18〜29歳）で54%に上り、単純な倍率競争では離反を防ぎきれない可能性もある。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（ポイント・会員・キャンペーン管理）</div><div class="impact-section-body"><ul><li>ポイント付与率テーブル（point_rule）の即時改訂とキャリア連携ルールの追加</li><li>ONE PASS会員判定ロジックの組み込みと受注処理フローへの連携</li><li>ポイント残高引当・消費処理の処理量急増によるDBパフォーマンス確認</li><li>キャンペーン原価積算と財務システムへの自動仕訳連携の整備</li></ul></div></div>
-<p>長期的には「ポイントを軸にした囲い込み」から「利便性・サービス品質を軸にした継続利用」への転換を見据えた戦略が求められており、今回のキャンペーンがその先鋒になるかどうか、各社の本質的な競争力が問われる局面でもある。</p>`,
-      related: ['comp1','comp2','fx3','boj4']
-    },
-    comp4: {
-      cat: '決済・Fintech', catClass: 'badge-boj',
-      title: '統合経済圏の台頭でQR決済シェアが再編局面へ　加盟店の囲い込み戦略が本格化',
-      byline: 'Fintech Journal', date: '2026年6月27日 08:40', pv: '31,205',
-      body: `<p>「ONE PASS」の発表により、QR決済市場のシェア争いが新たな局面に突入した。統合経済圏参加決済サービスは加盟店向けに手数料優遇と「ONE PASS会員限定送客保証」を提示し、加盟店契約の先行確保に動いている。</p>
-<p>現在の国内QR決済市場は上位3サービスで約65%のシェアを占めているが、今回の統合によりシェア構造は大きく変わる可能性がある。「ONE PASS」参加QR決済サービスは加盟店手数料の段階的引き下げ（現行1.6%→1.2%へ）を発表。中小・個人事業主の加盟店取り込みを狙った施策だ。</p>
-<p>これに対し統合外の決済事業者も対抗値下げを余儀なくされる見通しで、業界全体の手数料収益圧縮が加速しそうだ。収益確保のためにデータマーケティング・ターゲティング広告・与信連携といった「決済以外の収益源」を強化する動きが各社で加速している。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（決済GW・加盟店管理・ポイント連携）</div><div class="impact-section-body"><ul><li>加盟店マスタ（merchant_master）の手数料レート一斉更新と契約条件変更処理の増加</li><li>ONE PASS連携ポイント付与API（外部連携）の開発・結合テストが急務</li><li>競合他社への加盟店離反リスクのリアルタイムモニタリング強化</li><li>手数料収益減少分を補完するデータ広告プラットフォームの収益試算モデル更新</li></ul></div></div>
-<p>金融庁は「競争激化に伴う決済インフラの品質低下や、中小事業者への不当な圧力が生じないよう、加盟店向け契約内容の透明性確保について業界各社に要請することを検討している」と述べた。今後の規制動向にも注目が集まる。</p>`,
-      related: ['comp1','comp3','fx4','boj5']
-    },
-    comp5: {
-      cat: '分析・解説', catClass: 'badge-comp',
-      title: '【解説】経済圏統合の行方　ポイント覇権争いで「離反リスク」が高い顧客セグメントはどこか',
-      byline: 'NEXUS経済 市場分析部', date: '2026年6月27日 08:30', pv: '14,320',
-      body: `<p>今回の「ONE PASS」発表を受け、各経済圏の顧客基盤にどのような影響が生じるか分析する。特に注目されるのが、複数の経済圏に重複して登録している「マルチホーム型」ユーザーの動向だ。</p>
-<p>調査データによると、スマートフォン利用者の約38%が2つ以上の経済圏ポイントを保有しており、そのうち55%が「より還元率の高い経済圏に集約したい」と回答している。<strong>還元率0.5%の差異でも購買行動が変化する</strong>層が多く、今回のポイント戦争は単純なコスト競争ではなく、UX・利便性・ブランド信頼性も含めた総合戦となる。</p>
-<p>特に離反リスクが高いとされるセグメントは以下の3つだ。①契約年数が2〜4年の中堅ユーザー（初回補助端末の残価精算が済んでいる）、②EC利用頻度が月3回以上かつポイント還元率を積極的に比較している層、③住宅ローンを変動型で組んでおり金利上昇で可処分所得が圧迫されている層——この3条件が重なる顧客は「経済合理性」で動く可能性が高く、ONE PASSの高還元率に引き付けられやすい。</p>
-<p>逆に、長期継続割引や家族割が深く適用されているユーザー、あるいはキャリア系列の電気・ガス・ローンなど複合サービスを利用しているユーザーはスイッチングコストが高く、ロイヤリティが相対的に強い。各社のCRMシステムはこれらの多次元スコアリングを即時に再計算できるかどうかが問われる局面だ。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（CRM・セグメンテーション）</div><div class="impact-section-body"><ul><li>離反予兆スコアモデルのパラメータ更新（料金競争・ポイント競争を考慮した変数追加）</li><li>「経済圏統合インパクト」をトリガーとしたリアルタイムセグメント再計算</li><li>先回り施策（リテンションオファー）の自動配信ルールの設定</li></ul></div></div>`,
-      related: ['comp1','comp2','comp3','comp4']
-    },
-    boj1: {
-      cat: '日銀・金融政策', catClass: 'badge-boj',
-      title: '日銀が政策金利を0.5%に引き上げ決定　17年ぶりの高水準、住宅ローン・リボ払いへの影響注視',
-      byline: '金融政策部', date: '2026年6月27日 08:00', pv: '97,443',
-      body: `<p>日本銀行は金融政策決定会合において、政策金利を<strong>0.25%から0.5%へ引き上げる</strong>ことを決定した。2007年以来17年ぶりとなる高水準で、植田総裁は「経済・物価の見通しが実現していけば、引き続き政策金利を引き上げ、金融緩和の度合いを調整していく」と述べた。</p>
-<p>長期金利（10年国債利回り）も1.12%と上昇が続いており、企業・個人ともに資金調達コストの見直しが迫られている。次回の金融政策決定会合（7月末）でのさらなる利上げが最大の焦点となっている。</p>
-<div class="impact-section"><div class="impact-section-head">■ モバイル通信業界への影響</div><div class="impact-section-body"><ul><li>5G基地局等の設備投資向け社債・借入金の調達コストが上昇</li><li>端末割賦販売の実質負担増加で購買意欲に影響</li><li>端末分割払い残高の月次返済額が増加する契約者が続出</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ Eコマース業界への影響</div><div class="impact-section-body"><ul><li>住宅ローン返済増で消費者の可処分所得が減少</li><li>高単価カテゴリ（家電・家具・ブランド品）の需要が先行して減速</li><li>後払い・分割払い利用者の与信コストが増加</li></ul></div></div>
-<div class="impact-section"><div class="impact-section-head">■ Fintech業界への影響</div><div class="impact-section-body"><ul><li>銀行の預貸金利ざやが拡大、金利収益が増加</li><li>リボ払い残高の利払い増加で延滞率の上昇リスク</li><li>住宅ローン残高の変動金利型契約者への影響が広範</li><li>証券・投資商品の需要にも変化が生じる可能性</li></ul></div></div>
-<p>政府は「家計への影響を注視しながら、適切な対応を検討する」とのコメントを発表。物価・賃金・消費の三角形のバランスが今後の政策運営の鍵となる。</p>`,
-      related: ['boj2','boj3','boj4','boj5']
-    },
-    boj2: {
-      cat: '住宅金融', catClass: 'badge-boj',
-      title: '変動型住宅ローン金利が0.1〜0.2%上昇へ　大手銀行3行が7月適用分から見直しを発表',
-      byline: '住宅金融情報', date: '2026年6月27日 09:50', pv: '45,902',
-      body: `<p>日銀の追加利上げを受け、三菱UFJ・みずほ・三井住友の大手3行が短期プライムレートの引き上げを検討していることが明らかになった。変動型ローン利用者の月額返済額への影響は<strong>借入3,000万円・残期間25年の場合で月1〜3万円程度</strong>になる見込みで、全国の変動型ローン利用者約1,200万人に影響が及ぶ可能性がある。</p>
-<p>大手銀行の幹部は「利上げ幅は0.1〜0.2%を念頭に置いているが、最終決定は月内に行う」と話している。7月に適用される短期プライムレートが引き上げられれば、6〜7月に期日を迎える変動型ローンの金利見直しに直結する。特に低金利時代に組んだ新築マンション購入者の中には「当初の返済計画に想定していた金利上昇余地がほとんどない」ケースもあり、FPへの相談が急増している。</p>
-<p>固定型ローンへの借り換えを検討する動きも急増しており、金融機関の相談窓口には問い合わせが殺到。住宅金融支援機構「フラット35」の申込みは前月比で3.8倍に達したとの速報値も出ている。ただし固定型への借り換えには手数料（保証料・事務手数料）が数十万円かかるケースもあり、借り換えメリットの有無を慎重に試算する必要がある。</p>
-<div class="impact-section"><div class="impact-section-head">■ Fintechシステムへの影響（ローン・与信管理）</div><div class="impact-section-body"><ul><li>変動金利ローン残高（loan_balance）の金利改定バッチ処理の緊急スケジュール組み</li><li>月次返済額の自動再計算と契約者への通知（SMS・アプリプッシュ）処理</li><li>金利感応度の高い顧客層の与信スコア再評価と延滞リスクフラグの更新</li><li>固定型借り換え相談の急増に対応するオペレーター追加および自動試算ツールの整備</li></ul></div></div>
-<p>国土交通省は「急速な金利上昇が住宅市場の需要を冷やさないよう、補助制度や税制面での支援策を検討する」と表明。次回の経済財政諮問会議での議題となる見通しだ。</p>`,
-      related: ['boj1','boj4','boj5','fx1']
-    },
-    boj3: {
-      cat: 'モバイル・金利', catClass: 'badge-boj',
-      title: '通信キャリア、端末分割ローンの金利負担増で割賦販売戦略を見直しへ　設備投資計画にも影響',
-      byline: '通信インフラ情報', date: '2026年6月27日 09:30', pv: '17,891',
-      body: `<p>金利上昇により、通信キャリア各社の端末割賦販売に伴う資金調達コストが上昇している。現行の24〜48回払いプランでは割賦債権を証券化・売却することで流動性を確保しているが、金利上昇局面では証券化スプレッドが拡大し、キャリア側の費用構造が悪化する見通しだ。</p>
-<p>特に影響が大きいのは、2020〜2022年の超低金利期に拡販した長期割賦（48回払い）の残高で、キャリア各社が保有する割賦債権総額は合計で2兆円超とされている。今後の利上げ継続シナリオでは、この残高の評価差損が財務上の課題になる可能性もある。</p>
-<p>5G基地局整備などの設備投資に活用している社債・借入金の調達コストも上昇。主要キャリアが今期に予定している社債発行（計6,000億円超）は金利上昇分が上乗せされる見込みで、<strong>2027〜2028年度の設備投資計画を10〜15%圧縮または延期</strong>する検討を始めたキャリアもあるとされる。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（割賦管理・設備投資管理）</div><div class="impact-section-body"><ul><li>端末割賦テーブル（device_installment）の金利パラメータ緊急更新と月次返済額の再計算</li><li>割賦債権残高の評価額レポートの更新頻度引き上げ（月次→週次）</li><li>設備投資管理システムの予算シナリオ更新（金利感応度分析の追加）</li><li>基地局整備計画のマスタデータ（station_master）への投資優先度フラグ見直し</li></ul></div></div>
-<p>総務省の有識者会議では「設備投資の遅れが5G展開の地域格差拡大につながる」との懸念が示されており、補助金・優遇措置の拡充について議論が始まっている。</p>`,
-      related: ['boj1','boj2','fx2','comp2']
-    },
-    boj4: {
-      cat: 'EC・消費動向', catClass: 'badge-boj',
-      title: '金利上昇で消費者マインドに急ブレーキ　EC業界では高単価カテゴリの需要減速を警戒',
-      byline: '流通経済研究所', date: '2026年6月27日 08:45', pv: '26,114',
-      body: `<p>内閣府が発表した6月の消費者態度指数は前月比2.1ポイント低下し、2ヶ月連続のマイナスとなった。住宅ローン返済額の増加予測や物価上昇の継続が家計の先行き不安を高めており、<strong>特に30〜40代のローン保有世帯での消費抑制意識が顕著</strong>だ。</p>
-<p>EC業界では、家電・家具・ファッション・美容といった高単価カテゴリの需要が先行して鈍化する可能性が高いと見られている。流通経済研究所の試算では、政策金利が0.5%水準で定着した場合、EC市場全体の成長率が今年度は前年比+3.2%（従来見通し+6.1%）まで圧縮される可能性があるとしている。</p>
-<p>一方で、「巣ごもり関連」や「節約・低価格」カテゴリは需要が底堅いとの見方もある。消費の二極化が進むなか、EC事業者は商品ポートフォリオの見直しと、価格感度の高いユーザー向けのプライシング戦略の精度向上が求められる。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（マーケティング・需要分析・在庫）</div><div class="impact-section-body"><ul><li>カテゴリ別需要弾力性データ（demand_elasticity）の即時更新と高感度カテゴリのフラグ付け</li><li>消費トレンド分析ダッシュボードの更新頻度引き上げ（日次→リアルタイム近似）</li><li>高単価カテゴリの在庫積み過ぎリスクに対する発注量の自動調整ロジック見直し</li><li>金利影響を受けやすい顧客セグメントへの特別キャンペーン配信ルールの追加</li></ul></div></div>
-<p>政府の経済対策の行方も重要な変数だ。与党内では給付金・税額控除の拡充論も出ているが、財源論との兼ね合いで結論は出ていない。EC事業者としては「消費者心理の変化をいち早く捉えるデータ分析基盤の強化が、今後の競争優位の鍵を握る」（大手EC幹部）との声が上がっている。</p>`,
-      related: ['boj1','boj2','fx3','comp3']
-    },
-    boj5: {
-      cat: 'Fintech・与信', catClass: 'badge-boj',
-      title: 'リボ払い延滞リスクが上昇懸念　Fintech各社が与信基準の引き締めを検討',
-      byline: 'Fintech Journal編集部', date: '2026年6月27日 08:10', pv: '24,891',
-      body: `<p>日銀の利上げを受け、リボ払い・キャッシング残高を保有する消費者の実質的な金利負担が増加する見通しだ。国内の消費者向けリボ払い残高は約6兆円（業界推計）とされており、平均適用金利15%前後のリボ払いは、短期プライムレートの上昇が直接的に影響しないものの、貸し倒れリスクの上昇を通じて間接的にコスト増につながる。</p>
-<p>Fintech各社が特に警戒するのは「住宅ローン変動型利用者との与信重複」だ。住宅ローン返済額が増加する顧客が同時にリボ払い残高を抱えている場合、可処分所得の圧迫が複合的に発生し、延滞率が急上昇するリスクがある。国内最大級のQR決済兼クレジット事業者は「今後3ヶ月で延滞率が現在の1.2倍〜1.5倍に上昇する可能性をシナリオとして織り込み始めた」と明かした。</p>
-<p>これを受け、各社では<strong>金利感応度スコア</strong>を用いた顧客セグメンテーションの精度向上に取り組んでいる。住宅ローン有無・変動型かどうか・リボ残高額・口座の入出金トレンドなど複数の指標を組み合わせ、高リスク顧客を早期に検出して限度額を動的に調整する仕組みの実装が急がれている。</p>
-<div class="impact-section"><div class="impact-section-head">■ 業務システムへの影響（与信・リスク管理・アラート）</div><div class="impact-section-body"><ul><li>与信審査ロジックへの金利感応度パラメータの追加と再学習</li><li>リボ残高・延滞率のリアルタイムモニタリング強化（アラート履歴テーブルのしきい値見直し）</li><li>高リスク顧客の限度額自動引き下げトリガーの設定と通知文面の整備</li><li>Fintech→EC/モバイルへの「支払い健全性スコア」シグナル配信の鮮度引き上げ（日次→6時間毎）</li></ul></div></div>
-<p>金融庁は「与信の急激な引き締めが、返済困難者の生活を一段と圧迫しないよう、段階的かつ適切な対応を求める」との見解を示している。貸金業法の運用面での指針改訂も視野に入っており、Fintech各社は規制動向を注視しながら内部ポリシーの整備を進める必要がある。</p>`,
-      related: ['boj1','boj2','fx4','comp4']
-    }
-  };
-
-  function openArticle(id) {
-    const art = ARTICLES[id];
-    if (!art) return;
-
-    // 記事本文構築
-    let html = `
-      <span class="article-category ${art.catClass}">${art.cat}</span>
-      <h1 class="article-title">${art.title}</h1>
-      <div class="article-byline">
-        <span>📰 ${art.byline}</span>
-        <span>🕐 ${art.date}</span>
-        <span>📄 ${art.pv} PV</span>
-      </div>
-      <div class="article-body">${art.body}</div>
-    `;
-
-    document.getElementById('articleContent').innerHTML = html;
-
-    // 関連記事
-    let relHtml = '';
-    (art.related || []).forEach(rid => {
-      const r = ARTICLES[rid];
-      if (r) relHtml += `<div class="rank-row" onclick="openArticle('${rid}')"><span class="rank-num">▶</span><div><div class="rank-title">${r.title}</div><div class="rank-count">${r.date.split(' ')[0]}</div></div></div>`;
-    });
-    document.getElementById('relatedArticles').innerHTML = relHtml || '<div style="padding:8px;">関連記事はありません</div>';
-
-    document.getElementById('list-view').style.display = 'none';
-    document.getElementById('detail-view').style.display = '';
-    window.scrollTo(0,0);
-  }
+(function() {
+  var now = new Date();
+  var opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+  document.getElementById('current-date').textContent = now.toLocaleDateString('ja-JP', opts);
+})();
 </script>
 </body>
 </html>
