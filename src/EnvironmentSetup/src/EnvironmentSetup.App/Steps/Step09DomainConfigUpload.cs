@@ -1,32 +1,22 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EnvironmentSetup.App.Models;
-using EnvironmentSetup.App.Services;
 
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ9: ドメイン設定アップロード - Assessment の業務領域から domain-config.json を生成し Blob にアップロード。
-/// Hosted Agent はこの Blob から DivisionsConfig を読み込み、動的に事業部ステップを構築する。
+/// ステップ9: ドメイン設定生成 - Assessment の業務領域から domain-config.json を生成しソースにコピー。
+/// Docker ビルド時にローカルファイルとして埋め込まれ、Hosted Agent / Webapp が起動時に読み込む。
 /// </summary>
 public class Step09DomainConfigUpload : ISetupStep
 {
-    private readonly AzureCliWrapper _az;
-
     public int StepNumber => 9;
-    public string Name => "ドメイン設定アップロード";
-
-    public Step09DomainConfigUpload(AzureCliWrapper az)
-    {
-        _az = az;
-    }
+    public string Name => "ドメイン設定生成";
 
     public async Task ExecuteAsync(SetupState state, CancellationToken ct = default)
     {
         var assessment = state.Assessment
             ?? throw new InvalidOperationException("アセスメントが未完了です。Step 1 を先に実行してください。");
-        var deployment = state.Deployment
-            ?? throw new InvalidOperationException("デプロイが未完了です。Step 5 を先に実行してください。");
 
         Console.WriteLine("  ドメイン設定 (domain-config.json) を生成中...\n");
 
@@ -76,83 +66,9 @@ public class Step09DomainConfigUpload : ISetupStep
             Console.WriteLine($"       関心領域: {string.Join(", ", div.InterestAreas)}");
         }
 
-        // 4. Blob にアップロード
-        var storageAccount = deployment.StorageAccountSkills;
-        if (!string.IsNullOrEmpty(storageAccount))
-        {
-            Console.WriteLine($"\n    Blob にアップロード中 ({storageAccount}/config/domain-config.json)...");
-            try
-            {
-                try
-                {
-                    await _az.RunAsync(
-                        $"storage blob upload --account-name {storageAccount} " +
-                        $"--container-name config --name domain-config.json " +
-                        $"--file {configPath} --overwrite --auth-mode login",
-                        silent: true);
-                    Console.WriteLine("    ✓ Blob アップロード完了");
-                }
-                catch
-                {
-                    // RBAC 未伝播の場合はアカウントキーでフォールバック
-                    Console.WriteLine("    ⚠️ login 認証失敗 → アカウントキーで再試行...");
-                    await _az.RunAsync(
-                        $"storage blob upload --account-name {storageAccount} " +
-                        $"--container-name config --name domain-config.json " +
-                        $"--file {configPath} --overwrite --auth-mode key",
-                        silent: true);
-                    Console.WriteLine("    ✓ Blob アップロード完了 (key mode)");
-                }
-
-                // Blob URI を表示
-                var blobUri = $"https://{storageAccount}.blob.core.windows.net/config/domain-config.json";
-                Console.WriteLine($"    📍 Blob URI: {blobUri}");
-                Console.WriteLine($"\n    ℹ️  Hosted Agent の環境変数に設定してください:");
-                Console.WriteLine($"       DomainConfig__BlobUri={blobUri}");
-
-                state.DomainConfigBlobUri = blobUri;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"    ⚠️ Blob アップロード失敗: {ex.Message[..Math.Min(100, ex.Message.Length)]}");
-                Console.WriteLine();
-                Console.WriteLine("    ╔══════════════════════════════════════════════════════════════╗");
-                Console.WriteLine("    ║  📋 手動アップロードが必要です                              ║");
-                Console.WriteLine("    ╠══════════════════════════════════════════════════════════════╣");
-                Console.WriteLine("    ║  方法1: Azure Portal > Storage Browser > config コンテナ    ║");
-                Console.WriteLine($"    ║         にファイルをアップロード                             ║");
-                Console.WriteLine("    ║  方法2: Key認証が有効な環境から:                            ║");
-                Console.WriteLine($"    ║    az storage blob upload --account-name {storageAccount} \\");
-                Console.WriteLine($"    ║      --container-name config --name domain-config.json \\");
-                Console.WriteLine($"    ║      --file {configPath} --overwrite --auth-mode key");
-                Console.WriteLine("    ║  方法3: RBAC認証が有効な環境から:                           ║");
-                Console.WriteLine($"    ║    az storage blob upload --account-name {storageAccount} \\");
-                Console.WriteLine($"    ║      --container-name config --name domain-config.json \\");
-                Console.WriteLine($"    ║      --file {configPath} --overwrite --auth-mode login");
-                Console.WriteLine("    ╚══════════════════════════════════════════════════════════════╝");
-
-                // Blob URI は設定しておく (後で手動アップ後に使える)
-                var blobUri2 = $"https://{storageAccount}.blob.core.windows.net/config/domain-config.json";
-                Console.WriteLine($"\n    📍 Blob URI: {blobUri2}");
-                state.DomainConfigBlobUri = blobUri2;
-
-                state.ManualActions.Add(new ManualAction
-                {
-                    Step = 9,
-                    Target = "Storage: domain-config.json",
-                    Description = $"{storageAccount} の config コンテナに domain-config.json をアップロード",
-                    Details = [$"ファイル: {configPath}"]
-                });
-            }
-        }
-        else
-        {
-            Console.WriteLine("\n    ⚠️ Storage Account が未設定です。手動でアップロードしてください。");
-        }
-
         Console.WriteLine($"\n  ✓ ドメイン設定生成完了 ({divisions.Count} 事業部)");
 
-        // 5. domain-config.json をソースにコピー（Docker ビルドでローカルファイルとして埋め込み）
+        // 4. domain-config.json をソースにコピー（Docker ビルドでローカルファイルとして埋め込み）
         var repoRoot = FindRepoRoot();
         var copyTargets = new[]
         {

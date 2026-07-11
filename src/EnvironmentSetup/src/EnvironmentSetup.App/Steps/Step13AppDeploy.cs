@@ -42,9 +42,6 @@ public class Step13AppDeploy : ISetupStep
             deployment.PortalBaseUrl = $"https://{deployment.StorageAccountPortal}.z1.web.core.windows.net";
         }
 
-        // DomainConfig BlobUri
-        var domainConfigBlobUri = state.DomainConfigBlobUri ?? "";
-
         // =====================================================
         // 0. WebIQ API Key → Key Vault 登録
         // =====================================================
@@ -128,7 +125,7 @@ public class Step13AppDeploy : ISetupStep
                 silent: true);
 
             // 環境変数設定
-            var agentEnvVars = BuildAgentEnvironmentVariables(deployment, domainConfigBlobUri);
+            var agentEnvVars = BuildAgentEnvironmentVariables(deployment);
             await SetContainerAppEnvVars(deployment.ContainerAppNameAgent, azure.ResourceGroup, agentEnvVars);
 
             Console.WriteLine("    ✓ Hosted Agent デプロイ完了");
@@ -192,7 +189,7 @@ public class Step13AppDeploy : ISetupStep
                 silent: true);
 
             // 環境変数設定
-            var webappEnvVars = BuildWebappEnvironmentVariables(deployment, domainConfigBlobUri);
+            var webappEnvVars = BuildWebappEnvironmentVariables(deployment);
             await SetContainerAppEnvVars(deployment.ContainerAppNameWebapp, azure.ResourceGroup, webappEnvVars);
 
             // RBAC: webapp マネージドID にロールを割り当て
@@ -271,7 +268,7 @@ public class Step13AppDeploy : ISetupStep
             Console.WriteLine("    Functions アプリ設定を更新中...");
             try
             {
-                var funcSettings = BuildFunctionAppSettings(deployment, domainConfigBlobUri);
+                var funcSettings = BuildFunctionAppSettings(deployment);
                 await SetFunctionAppSettings(deployment.FunctionAppName, azure.ResourceGroup, funcSettings);
                 Console.WriteLine("    ✓ Functions アプリ設定完了");
             }
@@ -291,14 +288,11 @@ public class Step13AppDeploy : ISetupStep
     /// <summary>
     /// Hosted Agent (Container App) の全環境変数
     /// </summary>
-    private static Dictionary<string, string> BuildAgentEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
+    private static Dictionary<string, string> BuildAgentEnvironmentVariables(DeploymentResult deployment)
     {
         // Assistants API はアカウントエンドポイントのみで動作するため FoundryEndpoint を使用
         var vars = new Dictionary<string, string>
         {
-            // Domain Config (Blob-driven)
-            ["DomainConfig__BlobUri"] = domainConfigBlobUri,
-
             // Foundry
             ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
             ["Foundry__ApiVersion"] = "2024-10-21",
@@ -334,7 +328,7 @@ public class Step13AppDeploy : ISetupStep
     /// <summary>
     /// Webapp (Container App) の全環境変数
     /// </summary>
-    private static Dictionary<string, string> BuildWebappEnvironmentVariables(DeploymentResult deployment, string domainConfigBlobUri)
+    private static Dictionary<string, string> BuildWebappEnvironmentVariables(DeploymentResult deployment)
     {
         // Assistants API はアカウントエンドポイントのみで動作するため FoundryEndpoint を使用
         var vars = new Dictionary<string, string>
@@ -343,7 +337,7 @@ public class Step13AppDeploy : ISetupStep
             ["Urls"] = "http://+:8080",
 
             // Domain Config
-            ["DomainConfig__BlobUri"] = domainConfigBlobUri,
+            
 
             // Foundry
             ["Foundry__ProjectEndpoint"] = deployment.FoundryEndpoint,
@@ -389,7 +383,7 @@ public class Step13AppDeploy : ISetupStep
     /// <summary>
     /// Functions のアプリ設定 (Bicep で設定済みの項目以外)
     /// </summary>
-    private static Dictionary<string, string> BuildFunctionAppSettings(DeploymentResult deployment, string domainConfigBlobUri)
+    private static Dictionary<string, string> BuildFunctionAppSettings(DeploymentResult deployment)
     {
         return new Dictionary<string, string>
         {

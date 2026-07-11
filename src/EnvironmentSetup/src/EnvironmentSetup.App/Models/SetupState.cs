@@ -34,9 +34,6 @@ public class SetupState
     [JsonPropertyName("ontology")]
     public OntologyResult? Ontology { get; set; }
 
-    [JsonPropertyName("domainConfigBlobUri")]
-    public string? DomainConfigBlobUri { get; set; }
-
     /// <summary>
     /// 手動対応が必要な項目リスト (最終サマリーで表示)
     /// </summary>

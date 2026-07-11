@@ -57,7 +57,7 @@ ConsoleApp.Run(args, async (
         new Step06DataCreation(copilotService),
         new Step07MedallionSetup(azureCli),
         new Step08OntologyCreation(azureCli),
-        new Step09DomainConfigUpload(azureCli),
+        new Step09DomainConfigUpload(),
         new Step10NewsSite(copilotService),
         new Step11SkillDsMd(copilotService),
         new Step12FoundryKnowledge(azureCli),
