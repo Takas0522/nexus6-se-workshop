@@ -54,21 +54,18 @@ public class Step07MedallionSetup : ISetupStep
         // 3. Seed データを Bronze にアップロード
         await UploadSeedDataAsync(wsId, bronze, analysis, ct);
 
-        // 4. ETL Notebook を作成
-        var nbBronzeToSilver = await EnsureNotebookAsync(wsId, "nb_bronze_to_silver",
-            BuildBronzeToSilverCode(analysis, bronze, silver), bronze.Id, ct);
-        var nbSilverToGold = await EnsureNotebookAsync(wsId, "nb_silver_to_gold",
-            BuildSilverToGoldCode(analysis, silver, gold), gold.Id, ct);
+        // 4. 統合 ETL Notebook を作成 (Bronze→Silver→Gold を1つの Notebook で実行)
+        // Note: Fabric では Notebook の attach 先 Lakehouse にしか saveAsTable できないため全テーブルを Bronze に集約
+        var fullEtlCode = BuildFullMedallionEtlCode(analysis);
+        var nbMedallionEtl = await EnsureNotebookAsync(wsId, "nb_medallion_pipeline",
+            fullEtlCode, bronze.Id, ct);
 
-        Console.WriteLine($"    Notebook (Bronze→Silver): {nbBronzeToSilver}");
-        Console.WriteLine($"    Notebook (Silver→Gold):   {nbSilverToGold}\n");
+        Console.WriteLine($"    Notebook (Medallion ETL): {nbMedallionEtl}\n");
 
         // 5. Notebook を実行
         Console.WriteLine("    ETL Notebook を実行中...");
-        await RunNotebookAsync(wsId, nbBronzeToSilver, ct);
-        Console.WriteLine("      ✓ Bronze → Silver 完了");
-        await RunNotebookAsync(wsId, nbSilverToGold, ct);
-        Console.WriteLine("      ✓ Silver → Gold 完了");
+        await RunNotebookAsync(wsId, nbMedallionEtl, ct);
+        Console.WriteLine("      ✓ Medallion ETL 完了");
 
         // 6. state に保存
         state.Medallion = new MedallionResult
@@ -77,20 +74,20 @@ public class Step07MedallionSetup : ISetupStep
             BronzeLakehouseId = bronze.Id,
             SilverLakehouseId = silver.Id,
             GoldLakehouseId = gold.Id,
-            BronzeToSilverNotebookId = nbBronzeToSilver,
-            SilverToGoldNotebookId = nbSilverToGold
+            BronzeToSilverNotebookId = nbMedallionEtl,
+            SilverToGoldNotebookId = nbMedallionEtl
         };
 
-        // 7. Gold Lakehouse SQL Endpoint を取得して Deployment に保存
+        // 7. Bronze Lakehouse SQL Endpoint を取得 (全テーブルが Bronze に集約されるため)
         try
         {
-            var sqlEndpoint = await GetLakehouseSqlEndpointAsync(wsId, gold.Id);
+            var sqlEndpoint = await GetLakehouseSqlEndpointAsync(wsId, bronze.Id);
             if (!string.IsNullOrEmpty(sqlEndpoint))
             {
                 state.Deployment ??= new DeploymentResult();
                 state.Deployment.FabricSqlEndpoint = sqlEndpoint;
-                state.Deployment.FabricDatabase = "lh_gold";
-                Console.WriteLine($"    SQL Endpoint (Gold): {sqlEndpoint}");
+                state.Deployment.FabricDatabase = "lh_bronze";
+                Console.WriteLine($"    SQL Endpoint: {sqlEndpoint}");
             }
         }
         catch (Exception ex)
@@ -508,7 +505,7 @@ public class Step07MedallionSetup : ISetupStep
                 {
                     new JsonObject
                     {
-                        ["path"] = "notebook-content.py",
+                        ["path"] = "notebook-content.ipynb",
                         ["payload"] = contentB64,
                         ["payloadType"] = "InlineBase64"
                     },
@@ -581,60 +578,89 @@ public class Step07MedallionSetup : ISetupStep
 
     private static string BuildNotebookJson(string pySparkCode, string lakehouseId, string wsId)
     {
-        // Fabric Notebook の .py 形式 (# Fabric notebook source)
-        var sb = new StringBuilder();
-        sb.AppendLine("# Fabric notebook source");
-        sb.AppendLine();
-        sb.AppendLine("# METADATA ********************");
-        sb.AppendLine();
-        sb.AppendLine("# META {");
-        sb.AppendLine($"# META   \"kernel_info\": {{\"name\": \"synapse_pyspark\"}},");
-        sb.AppendLine($"# META   \"dependencies\": {{\"lakehouse\": {{\"default_lakehouse\": \"{lakehouseId}\", \"default_lakehouse_name\": \"\", \"default_lakehouse_workspace_id\": \"{wsId}\"}}}}");
-        sb.AppendLine("# META }");
-        sb.AppendLine();
-        sb.AppendLine("# CELL ********************");
-        sb.AppendLine();
-        sb.AppendLine(pySparkCode);
+        // Fabric Notebook: .ipynb 形式 (metadata.dependencies.lakehouse が必須)
+        var lines = pySparkCode.Split('\n');
+        var sourceLines = new JsonArray();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            sourceLines.Add(i < lines.Length - 1 ? lines[i] + "\n" : lines[i]);
+        }
 
-        return sb.ToString();
+        var notebook = new JsonObject
+        {
+            ["nbformat"] = 4,
+            ["nbformat_minor"] = 5,
+            ["metadata"] = new JsonObject
+            {
+                ["language_info"] = new JsonObject { ["name"] = "python" },
+                ["kernel_info"] = new JsonObject { ["name"] = "synapse_pyspark" },
+                ["dependencies"] = new JsonObject
+                {
+                    ["lakehouse"] = new JsonObject
+                    {
+                        ["default_lakehouse"] = lakehouseId,
+                        ["default_lakehouse_name"] = "",
+                        ["default_lakehouse_workspace_id"] = wsId,
+                        ["known_lakehouses"] = new JsonArray { new JsonObject { ["id"] = lakehouseId } }
+                    }
+                }
+            },
+            ["cells"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["cell_type"] = "code",
+                    ["source"] = sourceLines,
+                    ["metadata"] = new JsonObject(),
+                    ["outputs"] = new JsonArray(),
+                    ["execution_count"] = null
+                }
+            }
+        };
+
+        return notebook.ToJsonString();
     }
 
-    private static string BuildBronzeToSilverCode(AnalysisResult analysis, LakehouseInfo bronze, LakehouseInfo silver)
+    private static string BuildFullMedallionEtlCode(AnalysisResult analysis)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Bronze → Silver ETL: CSV を Delta テーブル化し、統合テーブルを作成");
+        sb.AppendLine("# Full Medallion ETL: Bronze CSV → Delta Tables + Gold Analytics");
         sb.AppendLine("from pyspark.sql import SparkSession");
-        sb.AppendLine("from pyspark.sql.functions import col, trim, current_timestamp, lit, input_file_name");
+        sb.AppendLine("from pyspark.sql.functions import col, current_timestamp, lit, lower, avg, when");
         sb.AppendLine("import os, glob as _glob");
         sb.AppendLine();
         sb.AppendLine("spark = SparkSession.builder.getOrCreate()");
         sb.AppendLine();
 
-        // 汎用テーブル (analysis.Tables — 業務システムから想定されるテーブル)
+        // Phase 1: Bronze → Silver
+        sb.AppendLine("# " + new string('=', 60));
+        sb.AppendLine("# Phase 1: Bronze → Silver (CSV → Delta + 統合テーブル)");
+        sb.AppendLine("# " + new string('=', 60));
+        sb.AppendLine("print('Phase 1: Bronze → Silver')");
+        sb.AppendLine();
+
+        // 汎用テーブル (analysis.Tables)
         foreach (var table in analysis.Tables)
         {
-            sb.AppendLine($"# --- {table.TableName} (業務システム) ---");
             sb.AppendLine($"try:");
-            sb.AppendLine($"    df_{table.TableName} = spark.read.format('csv').option('header', 'true').load('Files/seed/{table.TableName}.csv')");
-            sb.AppendLine($"    df_{table.TableName} = df_{table.TableName}.withColumn('_ingested_at', current_timestamp())");
-
+            sb.AppendLine($"    df = spark.read.format('csv').option('header', 'true').load('Files/seed/{table.TableName}.csv')");
+            sb.AppendLine($"    df = df.withColumn('_ingested_at', current_timestamp())");
             foreach (var col in table.Columns)
             {
                 var sparkType = MapToSparkType(col.Type);
                 if (sparkType != "string")
-                    sb.AppendLine($"    df_{table.TableName} = df_{table.TableName}.withColumn('{col.Name}', col('{col.Name}').cast('{sparkType}'))");
+                    sb.AppendLine($"    df = df.withColumn('{col.Name}', col('{col.Name}').cast('{sparkType}'))");
             }
-
-            sb.AppendLine($"    df_{table.TableName}.write.mode('overwrite').format('delta').saveAsTable('{table.TableName}')");
-            sb.AppendLine($"    print(f'{table.TableName}: {{df_{table.TableName}.count()}} rows → Silver')");
+            sb.AppendLine($"    df.write.mode('overwrite').format('delta').saveAsTable('{table.TableName}')");
+            sb.AppendLine($"    print(f'  ✓ {table.TableName}: {{df.count()}} rows')");
             sb.AppendLine($"except Exception as e:");
-            sb.AppendLine($"    print(f'{table.TableName}: skipped - {{e}}')");
+            sb.AppendLine($"    print(f'  ✗ {table.TableName}: {{e}}')");
             sb.AppendLine();
         }
 
-        // risk_summary CSV を自動検出 → 個別 Delta テーブル化
-        sb.AppendLine("# --- risk_summary テーブル (各事業部システム) ---");
+        // risk_summary CSV 自動検出
         sb.AppendLine("seed_files = _glob.glob('/lakehouse/default/Files/seed/*_risk_summary.csv')");
+        sb.AppendLine("print(f'Found {len(seed_files)} risk_summary files')");
         sb.AppendLine("risk_dfs = []");
         sb.AppendLine("for csv_path in seed_files:");
         sb.AppendLine("    table_name = os.path.basename(csv_path).replace('.csv', '')");
@@ -644,56 +670,34 @@ public class Step07MedallionSetup : ISetupStep
         sb.AppendLine("        df = df.withColumn('_ingested_at', current_timestamp())");
         sb.AppendLine("        df = df.withColumn('metric_value', col('metric_value').cast('double'))");
         sb.AppendLine("        df = df.withColumn('division', lit(division_id))");
-        sb.AppendLine("        # 個別テーブルとして保存 (GenericDivisionDataPlugin 用)");
         sb.AppendLine("        df.drop('division').write.mode('overwrite').format('delta').saveAsTable(table_name)");
         sb.AppendLine("        risk_dfs.append(df)");
-        sb.AppendLine("        print(f'{table_name}: {df.count()} rows → Silver')");
+        sb.AppendLine("        print(f'  ✓ {table_name}: {df.count()} rows')");
         sb.AppendLine("    except Exception as e:");
-        sb.AppendLine("        print(f'{table_name}: skipped - {e}')");
+        sb.AppendLine("        print(f'  ✗ {table_name}: {e}')");
         sb.AppendLine();
-
-        // 統合 risk_summary テーブル (Silver 層の要)
-        sb.AppendLine("# --- 統合テーブル: integrated_risk_summary ---");
         sb.AppendLine("if risk_dfs:");
         sb.AppendLine("    from functools import reduce");
         sb.AppendLine("    integrated = reduce(lambda a, b: a.unionByName(b, allowMissingColumns=True), risk_dfs)");
         sb.AppendLine("    integrated.write.mode('overwrite').format('delta').saveAsTable('integrated_risk_summary')");
-        sb.AppendLine("    print(f'integrated_risk_summary: {integrated.count()} rows → Silver')");
-
-        return sb.ToString();
-    }
-
-    private static string BuildSilverToGoldCode(AnalysisResult analysis, LakehouseInfo silver, LakehouseInfo gold)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("# Silver → Gold ETL: 分析テーブル (kpi_monthly_revenue) を作成");
-        sb.AppendLine("from pyspark.sql import SparkSession");
-        sb.AppendLine("from pyspark.sql.functions import col, sum as _sum, count, avg, first, lit, when");
-        sb.AppendLine("from pyspark.sql.functions import max as _max, min as _min");
-        sb.AppendLine();
-        sb.AppendLine("spark = SparkSession.builder.getOrCreate()");
+        sb.AppendLine("    print(f'  ✓ integrated_risk_summary: {integrated.count()} rows')");
         sb.AppendLine();
 
-        // Silver Lakehouse からデータを読む (Bronze の integrated_risk_summary を参照)
-        // Note: Bronze→Silver Notebook は Bronze Lakehouse に書くので、
-        // 実際には Bronze Lakehouse の integrated_risk_summary を読む
-        sb.AppendLine($"# Silver ソース (Bronze Lakehouse: {silver.Name})");
-        sb.AppendLine($"SILVER_TABLE = 'lh_bronze.integrated_risk_summary'");
+        // Phase 2: Silver → Gold
+        sb.AppendLine("# " + new string('=', 60));
+        sb.AppendLine("# Phase 2: Silver → Gold (集計テーブル作成)");
+        sb.AppendLine("# " + new string('=', 60));
+        sb.AppendLine("print('\\nPhase 2: Silver → Gold')");
         sb.AppendLine();
-
-        // integrated_risk_summary から kpi_monthly_revenue を集計生成
-        sb.AppendLine("# --- Gold: kpi_monthly_revenue (BusinessImpactAgent 用) ---");
         sb.AppendLine("try:");
-        sb.AppendLine("    df = spark.read.format('delta').table(SILVER_TABLE)");
-        sb.AppendLine("    print(f'Source: {SILVER_TABLE} ({df.count()} rows)')");
+        sb.AppendLine("    df = spark.read.format('delta').table('integrated_risk_summary')");
+        sb.AppendLine("    print(f'Source: integrated_risk_summary ({df.count()} rows)')");
         sb.AppendLine();
-        sb.AppendLine("    # metric_name をピボットして division × year_month の KPI 横持ちテーブルを作成");
         sb.AppendLine("    revenue_metrics = ['売上高', '月次売上', 'revenue', 'gross_revenue']");
         sb.AppendLine("    cost_metrics = ['総コスト', 'コスト', 'cost', 'total_cost', '営業費用']");
         sb.AppendLine("    customer_metrics = ['顧客数', 'アクティブ顧客数', 'active_customers', 'customer_count', 'ユーザー数']");
         sb.AppendLine("    churn_metrics = ['解約率', '離脱率', 'churn_rate', 'churned']");
         sb.AppendLine();
-        sb.AppendLine("    from pyspark.sql.functions import lower");
         sb.AppendLine("    df = df.withColumn('metric_lower', lower(col('metric_name')))");
         sb.AppendLine();
         sb.AppendLine("    def extract_metric(df, metric_list, alias):");
@@ -709,12 +713,10 @@ public class Step07MedallionSetup : ISetupStep
         sb.AppendLine("    cust = extract_metric(df, customer_metrics, 'active_customer_count')");
         sb.AppendLine("    churn = extract_metric(df, churn_metrics, 'churn_rate')");
         sb.AppendLine();
-        sb.AppendLine("    # JOIN して Gold テーブル構築");
         sb.AppendLine("    gold = rev.join(cost, ['division', 'year_month'], 'left') \\");
         sb.AppendLine("            .join(cust, ['division', 'year_month'], 'left') \\");
         sb.AppendLine("            .join(churn, ['division', 'year_month'], 'left')");
         sb.AppendLine();
-        sb.AppendLine("    # 計算列を追加");
         sb.AppendLine("    gold = gold.withColumn('gross_margin_jpy',");
         sb.AppendLine("        when(col('total_cost_jpy').isNotNull(),");
         sb.AppendLine("             col('gross_revenue_jpy') - col('total_cost_jpy')).otherwise(None))");
@@ -728,36 +730,34 @@ public class Step07MedallionSetup : ISetupStep
         sb.AppendLine("    gold = gold.withColumn('gross_margin_jpy', col('gross_margin_jpy').cast('long'))");
         sb.AppendLine();
         sb.AppendLine("    gold.write.mode('overwrite').format('delta').saveAsTable('kpi_monthly_revenue')");
-        sb.AppendLine("    print(f'kpi_monthly_revenue: {gold.count()} rows → Gold')");
-        sb.AppendLine("    gold.show(5)");
+        sb.AppendLine("    print(f'  ✓ kpi_monthly_revenue: {gold.count()} rows')");
         sb.AppendLine("except Exception as e:");
-        sb.AppendLine("    print(f'kpi_monthly_revenue: FAILED - {e}')");
+        sb.AppendLine("    print(f'  ✗ kpi_monthly_revenue: FAILED - {e}')");
         sb.AppendLine();
 
-        // 各事業部の分析用テーブル
-        sb.AppendLine("# --- Gold: {division}_ai_risk_summary (DivisionKpiSnapshot 用) ---");
+        // 事業部別分析テーブル
         sb.AppendLine("try:");
-        sb.AppendLine("    df = spark.read.format('delta').table(SILVER_TABLE)");
+        sb.AppendLine("    df = spark.read.format('delta').table('integrated_risk_summary')");
         sb.AppendLine("    divisions = [r.division for r in df.select('division').distinct().collect()]");
         sb.AppendLine("    for div in divisions:");
         sb.AppendLine("        div_df = df.filter(col('division') == div).drop('division')");
         sb.AppendLine("        table_name = f'{div}_ai_risk_summary'");
         sb.AppendLine("        div_df.write.mode('overwrite').format('delta').saveAsTable(table_name)");
-        sb.AppendLine("        print(f'{table_name}: {div_df.count()} rows → Gold')");
+        sb.AppendLine("        print(f'  ✓ {table_name}: {div_df.count()} rows')");
         sb.AppendLine("except Exception as e:");
-        sb.AppendLine("    print(f'division_ai_risk_summary: FAILED - {e}')");
+        sb.AppendLine("    print(f'  ✗ division_ai tables: FAILED - {e}')");
         sb.AppendLine();
-
-        // テーブル一覧表示
-        sb.AppendLine("# --- Summary ---");
-        sb.AppendLine("tables = spark.catalog.listTables()");
-        sb.AppendLine("print(f'\\nTotal Gold tables: {len([t for t in tables if not t.isTemporary])}')");
-        sb.AppendLine("for t in tables:");
-        sb.AppendLine("    if not t.isTemporary:");
-        sb.AppendLine("        print(f'  ✓ {t.name}')");
+        sb.AppendLine("print('\\n✅ Medallion ETL Complete')");
 
         return sb.ToString();
     }
+
+    // Legacy methods kept for reference but no longer called
+    private static string BuildBronzeToSilverCode(AnalysisResult analysis, LakehouseInfo bronze, LakehouseInfo silver)
+        => BuildFullMedallionEtlCode(analysis);
+
+    private static string BuildSilverToGoldCode(AnalysisResult analysis, LakehouseInfo silver, LakehouseInfo gold)
+        => "";
 
     private static string MapToSparkType(string sqlType)
     {

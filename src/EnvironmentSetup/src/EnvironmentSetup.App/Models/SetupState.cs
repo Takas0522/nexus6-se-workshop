@@ -107,7 +107,7 @@ public class DeploymentResult
     public string FabricSqlEndpoint { get; set; } = string.Empty;
 
     [JsonPropertyName("fabricDatabase")]
-    public string FabricDatabase { get; set; } = "lh_gold";
+    public string FabricDatabase { get; set; } = "lh_bronze";
 
     [JsonPropertyName("containerAppUrl")]
     public string ContainerAppUrl { get; set; } = string.Empty;
