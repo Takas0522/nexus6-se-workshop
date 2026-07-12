@@ -1,7 +1,0 @@
-runId=5acf8500-8656-4f8c-bbdc-ab65f97108a5
-hit_count=9
-hits=MNP, 乗換, 競合, 統合, ポイント, ポイント還元, 経済圏, 決済シェア, 顧客流出
-missing=カードシェア, マーケットシェア
-pass=True
-steps=web-research:True, business-impact:True, division-recommend-fintech:True, division-recommend-ecommerce:True, division-recommend-mobile:True, notification:True
-digest=大手3キャリア×ECが「ONE PASS」発表 回線・ポイント・決済を完全統合 - NEXUS経済ニュース NEXUS経済 ビジネス・金融・テクノロジー情報 検索 トップ 為替・国際 通信・EC 金融政策 マーケット テクノロジー Fintech 経済 企業 産業 トップ › 通信・EC › 大手3キャリア×ECが「ONE PASS」発表 【大型統合】通信・EC・決済 大手3キャリア×ECプラットフォームが「ONE PASS」を発表 回線・ポイント・決済を完全統合、4,200万アカウント基盤で経済圏覇権争いへ 📰 テック経済部 🕐 2026年6月27日 09:15 📄 61,089 PV 国内通信キャリア大手とECプラットフォーム・QR決済事業者が連合を組み、新経済圏サービス「ONE PASS」を発表。回線契約者はEC購入で最大10倍ポイント、決済で5倍還元。サービス基盤は4,200万アカウントに達し、既存経済圏との競争が一気に激化する。 27日午前9時、国内大手通信キャリア3社とECプラットフォーム大手、QR決済事業者2社が都内で合同記者会見を開き、新経済圏サービス 「ONE PASS」 の発足を正式に発表した。サービス開始は2026年秋を予定しており、既存の各社会員をまたいだ統合IDプラットフォームとして機能する。 ■ ONE PASSの主要スペック サービス領域 ONE PA

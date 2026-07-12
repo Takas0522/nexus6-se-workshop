@@ -1,9 +1,0 @@
-判定: Pass
-ヒット数: 11 / 12
-ヒットキーワード: 利上げ, 金利, 日銀, 分割払い, 端末分割, 住宅ローン, リボ, 利ざや, 消費, 設備投資, 与信
-不足キーワード: 信用
-RunId: 1630e7a1-65fb-468c-a40b-0f3e92a26171
-StartedAt: 2026-06-27T10:08:16.1292246+00:00
-CompletedAt: 2026-06-27T10:08:17.2001751+00:00
-Steps: web-research=True, business-impact=True, division-recommend-mobile=True, division-recommend-ecommerce=True, division-recommend-fintech=True, notification=True
-Digest: 日銀が政策金利を0.5%に引き上げ決定 17年ぶり高水準 - NEXUS経済ニュース NEXUS経済 ビジネス・金融・テクノロジー情報 検索 トップ 為替・国際 通信・EC 金融政策 マーケット テクノロジー Fintech 経済 企業 産業 トップ › 金融政策 › 日銀が政策金利を0.5%に引き上げ決定 【政策転換】日銀・金融政策 日銀が政策金利を0.5%に引き上げ決定 17年ぶりの高水準、住宅ローン・リボ払いへの影響注視 次回会合での追加利上げも視野 📰 金融政策部 🕐 2026年6月27日 08:00 📄 97,443 PV 日本銀行は金融政策決定会合において、政策金利を0.25%から
