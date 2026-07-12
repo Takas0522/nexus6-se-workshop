@@ -96,6 +96,124 @@ News Portal 公開 URL: <https://stnexus6portal1t2i.z1.web.core.windows.net/>
 
 > Fabric SQL Database × 16 は設計上の最終形です。現行 DemoDataGenerator は 4 DB 分割で動作し、Notebook 側 fallback で両対応します（詳細: [06](docs/dev-plan/06-fabric-data-ingestion.md) / [19](docs/dev-plan/19-open-items.md)）。
 
+## アプリケーションの使い方
+
+### 1. 環境構築（EnvironmentSetup CLI）
+
+Azure リソース・Fabric・Foundry 等を一括プロビジョニングする CLI ツールです。
+
+```bash
+cd src/EnvironmentSetup/src/EnvironmentSetup.App
+
+# Azure にログイン
+az login
+
+# Step 1 から全ステップを実行（対話モード）
+dotnet run -- --step 1
+
+# 非対話モード（CI / 自動化向け）
+dotnet run -- --step 1 --non-interactive \
+  --domains "SNS事業,エンターテイメント事業,ゲーム事業" \
+  --employees 500
+
+# 特定ステップから再開
+dotnet run -- --step 7
+
+# 環境を全削除（RG・Fabric WS・Entra App・Cognitive Services パージ）
+dotnet run -- --cleanup
+```
+
+| Step | 名前 | 内容 |
+|---:|---|---|
+| 1 | アセスメント | 事業ドメイン・従業員数等のヒアリング |
+| 2 | 業務分析 | Copilot による業務分析 |
+| 3 | レポート作成 | 分析レポート生成 |
+| 4 | Azure ログイン | サブスクリプション選択・認証確認 |
+| 5 | Bicep デプロイ | Azure リソース一括デプロイ（Foundry・ACR・ACA 等） |
+| 6 | データ作成 | Seed CSV データ生成 |
+| 7 | メダリオンアーキテクチャ構築 | Fabric Workspace・Lakehouse・Notebook 作成＆ETL 実行 |
+| 8 | オントロジー作成 | Fabric オントロジー定義 |
+| 9 | ドメイン設定生成 | domain-config.json（事業部・KPI ラベル）生成 |
+| 10 | ニュースサイト作成 | 静的 HTML ニュースポータルデプロイ |
+| 11 | Skill/DS.md 作成 | 業務ナレッジファイル生成 |
+| 12 | Foundry Knowledge アップロード | Vector Store へナレッジ投入 |
+| 13 | アプリデプロイ | Agent・Webapp コンテナビルド＆ACA デプロイ |
+| 14 | Entra ID アプリ作成 | 認証用アプリ登録 |
+
+主要オプション：
+
+| オプション | 説明 |
+|---|---|
+| `--step <N>` | 開始ステップ番号（デフォルト: 1） |
+| `--non-interactive` | 全質問をスキップし自動実行 |
+| `--cleanup` | setup-state.json を元にリソース全削除 |
+| `--verbose` | 詳細ログ出力 |
+| `--state-file <path>` | 状態ファイルパス（デフォルト: `./setup-state.json`） |
+
+### 2. ニュース分析エージェント（Hosted Agent）
+
+Azure Container Apps 上で動作する .NET 10 エージェントです。EnvironmentSetup の Step 13 でデプロイされます。
+
+```bash
+cd src/news-analysis-agent
+
+# ビルド
+dotnet build NewsAnalysisAgent.sln
+
+# テスト
+dotnet test NewsAnalysisAgent.sln
+
+# ローカル実行（要: az login 済み・環境変数設定済み）
+cd src/NewsAnalysisAgent.Host
+dotnet run
+```
+
+エージェントは以下のエンドポイントを提供します：
+
+| エンドポイント | 用途 |
+|---|---|
+| `POST /devui/run` | 分析実行（DevUI 用） |
+| `GET /health` | ヘルスチェック |
+
+### 3. Web アプリケーション（News Analysis Webapp）
+
+分析結果を表示する React + Hono の Web アプリケーションです。
+
+```bash
+cd src/news-analysis-webapp
+
+# Docker ビルド
+docker build -t news-analysis-webapp .
+
+# ローカル実行（Docker）
+docker run -p 3000:3000 news-analysis-webapp
+```
+
+主な画面：
+
+| タブ | 内容 |
+|---|---|
+| レコメンド | 事業部別の推奨アクション・関連 KPI |
+| ビジネスインパクト | ニュース影響度分析 |
+| タイムライン | 分析履歴 |
+
+### 4. 環境の削除・再構築
+
+```bash
+cd src/EnvironmentSetup/src/EnvironmentSetup.App
+
+# 全リソース削除
+dotnet run -- --cleanup --verbose
+
+# 削除確認
+az group list --query "[?starts_with(name,'rg-nexus6')]" -o table
+
+# 再構築
+dotnet run -- --step 1 --non-interactive
+```
+
+> **注意**: RG 削除後も Cognitive Services がソフトデリート状態で残り、GPT クォータを消費し続けることがあります。`--cleanup` はこれらを自動パージします。
+
 ## ディレクトリ構成
 
 ```
