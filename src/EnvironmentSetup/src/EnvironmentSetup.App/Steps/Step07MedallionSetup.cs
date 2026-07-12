@@ -482,16 +482,25 @@ public class Step07MedallionSetup : ISetupStep
         if (existing.ValueKind != JsonValueKind.Undefined)
             return existing.GetProperty("id").GetString()!;
 
-        // Notebook 定義を構築
+        // Notebook 定義を構築 (.py 形式 — Fabric API は .ipynb path を受け付けない)
         Console.WriteLine($"    Notebook '{name}' を作成中...");
 
-        var notebookContent = BuildNotebookJson(pySparkCode, defaultLakehouseId, wsId);
-        var contentB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(notebookContent));
+        var contentB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(pySparkCode));
 
         var platformJson = JsonSerializer.Serialize(new
         {
             metadata = new { type = "Notebook", displayName = name },
-            config = new { version = "2.0", logicalId = "00000000-0000-0000-0000-000000000000" }
+            config = new { version = "2.0", logicalId = "00000000-0000-0000-0000-000000000000" },
+            dependencies = new
+            {
+                lakehouse = new
+                {
+                    default_lakehouse = defaultLakehouseId,
+                    default_lakehouse_name = "",
+                    default_lakehouse_workspace_id = wsId,
+                    known_lakehouses = new[] { new { id = defaultLakehouseId } }
+                }
+            }
         });
         var platformB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(platformJson));
 
@@ -505,7 +514,7 @@ public class Step07MedallionSetup : ISetupStep
                 {
                     new JsonObject
                     {
-                        ["path"] = "notebook-content.ipynb",
+                        ["path"] = "notebook-content.py",
                         ["payload"] = contentB64,
                         ["payloadType"] = "InlineBase64"
                     },
