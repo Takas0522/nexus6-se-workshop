@@ -1,52 +1,34 @@
 {
   "divisions": [
     {
-      "id": "\u643A\u5E2F\u96FB\u8A71\u4E8B\u696D",
-      "label": "\u643A\u5E2F\u96FB\u8A71\u4E8B\u696D",
-      "interestAreas": [
-        "\u4E8B\u696DKPI",
-        "\u30B3\u30B9\u30C8\u6307\u6A19",
-        "\u30EA\u30B9\u30AF\u6307\u6A19",
-        "\u9867\u5BA2\u6307\u6A19",
-        "\u53CE\u76CA\u6307\u6A19"
-      ],
-      "fabricTable": "\u643A\u5E2F\u96FB\u8A71\u4E8B\u696D_ai.risk_summary",
+      "id": "エンターテイメント事業",
+      "label": "エンターテイメント事業",
+      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "fabricTable": "エンターテイメント事業_ai.risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
       "teamsWorkflowsUrl": "",
-      "foundryAssistantName": "nexus6-\u643A\u5E2F\u96FB\u8A71\u4E8B\u696D-recommend-filesearch"
+      "foundryAssistantName": "nexus6-エンターテイメント事業-recommend-filesearch"
     },
     {
-      "id": "sns\u4E8B\u696D",
-      "label": "SNS\u4E8B\u696D",
-      "interestAreas": [
-        "\u4E8B\u696DKPI",
-        "\u30B3\u30B9\u30C8\u6307\u6A19",
-        "\u30EA\u30B9\u30AF\u6307\u6A19",
-        "\u9867\u5BA2\u6307\u6A19",
-        "\u53CE\u76CA\u6307\u6A19"
-      ],
-      "fabricTable": "sns\u4E8B\u696D_ai.risk_summary",
+      "id": "ゲーム事業",
+      "label": "ゲーム事業",
+      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "fabricTable": "ゲーム事業_ai.risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
       "teamsWorkflowsUrl": "",
-      "foundryAssistantName": "nexus6-sns\u4E8B\u696D-recommend-filesearch"
+      "foundryAssistantName": "nexus6-ゲーム事業-recommend-filesearch"
     },
     {
-      "id": "si\u4E8B\u696D",
-      "label": "SI\u4E8B\u696D",
-      "interestAreas": [
-        "\u4E8B\u696DKPI",
-        "\u30B3\u30B9\u30C8\u6307\u6A19",
-        "\u30EA\u30B9\u30AF\u6307\u6A19",
-        "\u9867\u5BA2\u6307\u6A19",
-        "\u53CE\u76CA\u6307\u6A19"
-      ],
-      "fabricTable": "si\u4E8B\u696D_ai.risk_summary",
+      "id": "sns事業",
+      "label": "SNS事業",
+      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "fabricTable": "sns事業_ai.risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
       "teamsWorkflowsUrl": "",
-      "foundryAssistantName": "nexus6-si\u4E8B\u696D-recommend-filesearch"
+      "foundryAssistantName": "nexus6-sns事業-recommend-filesearch"
     }
   ]
 }
