@@ -301,6 +301,56 @@ public class Step13AppDeploy : ISetupStep
             Console.WriteLine("    ⚠️ Function App が未設定のためスキップ");
         }
 
+        // 4. Fabric workspace にマネージド ID を追加 (SQL Endpoint アクセス用)
+        if (!string.IsNullOrEmpty(state.Medallion?.WorkspaceId))
+        {
+            Console.WriteLine("\n    Fabric workspace にマネージド ID を追加中...");
+            var wsId = state.Medallion.WorkspaceId;
+            var principalIds = new List<string>();
+
+            // Agent MI
+            try
+            {
+                var agentPrincipal = await _az.RunAsync(
+                    $"containerapp show --name {deployment.ContainerAppNameAgent} " +
+                    $"--resource-group {azure.ResourceGroup} --query identity.principalId -o tsv",
+                    silent: true);
+                if (!string.IsNullOrWhiteSpace(agentPrincipal))
+                    principalIds.Add(agentPrincipal.Trim());
+            }
+            catch { /* skip */ }
+
+            // Webapp MI
+            try
+            {
+                var webappPrincipal = await _az.RunAsync(
+                    $"containerapp show --name {deployment.ContainerAppNameWebapp} " +
+                    $"--resource-group {azure.ResourceGroup} --query identity.principalId -o tsv",
+                    silent: true);
+                if (!string.IsNullOrWhiteSpace(webappPrincipal))
+                    principalIds.Add(webappPrincipal.Trim());
+            }
+            catch { /* skip */ }
+
+            foreach (var pid in principalIds.Distinct())
+            {
+                try
+                {
+                    await _az.RunAsync(
+                        $"rest --method POST --url \"https://api.fabric.microsoft.com/v1/workspaces/{wsId}/roleAssignments\" " +
+                        $"--resource \"https://api.fabric.microsoft.com\" " +
+                        $"--body \"{{\\\"principal\\\":{{\\\"id\\\":\\\"{pid}\\\",\\\"type\\\":\\\"ServicePrincipal\\\"}},\\\"role\\\":\\\"Member\\\"}}\"",
+                        silent: true);
+                    Console.WriteLine($"      ✓ {pid[..8]}... → Member");
+                }
+                catch (Exception ex)
+                {
+                    // Already assigned or other non-fatal error
+                    Console.WriteLine($"      ⚠️ {pid[..8]}... スキップ: {ex.Message[..Math.Min(100, ex.Message.Length)]}");
+                }
+            }
+        }
+
         Console.WriteLine("\n  ✓ アプリデプロイ完了");
     }
 

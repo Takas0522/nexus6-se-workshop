@@ -440,33 +440,36 @@ public class Step07MedallionSetup : ISetupStep
     private async Task UploadToOneLakeAsync(string oneLakePath, string localPath, string token)
     {
         var url = $"{OneLakeDfsBase}/{oneLakePath}?resource=file";
+        var fileContent = await File.ReadAllBytesAsync(localPath);
 
-        // Create file
+        // Create file (Content-Length: 0 required by OneLake DFS API)
+        await RunCurlAsync($"-s -X PUT \"{url}\" -H \"Authorization: Bearer {token}\" -H \"Content-Length: 0\" --fail");
+
+        // Append data
+        var appendUrl = $"{OneLakeDfsBase}/{oneLakePath}?action=append&position=0";
+        await RunCurlAsync(
+            $"-s -X PATCH \"{appendUrl}\" -H \"Authorization: Bearer {token}\" " +
+            $"-H \"Content-Type: application/octet-stream\" -H \"Content-Length: {fileContent.Length}\" " +
+            $"--data-binary @{localPath} --fail");
+
+        // Flush
+        var flushUrl = $"{OneLakeDfsBase}/{oneLakePath}?action=flush&position={fileContent.Length}";
+        await RunCurlAsync($"-s -X PATCH \"{flushUrl}\" -H \"Authorization: Bearer {token}\" -H \"Content-Length: 0\" --fail");
+    }
+
+    private static async Task RunCurlAsync(string arguments)
+    {
         var psi = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "curl",
-            Arguments = $"-s -X PUT \"{url}\" -H \"Authorization: Bearer {token}\" --fail",
+            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var createProc = System.Diagnostics.Process.Start(psi)!;
-        await createProc.WaitForExitAsync();
-
-        // Append data
-        var content = await File.ReadAllBytesAsync(localPath);
-        var appendUrl = $"{OneLakeDfsBase}/{oneLakePath}?action=append&position=0";
-        psi.Arguments = $"-s -X PATCH \"{appendUrl}\" -H \"Authorization: Bearer {token}\" " +
-                        $"-H \"Content-Type: application/octet-stream\" --data-binary @{localPath} --fail";
-        using var appendProc = System.Diagnostics.Process.Start(psi)!;
-        await appendProc.WaitForExitAsync();
-
-        // Flush
-        var flushUrl = $"{OneLakeDfsBase}/{oneLakePath}?action=flush&position={content.Length}";
-        psi.Arguments = $"-s -X PATCH \"{flushUrl}\" -H \"Authorization: Bearer {token}\" --fail";
-        using var flushProc = System.Diagnostics.Process.Start(psi)!;
-        await flushProc.WaitForExitAsync();
+        using var proc = System.Diagnostics.Process.Start(psi)!;
+        await proc.WaitForExitAsync();
     }
 
     private async Task<string> EnsureNotebookAsync(

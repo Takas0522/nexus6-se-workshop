@@ -139,8 +139,54 @@ public class Step06DataCreation : ISetupStep
 
     private static string NormalizeDivisionId(string domain)
     {
-        return domain.ToLowerInvariant()
-            .Replace(" ", "_")
-            .Replace("　", "_");
+        // Fabric テーブル名は ASCII のみ対応。日本語ドメイン名をローマ字化
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["エンターテイメント"] = "entertainment",
+            ["ゲーム"] = "game",
+            ["sns"] = "sns",
+            ["携帯電話"] = "mobile",
+            ["si"] = "si",
+            ["フィンテック"] = "fintech",
+            ["eコマース"] = "ecommerce",
+            ["通信"] = "telecom",
+            ["メディア"] = "media",
+            ["広告"] = "advertising",
+            ["金融"] = "finance",
+            ["保険"] = "insurance",
+            ["不動産"] = "realestate",
+            ["製造"] = "manufacturing",
+            ["物流"] = "logistics",
+            ["小売"] = "retail",
+            ["教育"] = "education",
+            ["医療"] = "healthcare",
+            ["ヘルスケア"] = "healthcare",
+        };
+
+        var normalized = domain.ToLowerInvariant()
+            .Replace("事業", "")
+            .Replace("部門", "")
+            .Replace("　", "")
+            .Replace(" ", "")
+            .Trim();
+
+        // 完全一致
+        if (map.TryGetValue(normalized, out var ascii))
+            return ascii;
+
+        // 部分一致
+        foreach (var (jp, en) in map)
+        {
+            if (normalized.Contains(jp))
+                return en;
+        }
+
+        // ASCII文字のみならそのまま使用
+        if (normalized.All(c => c <= 127))
+            return normalized.Replace(" ", "_");
+
+        // フォールバック: ハッシュベースの安定名
+        var hash = (uint)normalized.GetHashCode() & 0xFFFF;
+        return $"div_{hash:x4}";
     }
 }

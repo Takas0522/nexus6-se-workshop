@@ -129,11 +129,12 @@ public class Step09DomainConfigUpload : ISetupStep
 
     private static string NormalizeDivisionId(string domain)
     {
-        // 日本語の業務領域名を英語IDに変換
-        var normalized = domain.ToLowerInvariant().Trim();
+        // 日本語の業務領域名を ASCII IDに変換 (Fabric テーブル名互換)
+        var normalized = domain.ToLowerInvariant().Trim()
+            .Replace("事業", "").Replace("部門", "").Trim();
         return normalized switch
         {
-            "モバイル通信" or "モバイル" or "mobile" => "mobile",
+            "モバイル通信" or "モバイル" or "mobile" or "携帯電話" => "mobile",
             "eコマース" or "ec" or "ecommerce" or "ＥＣ" => "ecommerce",
             "フィンテック" or "fintech" or "金融" => "fintech",
             "物流" or "logistics" => "logistics",
@@ -141,9 +142,20 @@ public class Step09DomainConfigUpload : ISetupStep
             "小売" or "retail" => "retail",
             "hr" or "人事" => "hr",
             "マーケティング" or "marketing" => "marketing",
-            _ => domain.ToLowerInvariant()
-                .Replace(" ", "_").Replace("　", "_")
-                .Replace("・", "_")
+            "エンターテイメント" or "entertainment" => "entertainment",
+            "ゲーム" or "game" => "game",
+            "sns" or "ソーシャル" => "sns",
+            "通信" or "telecom" => "telecom",
+            "メディア" or "media" => "media",
+            "広告" or "advertising" => "advertising",
+            "保険" or "insurance" => "insurance",
+            "不動産" or "realestate" => "realestate",
+            "教育" or "education" => "education",
+            "医療" or "ヘルスケア" or "healthcare" => "healthcare",
+            "si" => "si",
+            _ => normalized.All(c => c <= 127)
+                ? normalized.Replace(" ", "_")
+                : $"div_{((uint)normalized.GetHashCode() & 0xFFFF):x4}"
         };
     }
 
