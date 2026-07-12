@@ -63,7 +63,18 @@ public static partial class ReferenceCatalog
         ["fx_exposure_usd"] = new("fx_exposure_usd", "USD為替エクスポージャー", Unit: "USD"),
         ["fx_exposure_other_jpy"] = new("fx_exposure_other_jpy", "その他通貨為替エクスポージャー", Unit: "円"),
         ["active_customer_count"] = new("active_customer_count", "アクティブ顧客数", Unit: "人"),
-        ["churned_customer_count"] = new("churned_customer_count", "離脱顧客数", Unit: "人")
+        ["churned_customer_count"] = new("churned_customer_count", "離脱顧客数", Unit: "人"),
+        ["churn_rate"] = new("churn_rate", "解約率", Unit: "%"),
+        ["total_cost_jpy"] = new("total_cost_jpy", "総コスト", Unit: "円"),
+        ["ad_revenue_jpy"] = new("ad_revenue_jpy", "広告収益", Unit: "円"),
+        ["dau"] = new("dau", "DAU", Unit: "人"),
+        ["subscription_revenue_jpy"] = new("subscription_revenue_jpy", "サブスクリプション収益", Unit: "円"),
+        ["content_production_cost_jpy"] = new("content_production_cost_jpy", "コンテンツ制作費", Unit: "円"),
+        ["streaming_infra_cost_jpy"] = new("streaming_infra_cost_jpy", "配信インフラコスト", Unit: "円"),
+        ["game_revenue_jpy"] = new("game_revenue_jpy", "ゲーム売上", Unit: "円"),
+        ["in_app_purchase_jpy"] = new("in_app_purchase_jpy", "アプリ内課金額", Unit: "円"),
+        ["server_cost_jpy"] = new("server_cost_jpy", "サーバーコスト", Unit: "円"),
+        ["concurrent_users"] = new("concurrent_users", "同時接続ユーザー数", Unit: "人")
     };
 
     public static CategorizedReferences BuildCategorized(
