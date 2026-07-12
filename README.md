@@ -98,6 +98,8 @@ News Portal 公開 URL: <https://stnexus6portal1t2i.z1.web.core.windows.net/>
 
 ## アプリケーションの使い方
 
+<video src="assets/EnvSetup.mp4" controls width="640" height="360"></video>
+
 ### 1. 環境構築（EnvironmentSetup CLI）
 
 Azure リソース・Fabric・Foundry 等を一括プロビジョニングする CLI ツールです。
