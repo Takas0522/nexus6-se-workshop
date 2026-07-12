@@ -42,6 +42,10 @@ public class Step07MedallionSetup : ISetupStep
         var wsId = await ResolveWorkspaceAsync(state);
         Console.WriteLine($"    ワークスペース: {wsId}\n");
 
+        // ワークスペースIDを早期保存（途中失敗時の cleanup 用）
+        state.Medallion ??= new MedallionResult();
+        state.Medallion.WorkspaceId = wsId;
+
         // 2. Lakehouse 3層の作成 (Bronze / Silver / Gold)
         var bronze = await EnsureLakehouseAsync(wsId, "lh_bronze", ct);
         var silver = await EnsureLakehouseAsync(wsId, "lh_silver", ct);

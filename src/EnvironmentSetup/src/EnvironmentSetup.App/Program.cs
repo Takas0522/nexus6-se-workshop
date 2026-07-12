@@ -186,6 +186,35 @@ static async Task CleanupResources(SetupState state, AzureCliWrapper az, string 
 
     // 2. Fabric Workspace
     var wsId = state.Medallion?.WorkspaceId;
+    if (string.IsNullOrWhiteSpace(wsId))
+    {
+        // state に未保存の場合、Fabric API で検索
+        try
+        {
+            Console.Write("  🔍 Fabric Workspace を検索中...");
+            var wsJson = await az.RunAsync(
+                "rest --method get --url \"https://api.fabric.microsoft.com/v1/workspaces\" " +
+                "--resource \"https://api.fabric.microsoft.com\"",
+                silent: true);
+            var wsDoc = System.Text.Json.JsonDocument.Parse(wsJson);
+            foreach (var ws in wsDoc.RootElement.GetProperty("value").EnumerateArray())
+            {
+                var name = ws.GetProperty("displayName").GetString() ?? "";
+                if (name.StartsWith("ws-nexus6", StringComparison.OrdinalIgnoreCase))
+                {
+                    wsId = ws.GetProperty("id").GetString();
+                    Console.WriteLine($" 発見: {name} ({wsId})");
+                    break;
+                }
+            }
+            if (string.IsNullOrWhiteSpace(wsId))
+                Console.WriteLine(" 未検出 (スキップ)");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($" ⚠️ 検索失敗: {ex.Message[..Math.Min(60, ex.Message.Length)]}");
+        }
+    }
     if (!string.IsNullOrWhiteSpace(wsId))
     {
         Console.Write($"  🗑️ Fabric Workspace '{wsId}' を削除中...");
