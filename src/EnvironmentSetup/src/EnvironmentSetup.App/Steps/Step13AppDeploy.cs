@@ -302,10 +302,33 @@ public class Step13AppDeploy : ISetupStep
         }
 
         // 4. Fabric workspace にマネージド ID を追加 (SQL Endpoint アクセス用)
-        if (!string.IsNullOrEmpty(state.Medallion?.WorkspaceId))
+        var fabricWsId = state.Medallion?.WorkspaceId;
+        if (string.IsNullOrEmpty(fabricWsId))
+        {
+            // フォールバック: Fabric API でワークスペースを検索
+            try
+            {
+                var wsJson = await _az.RunAsync(
+                    "rest --method GET --url \"https://api.fabric.microsoft.com/v1/workspaces\" " +
+                    "--resource \"https://api.fabric.microsoft.com\" -o json",
+                    silent: true);
+                var wsDoc = System.Text.Json.JsonDocument.Parse(wsJson);
+                foreach (var ws in wsDoc.RootElement.GetProperty("value").EnumerateArray())
+                {
+                    if (ws.GetProperty("displayName").GetString()?.Contains("nexus6") == true)
+                    {
+                        fabricWsId = ws.GetProperty("id").GetString();
+                        break;
+                    }
+                }
+            }
+            catch { /* Fabric API unavailable */ }
+        }
+
+        if (!string.IsNullOrEmpty(fabricWsId))
         {
             Console.WriteLine("\n    Fabric workspace にマネージド ID を追加中...");
-            var wsId = state.Medallion.WorkspaceId;
+            var wsId = fabricWsId;
             var principalIds = new List<string>();
 
             // Agent MI

@@ -80,7 +80,7 @@ public class AzureConfig
     public string UserUpn { get; set; } = string.Empty;
 
     [JsonPropertyName("fabricAvailable")]
-    public bool FabricAvailable { get; set; }
+    public bool FabricAvailable { get; set; } = true;
 
     [JsonPropertyName("functionsAvailable")]
     public bool FunctionsAvailable { get; set; } = true;
