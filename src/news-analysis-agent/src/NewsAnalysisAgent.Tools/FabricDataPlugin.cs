@@ -34,9 +34,8 @@ public sealed class FabricDataPlugin(
 
         const string sql = """
 SELECT year_month, division, gross_revenue_jpy, total_cost_jpy, gross_margin_jpy,
-       gross_margin_rate, fx_exposure_usd, fx_exposure_other_jpy,
-       active_customer_count, churned_customer_count
-FROM [kpi].[monthly_revenue]
+       gross_margin_rate, active_customer_count, churn_rate
+FROM kpi_monthly_revenue
 WHERE year_month = @yearMonth
 ORDER BY division;
 """;
@@ -44,7 +43,7 @@ ORDER BY division;
         try
         {
             var rows = await QueryRowsAsync(connectionString, sql, [new SqlParameter("@yearMonth", yearMonth)], ct);
-            return JsonSerializer.Serialize(new { source = "fabric", table = "kpi.monthly_revenue", year_month = yearMonth, rows }, JsonOptions);
+            return JsonSerializer.Serialize(new { source = "fabric", table = "kpi_monthly_revenue", year_month = yearMonth, rows }, JsonOptions);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -63,10 +62,10 @@ ORDER BY division;
             return await fallback.GetDivisionKpiSnapshotAsync(normalizedDivision, yearMonth, ct);
         }
 
-        var schema = normalizedDivision + "_ai";
+        var tableName = normalizedDivision + "_ai_risk_summary";
         var sql = $"""
 SELECT TOP (50) year_month, metric_name, metric_value, metric_unit, description
-FROM [{schema}].[risk_summary]
+FROM {tableName}
 WHERE year_month = @yearMonth
 ORDER BY metric_name;
 """;
@@ -74,7 +73,7 @@ ORDER BY metric_name;
         try
         {
             var rows = await QueryRowsAsync(connectionString, sql, [new SqlParameter("@yearMonth", yearMonth)], ct);
-            return JsonSerializer.Serialize(new { source = "fabric", table = $"{schema}.risk_summary", division = normalizedDivision, year_month = yearMonth, rows }, JsonOptions);
+            return JsonSerializer.Serialize(new { source = "fabric", table = tableName, division = normalizedDivision, year_month = yearMonth, rows }, JsonOptions);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -135,10 +134,23 @@ ORDER BY metric_name;
 
     private static string NormalizeDivision(string division) => division.Trim().ToLowerInvariant() switch
     {
-        "mobile" => "mobile",
-        "ecommerce" or "ec" => "ecommerce",
-        "fintech" => "fintech",
-        _ => "mobile"
+        "mobile" or "モバイル" or "携帯電話" => "mobile",
+        "ecommerce" or "ec" or "eコマース" => "ecommerce",
+        "fintech" or "フィンテック" or "金融" => "fintech",
+        "entertainment" or "エンターテイメント" => "entertainment",
+        "game" or "ゲーム" => "game",
+        "sns" or "ソーシャル" => "sns",
+        "telecom" or "通信" => "telecom",
+        "media" or "メディア" => "media",
+        "advertising" or "広告" => "advertising",
+        "insurance" or "保険" => "insurance",
+        "realestate" or "不動産" => "realestate",
+        "education" or "教育" => "education",
+        "healthcare" or "医療" or "ヘルスケア" => "healthcare",
+        "manufacturing" or "製造" => "manufacturing",
+        "logistics" or "物流" => "logistics",
+        "retail" or "小売" => "retail",
+        var d => d.Replace(" ", "_")
     };
 }
 
@@ -153,7 +165,7 @@ public sealed class MockFabricDataPlugin : IFabricDataPlugin
         Task.FromResult(JsonSerializer.Serialize(new
         {
             source = "mock-fabric",
-            table = "kpi.monthly_revenue",
+            table = "kpi_monthly_revenue",
             year_month = yearMonth,
             rows = new[]
             {

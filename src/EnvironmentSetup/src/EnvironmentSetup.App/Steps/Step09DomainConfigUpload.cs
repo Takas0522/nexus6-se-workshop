@@ -35,7 +35,7 @@ public class Step09DomainConfigUpload : ISetupStep
                 Id = divisionId,
                 Label = domain,
                 InterestAreas = GenerateInterestAreas(domain),
-                FabricTable = $"{divisionId}_risk_summary",
+                FabricTable = $"{divisionId}_ai_risk_summary",
                 TeamsTeamId = "",
                 TeamsChannelId = "",
                 TeamsWorkflowsUrl = "",
