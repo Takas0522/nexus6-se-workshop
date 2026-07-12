@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/BusinessImpactTab.tsx","./src/components/NewsList.tsx","./src/components/RecommendTab.tsx","./src/components/WebResearchTab.tsx","./src/types/api.ts"],"version":"5.8.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/BusinessImpactTab.tsx","./src/components/NewsList.tsx","./src/components/RecommendTab.tsx","./src/components/WebResearchTab.tsx","./src/types/api.ts","./src/utils/kpiFormat.ts"],"version":"5.8.3"}

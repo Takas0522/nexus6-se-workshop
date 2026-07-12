@@ -1,4 +1,5 @@
 import { BusinessImpactResult } from '../types/api';
+import { formatKpiPairs } from '../utils/kpiFormat';
 
 interface Props {
   data: BusinessImpactResult;
@@ -86,10 +87,10 @@ export default function BusinessImpactTab({ data }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {data.kpiReferences.map((kpi, i) => (
+                {formatKpiPairs(data.kpiReferences).map((kpi, i) => (
                   <tr key={i} className="border-t border-gray-100">
-                    <td className="px-4 py-2 font-medium">{kpi.logicalNameJa || kpi.physicalName}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{kpi.value ?? '—'} {kpi.unit ?? ''}</td>
+                    <td className="px-4 py-2 font-medium">{kpi.label}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{kpi.formattedValue || '—'}</td>
                     <td className="px-4 py-2 text-gray-500 text-xs">{kpi.table ?? '—'}</td>
                   </tr>
                 ))}

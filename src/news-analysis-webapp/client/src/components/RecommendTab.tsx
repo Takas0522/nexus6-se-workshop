@@ -1,4 +1,5 @@
 import { DivisionRecommendation } from '../types/api';
+import { formatKpiPairs } from '../utils/kpiFormat';
 
 interface Props {
   data: DivisionRecommendation[];
@@ -62,10 +63,10 @@ export default function RecommendTab({ data }: Props) {
                   関連KPI
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {rec.kpiReferences.map((kpi, i) => (
+                  {formatKpiPairs(rec.kpiReferences).map((kpi, i) => (
                     <span key={i} className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-700 px-2 py-1 rounded-md border border-brand-100">
-                      {kpi.logicalNameJa || kpi.physicalName}
-                      {kpi.value && <span className="font-semibold">{kpi.value}{kpi.unit ?? ''}</span>}
+                      {kpi.label}
+                      {kpi.formattedValue && <span className="font-semibold">{kpi.formattedValue}</span>}
                     </span>
                   ))}
                 </div>
