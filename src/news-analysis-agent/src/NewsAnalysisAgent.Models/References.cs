@@ -56,16 +56,15 @@ public static partial class ReferenceCatalog
         ["crossborder_fx_cost_jpy"] = new("crossborder_fx_cost_jpy", "越境EC為替コスト", Unit: "円"),
         ["fx_position_usd"] = new("fx_position_usd", "USD建てFXポジション", Unit: "USD"),
         ["loan_delinquency_rate"] = new("loan_delinquency_rate", "ローン延滞率", Unit: "%"),
-        ["gross_revenue_jpy"] = new("gross_revenue_jpy", "月次売上", Unit: "円"),
+        ["gross_revenue_jpy"] = new("gross_revenue_jpy", "月次売上高", Unit: "円"),
         ["total_cost_jpy"] = new("total_cost_jpy", "総コスト", Unit: "円"),
-        ["gross_margin_jpy"] = new("gross_margin_jpy", "粗利", Unit: "円"),
+        ["gross_margin_jpy"] = new("gross_margin_jpy", "粗利額", Unit: "円"),
         ["gross_margin_rate"] = new("gross_margin_rate", "粗利率", Unit: "%"),
         ["fx_exposure_usd"] = new("fx_exposure_usd", "USD為替エクスポージャー", Unit: "USD"),
-        ["fx_exposure_other_jpy"] = new("fx_exposure_other_jpy", "その他通貨為替エクスポージャー", Unit: "円"),
+        ["fx_exposure_other_jpy"] = new("fx_exposure_other_jpy", "その他通貨エクスポージャー", Unit: "円"),
         ["active_customer_count"] = new("active_customer_count", "アクティブ顧客数", Unit: "人"),
         ["churned_customer_count"] = new("churned_customer_count", "離脱顧客数", Unit: "人"),
         ["churn_rate"] = new("churn_rate", "解約率", Unit: "%"),
-        ["total_cost_jpy"] = new("total_cost_jpy", "総コスト", Unit: "円"),
         ["ad_revenue_jpy"] = new("ad_revenue_jpy", "広告収益", Unit: "円"),
         ["dau"] = new("dau", "DAU", Unit: "人"),
         ["subscription_revenue_jpy"] = new("subscription_revenue_jpy", "サブスクリプション収益", Unit: "円"),
@@ -76,6 +75,20 @@ public static partial class ReferenceCatalog
         ["server_cost_jpy"] = new("server_cost_jpy", "サーバーコスト", Unit: "円"),
         ["concurrent_users"] = new("concurrent_users", "同時接続ユーザー数", Unit: "人")
     };
+
+    /// <summary>
+    /// domain-config.json の kpiLabels セクションからラベルを読み込み、
+    /// ハードコード辞書を上書きする。EnvironmentSetup が生成した定義が優先される。
+    /// </summary>
+    public static void LoadFromConfig(DivisionsConfig config)
+    {
+        foreach (var (physicalName, entry) in config.KpiLabels)
+        {
+            if (string.IsNullOrWhiteSpace(physicalName) || string.IsNullOrWhiteSpace(entry.LogicalNameJa))
+                continue;
+            KpiLabels[physicalName] = new KpiReference(physicalName, entry.LogicalNameJa, Unit: entry.Unit);
+        }
+    }
 
     public static CategorizedReferences BuildCategorized(
         DivisionRecommendation recommendation,

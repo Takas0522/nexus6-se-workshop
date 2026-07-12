@@ -68,6 +68,16 @@ builder.Services.Configure<DivisionsConfig>(options =>
         var divisions = divisionsSection.Get<List<DivisionConfig>>() ?? [];
         options.Divisions = divisions;
     }
+
+    var kpiLabelsSection = builder.Configuration.GetSection("KpiLabels");
+    if (kpiLabelsSection.Exists())
+    {
+        var labels = kpiLabelsSection.Get<Dictionary<string, KpiLabelEntry>>() ?? [];
+        options.KpiLabels = labels;
+    }
+
+    // domain-config.json の kpiLabels で ReferenceCatalog のハードコード辞書を上書き
+    ReferenceCatalog.LoadFromConfig(options);
 });
 
 builder.Services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential());

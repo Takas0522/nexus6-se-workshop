@@ -7,6 +7,19 @@ namespace NewsAnalysisAgent.Models;
 public sealed class DivisionsConfig
 {
     public List<DivisionConfig> Divisions { get; set; } = [];
+
+    /// <summary>物理カラム名→論理名マッピング（Step09 で生成）</summary>
+    public Dictionary<string, KpiLabelEntry> KpiLabels { get; set; } = [];
+}
+
+/// <summary>KPI カラムの論理名定義</summary>
+public sealed class KpiLabelEntry
+{
+    /// <summary>日本語の論理名 (例: "月次売上高")</summary>
+    public string LogicalNameJa { get; set; } = string.Empty;
+
+    /// <summary>単位 (例: "円", "%", "人")</summary>
+    public string Unit { get; set; } = string.Empty;
 }
 
 /// <summary>

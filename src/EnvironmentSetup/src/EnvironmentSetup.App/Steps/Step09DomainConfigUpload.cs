@@ -43,7 +43,11 @@ public class Step09DomainConfigUpload : ISetupStep
             });
         }
 
-        var config = new { Divisions = divisions };
+        var config = new
+        {
+            Divisions = divisions,
+            KpiLabels = BuildKpiLabels()
+        };
         var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
         {
             WriteIndented = true,
@@ -172,6 +176,56 @@ public class Step09DomainConfigUpload : ISetupStep
             "小売" => ["客単価", "来店数", "在庫回転", "廃棄ロス", "リピート率"],
             "人事" or "hr" => ["離職率", "採用コスト", "残業時間", "エンゲージメント", "研修効果"],
             _ => ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"]
+        };
+    }
+
+    /// <summary>
+    /// メダリオン Gold テーブルの物理カラム名→論理名マッピングを生成する。
+    /// Step07 の ETL カラム定義と一致させること。
+    /// </summary>
+    private static Dictionary<string, object> BuildKpiLabels()
+    {
+        return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            // kpi_monthly_revenue テーブルのカラム（Step07 BuildSilverToGoldCode 由来）
+            ["year_month"] = new { logicalNameJa = "対象年月", unit = "yyyy-MM" },
+            ["division"] = new { logicalNameJa = "事業部", unit = "" },
+            ["gross_revenue_jpy"] = new { logicalNameJa = "月次売上高", unit = "円" },
+            ["total_cost_jpy"] = new { logicalNameJa = "総コスト", unit = "円" },
+            ["gross_margin_jpy"] = new { logicalNameJa = "粗利額", unit = "円" },
+            ["gross_margin_rate"] = new { logicalNameJa = "粗利率", unit = "%" },
+            ["active_customer_count"] = new { logicalNameJa = "アクティブ顧客数", unit = "人" },
+            ["churn_rate"] = new { logicalNameJa = "解約率", unit = "%" },
+            ["churned_customer_count"] = new { logicalNameJa = "離脱顧客数", unit = "人" },
+
+            // {div}_ai_risk_summary テーブルの metric_name 値（Step06 シードデータ由来）
+            ["metric_name"] = new { logicalNameJa = "指標名", unit = "" },
+            ["metric_value"] = new { logicalNameJa = "指標値", unit = "" },
+            ["metric_unit"] = new { logicalNameJa = "単位", unit = "" },
+            ["description"] = new { logicalNameJa = "説明", unit = "" },
+
+            // Fabric KPI 共通（為替・顧客関連）
+            ["fx_exposure_usd"] = new { logicalNameJa = "USD為替エクスポージャー", unit = "USD" },
+            ["fx_exposure_other_jpy"] = new { logicalNameJa = "その他通貨エクスポージャー", unit = "円" },
+
+            // 事業部固有 metric_name（シードデータで出現しうる指標）
+            ["ad_revenue_jpy"] = new { logicalNameJa = "広告収益", unit = "円" },
+            ["dau"] = new { logicalNameJa = "DAU（日次アクティブユーザー）", unit = "人" },
+            ["subscription_revenue_jpy"] = new { logicalNameJa = "サブスクリプション収益", unit = "円" },
+            ["content_production_cost_jpy"] = new { logicalNameJa = "コンテンツ制作費", unit = "円" },
+            ["streaming_infra_cost_jpy"] = new { logicalNameJa = "配信インフラコスト", unit = "円" },
+            ["game_revenue_jpy"] = new { logicalNameJa = "ゲーム売上", unit = "円" },
+            ["in_app_purchase_jpy"] = new { logicalNameJa = "アプリ内課金額", unit = "円" },
+            ["server_cost_jpy"] = new { logicalNameJa = "サーバーコスト", unit = "円" },
+            ["concurrent_users"] = new { logicalNameJa = "同時接続ユーザー数", unit = "人" },
+            ["mnp_out_rate"] = new { logicalNameJa = "MNP転出率", unit = "%" },
+            ["device_fx_cost_jpy"] = new { logicalNameJa = "海外端末仕入コスト", unit = "円" },
+            ["campaign_roi"] = new { logicalNameJa = "キャンペーンROI", unit = "倍" },
+            ["crossborder_fx_cost_jpy"] = new { logicalNameJa = "越境EC為替コスト", unit = "円" },
+            ["fx_position_usd"] = new { logicalNameJa = "USD建てFXポジション", unit = "USD" },
+            ["loan_delinquency_rate"] = new { logicalNameJa = "ローン延滞率", unit = "%" },
+            ["loan_balance"] = new { logicalNameJa = "ローン残高", unit = "円" },
+            ["avg_interest_rate"] = new { logicalNameJa = "平均貸出金利", unit = "%" },
         };
     }
 }

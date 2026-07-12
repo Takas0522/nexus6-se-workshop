@@ -3,7 +3,13 @@
     {
       "id": "エンターテイメント事業",
       "label": "エンターテイメント事業",
-      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "interestAreas": [
+        "事業KPI",
+        "コスト指標",
+        "リスク指標",
+        "顧客指標",
+        "収益指標"
+      ],
       "fabricTable": "entertainment_risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
@@ -13,7 +19,13 @@
     {
       "id": "ゲーム事業",
       "label": "ゲーム事業",
-      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "interestAreas": [
+        "事業KPI",
+        "コスト指標",
+        "リスク指標",
+        "顧客指標",
+        "収益指標"
+      ],
       "fabricTable": "game_risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
@@ -23,12 +35,148 @@
     {
       "id": "sns事業",
       "label": "SNS事業",
-      "interestAreas": ["事業KPI", "コスト指標", "リスク指標", "顧客指標", "収益指標"],
+      "interestAreas": [
+        "事業KPI",
+        "コスト指標",
+        "リスク指標",
+        "顧客指標",
+        "収益指標"
+      ],
       "fabricTable": "sns_risk_summary",
       "teamsTeamId": "",
       "teamsChannelId": "",
       "teamsWorkflowsUrl": "",
       "foundryAssistantName": "nexus6-sns事業-recommend-filesearch"
     }
-  ]
+  ],
+  "kpiLabels": {
+    "year_month": {
+      "logicalNameJa": "対象年月",
+      "unit": "yyyy-MM"
+    },
+    "division": {
+      "logicalNameJa": "事業部",
+      "unit": ""
+    },
+    "gross_revenue_jpy": {
+      "logicalNameJa": "月次売上高",
+      "unit": "円"
+    },
+    "total_cost_jpy": {
+      "logicalNameJa": "総コスト",
+      "unit": "円"
+    },
+    "gross_margin_jpy": {
+      "logicalNameJa": "粗利額",
+      "unit": "円"
+    },
+    "gross_margin_rate": {
+      "logicalNameJa": "粗利率",
+      "unit": "%"
+    },
+    "active_customer_count": {
+      "logicalNameJa": "アクティブ顧客数",
+      "unit": "人"
+    },
+    "churn_rate": {
+      "logicalNameJa": "解約率",
+      "unit": "%"
+    },
+    "churned_customer_count": {
+      "logicalNameJa": "離脱顧客数",
+      "unit": "人"
+    },
+    "metric_name": {
+      "logicalNameJa": "指標名",
+      "unit": ""
+    },
+    "metric_value": {
+      "logicalNameJa": "指標値",
+      "unit": ""
+    },
+    "metric_unit": {
+      "logicalNameJa": "単位",
+      "unit": ""
+    },
+    "description": {
+      "logicalNameJa": "説明",
+      "unit": ""
+    },
+    "fx_exposure_usd": {
+      "logicalNameJa": "USD為替エクスポージャー",
+      "unit": "USD"
+    },
+    "fx_exposure_other_jpy": {
+      "logicalNameJa": "その他通貨エクスポージャー",
+      "unit": "円"
+    },
+    "ad_revenue_jpy": {
+      "logicalNameJa": "広告収益",
+      "unit": "円"
+    },
+    "dau": {
+      "logicalNameJa": "DAU（日次アクティブユーザー）",
+      "unit": "人"
+    },
+    "subscription_revenue_jpy": {
+      "logicalNameJa": "サブスクリプション収益",
+      "unit": "円"
+    },
+    "content_production_cost_jpy": {
+      "logicalNameJa": "コンテンツ制作費",
+      "unit": "円"
+    },
+    "streaming_infra_cost_jpy": {
+      "logicalNameJa": "配信インフラコスト",
+      "unit": "円"
+    },
+    "game_revenue_jpy": {
+      "logicalNameJa": "ゲーム売上",
+      "unit": "円"
+    },
+    "in_app_purchase_jpy": {
+      "logicalNameJa": "アプリ内課金額",
+      "unit": "円"
+    },
+    "server_cost_jpy": {
+      "logicalNameJa": "サーバーコスト",
+      "unit": "円"
+    },
+    "concurrent_users": {
+      "logicalNameJa": "同時接続ユーザー数",
+      "unit": "人"
+    },
+    "mnp_out_rate": {
+      "logicalNameJa": "MNP転出率",
+      "unit": "%"
+    },
+    "device_fx_cost_jpy": {
+      "logicalNameJa": "海外端末仕入コスト",
+      "unit": "円"
+    },
+    "campaign_roi": {
+      "logicalNameJa": "キャンペーンROI",
+      "unit": "倍"
+    },
+    "crossborder_fx_cost_jpy": {
+      "logicalNameJa": "越境EC為替コスト",
+      "unit": "円"
+    },
+    "fx_position_usd": {
+      "logicalNameJa": "USD建てFXポジション",
+      "unit": "USD"
+    },
+    "loan_delinquency_rate": {
+      "logicalNameJa": "ローン延滞率",
+      "unit": "%"
+    },
+    "loan_balance": {
+      "logicalNameJa": "ローン残高",
+      "unit": "円"
+    },
+    "avg_interest_rate": {
+      "logicalNameJa": "平均貸出金利",
+      "unit": "%"
+    }
+  }
 }
