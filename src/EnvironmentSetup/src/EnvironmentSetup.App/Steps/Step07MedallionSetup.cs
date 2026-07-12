@@ -543,10 +543,10 @@ public class Step07MedallionSetup : ISetupStep
         }
 
         // 作成されたIDを取得 (結果整合性のためリトライ)
-        for (var attempt = 0; attempt < 10; attempt++)
+        for (var attempt = 0; attempt < 20; attempt++)
         {
             if (attempt > 0)
-                await Task.Delay(3000, ct);
+                await Task.Delay(5000, ct);
 
             itemsJson = await _az.RunAsync(
                 $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/items?type=Notebook\" --resource \"{FabricResource}\"",
@@ -558,7 +558,7 @@ public class Step07MedallionSetup : ISetupStep
             if (created.ValueKind != JsonValueKind.Undefined)
                 return created.GetProperty("id").GetString()!;
 
-            Console.WriteLine($"    ⏳ Notebook '{name}' の作成完了を待機中... ({attempt + 1}/10)");
+            Console.WriteLine($"    ⏳ Notebook '{name}' の作成完了を待機中... ({attempt + 1}/20)");
         }
 
         throw new InvalidOperationException($"Notebook '{name}' が作成後にリストに見つかりません。Fabric API の結果整合性の問題の可能性があります。Step 7 を再実行してください。");
@@ -776,10 +776,12 @@ public class Step07MedallionSetup : ISetupStep
 
     private async Task<string?> ExecuteFabricLroAsync(string azArgs)
     {
+        // --verbose を付加して response headers (x-ms-operation-id) を stderr に出力させる
+        var fullArgs = azArgs.Contains("--verbose") ? azArgs : azArgs + " --verbose";
         var psi = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "az",
-            Arguments = azArgs,
+            Arguments = fullArgs,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
