@@ -6,11 +6,20 @@ interface Props {
   onSelect: (article: NewsArticle) => void;
 }
 
-const categoryColors: Record<string, string> = {
-  '為替': 'bg-blue-100 text-blue-800',
-  '競合統合': 'bg-purple-100 text-purple-800',
-  '日銀利上げ': 'bg-amber-100 text-amber-800',
-};
+const categoryColorPalette = [
+  'bg-blue-100 text-blue-800',
+  'bg-purple-100 text-purple-800',
+  'bg-amber-100 text-amber-800',
+  'bg-emerald-100 text-emerald-800',
+  'bg-rose-100 text-rose-800',
+  'bg-cyan-100 text-cyan-800',
+];
+
+function getCategoryStyle(category: string, articles: NewsArticle[]): string {
+  const categories = [...new Set(articles.map(a => a.category))];
+  const idx = categories.indexOf(category);
+  return categoryColorPalette[idx >= 0 ? idx % categoryColorPalette.length : 0];
+}
 
 export default function NewsList({ articles, selectedId, onSelect }: Props) {
   return (
@@ -31,7 +40,7 @@ export default function NewsList({ articles, selectedId, onSelect }: Props) {
               : 'border-gray-200 bg-white hover:border-gray-300'
           }`}
         >
-          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${categoryColors[article.category] ?? 'bg-gray-100 text-gray-700'}`}>
+          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${getCategoryStyle(article.category, articles)}`}>
             {article.category}
           </span>
           <h3 className="font-bold text-sm leading-snug mb-1">{article.title}</h3>

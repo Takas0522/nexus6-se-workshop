@@ -12,6 +12,7 @@
 | `sqldb_mobile_01` | 携帯電話事業 | 顧客、契約、利用/課金トランザクション、端末在庫 |
 | `sqldb_sns_01` | SNS事業 | ユーザー、有料プラン、広告/課金トランザクション、広告枠 |
 | `sqldb_si_01` | SI事業 | 法人顧客、案件契約、取引/請求、リソース在庫 |
+| `sqldb_news_01` | ニュース分析 | ニュース記事、インパクト診断結果、通知履歴 |
 
 ---
 
@@ -242,6 +243,64 @@ SNSプラットフォームの登録ユーザーマスタ。
 
 ---
 
+### ニュース分析基盤（sqldb_news_01）
+
+#### news_articles — ニュース記事
+
+取得・解析対象のニュース記事。外部ソースからフェッチされた原文データ。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `article_id` | UNIQUEIDENTIFIER | 記事ID（PK） |
+| `title` | NVARCHAR(500) | 記事タイトル |
+| `summary` | NVARCHAR(2000) | 記事概要 |
+| `source` | NVARCHAR(200) | ソース名（媒体名） |
+| `source_url` | NVARCHAR(1000) | ソースURL |
+| `category` | NVARCHAR(50) | カテゴリ（`regulation` / `economy` / `technology` / `security`） |
+| `published_at` | DATETIME2 | 記事公開日時 |
+| `fetched_at` | DATETIME2 | フェッチ日時 |
+
+**ビジネス意味**: インパクト分析のトリガーとなる入力データ。カテゴリ・公開日時に基づいてスキルの選択と優先度が決定される。
+
+#### impact_analyses — インパクト診断結果
+
+AIエージェント（スキル）によるニュース記事のインパクト診断結果。1記事×1ドメインで1レコード。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `analysis_id` | UNIQUEIDENTIFIER | 分析ID（PK） |
+| `article_id` | UNIQUEIDENTIFIER | 記事ID（FK → news_articles） |
+| `domain` | NVARCHAR(30) | 影響対象ドメイン（`mobile` / `sns` / `si`） |
+| `impact_level` | NVARCHAR(10) | インパクトレベル（`critical` / `high` / `medium` / `low` / `minimal`） |
+| `impact_summary` | NVARCHAR(2000) | インパクト概要（自然言語） |
+| `confidence_score` | DECIMAL(3,2) | 確信度スコア（0.00-1.00） |
+| `affected_customer_count` | INT | 影響顧客数 |
+| `estimated_revenue_impact` | DECIMAL(15,2) | 推定収益影響額（円） |
+| `analyzed_at` | DATETIME2 | 分析実行日時 |
+
+**ビジネス意味**: スキルの出力結果を永続化。通知生成・ダッシュボード表示・過去インパクトとの比較分析に使用。同一記事を複数ドメインで分析した結果を保持し、クロスドメインの影響を可視化。
+
+#### notifications — 通知履歴
+
+インパクト診断結果に基づいて各部署へ送信された通知の履歴。
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `notification_id` | UNIQUEIDENTIFIER | 通知ID（PK） |
+| `analysis_id` | UNIQUEIDENTIFIER | 分析ID（FK → impact_analyses） |
+| `domain` | NVARCHAR(30) | 通知先ドメイン |
+| `channel` | NVARCHAR(30) | 通知チャネル（`teams` / `email` / `push` / `dashboard`） |
+| `title` | NVARCHAR(500) | 通知タイトル |
+| `body` | NVARCHAR(4000) | 通知本文 |
+| `priority` | NVARCHAR(10) | 優先度（`P0` / `P1` / `P2` / `P3`） |
+| `status` | NVARCHAR(20) | ステータス（`sent` / `delivered` / `read` / `acknowledged` / `failed`） |
+| `sent_at` | DATETIME2 | 送信日時 |
+| `read_at` | DATETIME2 | 既読日時（NULL許容） |
+
+**ビジネス意味**: 通知の到達・既読状況を追跡。重複通知の排除、エスカレーション判定（P0が未読のまま30分経過→再通知）、通知効果の分析に使用。
+
+---
+
 ## リレーション定義
 
 ### エンティティ関係図（ER概念）
@@ -290,6 +349,8 @@ SNSプラットフォームの登録ユーザーマスタ。
 | 10 | si.customers | 1:N | si.contracts | `customer_id` | 物理FK |
 | 11 | si.customers | 1:N | si.transactions | `customer_id` | 物理FK |
 | 12 | si.contracts | 1:N | si.transactions | `contract_id` | 物理FK |
+| 13 | news.news_articles | 1:N | news.impact_analyses | `article_id` | 物理FK |
+| 14 | news.impact_analyses | 1:N | news.notifications | `analysis_id` | 物理FK |
 
 ### クロスドメイン結合パターン
 
@@ -332,6 +393,9 @@ GROUP BY uc.unified_customer_id, uc.customer_name;
 | `bronze_si_contracts` | sqldb_si_01.contracts | 日次 | Delta |
 | `bronze_si_transactions` | sqldb_si_01.transactions | 時間次 | Delta |
 | `bronze_si_inventory` | sqldb_si_01.inventory | 日次 | Delta |
+| `bronze_news_articles` | sqldb_news_01.news_articles | リアルタイム | Delta |
+| `bronze_news_impact_analyses` | sqldb_news_01.impact_analyses | リアルタイム | Delta |
+| `bronze_news_notifications` | sqldb_news_01.notifications | リアルタイム | Delta |
 
 ### Silver 層 — Cleansed & Conformed
 
@@ -354,6 +418,9 @@ GROUP BY uc.unified_customer_id, uc.customer_name;
 | `silver_dim_inventory_si` | リソース在庫ディメンション | リソース種別正規化 |
 | `silver_bridge_domain_mappings` | ドメイン間ブリッジ | 有効マッピングのみ抽出 |
 | `silver_dim_segments` | セグメントディメンション | コード→名称正規化 |
+| `silver_fact_news_articles` | ニュース記事ファクト | カテゴリ正規化、重複排除、言語検出 |
+| `silver_fact_impact_analyses` | インパクト診断ファクト | スコア正規化、ドメイン名統一 |
+| `silver_fact_notifications` | 通知履歴ファクト | ステータス正規化、配信遅延計算 |
 
 ### Gold 層 — Business-Ready Aggregates
 

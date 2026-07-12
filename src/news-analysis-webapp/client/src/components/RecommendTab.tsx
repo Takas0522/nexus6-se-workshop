@@ -4,32 +4,9 @@ interface Props {
   data: DivisionRecommendation[];
 }
 
-const divisionLabels: Record<string, string> = {
-  携帯電話事業: '携帯電話事業',
-  sns事業: 'SNS事業',
-  si事業: 'SI事業',
-  Mobile: 'モバイル通信',
-  Ecommerce: 'Eコマース',
-  Fintech: 'フィンテック',
-};
-
-const divisionIcons: Record<string, string> = {
-  携帯電話事業: '📱',
-  sns事業: '💬',
-  si事業: '🖥️',
-  Mobile: '📱',
-  Ecommerce: '🛒',
-  Fintech: '💳',
-};
-
-const divisionColors: Record<string, string> = {
-  携帯電話事業: 'border-l-blue-500',
-  sns事業: 'border-l-purple-500',
-  si事業: 'border-l-emerald-500',
-  Mobile: 'border-l-blue-500',
-  Ecommerce: 'border-l-purple-500',
-  Fintech: 'border-l-emerald-500',
-};
+// Dynamic color/icon assignment based on index
+const colorPalette = ['border-l-blue-500', 'border-l-purple-500', 'border-l-emerald-500', 'border-l-amber-500', 'border-l-rose-500', 'border-l-cyan-500'];
+const iconPalette = ['📊', '💡', '🎯', '⚡', '🔍', '📈'];
 
 export default function RecommendTab({ data }: Props) {
   if (data.length === 0) {
@@ -42,15 +19,15 @@ export default function RecommendTab({ data }: Props) {
 
   return (
     <div className="space-y-5">
-      {data.map((rec) => (
+      {data.map((rec, idx) => (
         <div
           key={rec.division}
-          className={`bg-white rounded-xl border border-gray-200 border-l-4 ${divisionColors[rec.division] ?? 'border-l-gray-400'} overflow-hidden`}
+          className={`bg-white rounded-xl border border-gray-200 border-l-4 ${colorPalette[idx % colorPalette.length]} overflow-hidden`}
         >
           {/* Division Header */}
           <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-lg">{divisionIcons[rec.division] ?? '📊'}</span>
-            <h3 className="font-bold text-sm">{divisionLabels[rec.division] ?? rec.division}</h3>
+            <span className="text-lg">{iconPalette[idx % iconPalette.length]}</span>
+            <h3 className="font-bold text-sm">{rec.division}</h3>
           </div>
 
           <div className="p-5 space-y-4">

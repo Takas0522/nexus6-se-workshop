@@ -1,205 +1,115 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexus6 ビジネスニュース</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif; background: #f5f5f5; color: #333; line-height: 1.7; }
-header { background: linear-gradient(135deg, #b71c1c, #d32f2f); color: #fff; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: sticky; top: 0; z-index: 100; }
-.header-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
-.logo { font-size: 1.6rem; font-weight: 900; letter-spacing: 2px; }
-.logo span { font-size: 0.75rem; display: block; font-weight: 400; letter-spacing: 0; opacity: 0.85; }
-.header-date { font-size: 0.85rem; opacity: 0.9; }
-nav { background: rgba(0,0,0,0.15); }
-nav ul { display: flex; list-style: none; padding: 0 24px; overflow-x: auto; }
-nav ul li a { display: block; padding: 10px 18px; color: #fff; text-decoration: none; font-size: 0.9rem; white-space: nowrap; border-bottom: 3px solid transparent; transition: border-color 0.2s; }
-nav ul li a:hover, nav ul li a.active { border-bottom-color: #ffcdd2; background: rgba(255,255,255,0.08); }
-.ticker { background: #1a1a1a; color: #fff; padding: 8px 0; overflow: hidden; }
-.ticker-wrap { display: flex; animation: ticker 30s linear infinite; }
-.ticker-item { white-space: nowrap; padding: 0 40px; font-size: 0.85rem; }
-.ticker-item::before { content: '⚡'; margin-right: 6px; }
-@keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-.section-title { font-size: 1.1rem; font-weight: 700; border-left: 4px solid #d32f2f; padding-left: 12px; margin: 28px 0 16px; }
-.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
-.card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; }
-.card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
-.card a { text-decoration: none; color: inherit; display: block; }
-.card-img { width: 100%; height: 200px; object-fit: cover; background: linear-gradient(135deg, #e8e8e8, #cfcfcf); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
-.card-body { padding: 16px; }
-.card-category { display: inline-block; font-size: 0.7rem; font-weight: 700; color: #fff; background: #d32f2f; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px; }
-.card-category.market { background: #1565c0; }
-.card-category.policy { background: #2e7d32; }
-.card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; line-height: 1.5; }
-.card-summary { font-size: 0.85rem; color: #666; line-height: 1.6; }
-.card-meta { margin-top: 12px; font-size: 0.75rem; color: #999; display: flex; justify-content: space-between; }
-.card-featured { grid-column: 1 / -1; }
-.card-featured .card-img { height: 300px; }
-.card-featured .card-title { font-size: 1.4rem; }
-.articles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-.sidebar { margin-top: 32px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-.sidebar h3 { font-size: 1rem; border-bottom: 2px solid #d32f2f; padding-bottom: 8px; margin-bottom: 12px; }
-.sidebar ul { list-style: none; }
-.sidebar ul li { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-.sidebar ul li:last-child { border-bottom: none; }
-.impact-badge { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; margin-left: 6px; color: #fff; }
-.impact-high { background: #d32f2f; }
-.impact-medium { background: #f57c00; }
-.impact-low { background: #388e3c; }
-footer { background: #1a1a1a; color: #aaa; text-align: center; padding: 24px 16px; margin-top: 48px; font-size: 0.8rem; }
-footer a { color: #ef9a9a; text-decoration: none; }
-@media (max-width: 768px) {
-  .hero { grid-template-columns: 1fr; }
-  .card-featured .card-img { height: 200px; }
-  .card-featured .card-title { font-size: 1.1rem; }
-  nav ul li a { padding: 8px 12px; font-size: 0.8rem; }
-  .header-top { padding: 10px 16px; }
-  .logo { font-size: 1.3rem; }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus6 ニュースポータル</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
+    
+    header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 0; }
+    .header-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }
+    .header-top h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.05em; }
+    .header-top .date { font-size: 0.85rem; opacity: 0.9; }
+    
+    .ticker { background: #2c0000; color: #fff; padding: 8px 0; overflow: hidden; white-space: nowrap; }
+    .ticker-inner { display: inline-block; animation: scroll-left 30s linear infinite; }
+    .ticker-inner span { margin-right: 60px; font-size: 0.9rem; }
+    .ticker-inner span::before { content: "⚡ "; color: #ff6b6b; }
+    @keyframes scroll-left { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+    
+    nav { background: #a00000; border-top: 1px solid rgba(255,255,255,0.2); }
+    nav ul { display: flex; list-style: none; padding: 0 24px; }
+    nav ul li a { display: block; padding: 10px 20px; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; }
+    nav ul li a:hover, nav ul li a.active { background: rgba(255,255,255,0.15); }
+    
+    main { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    
+    .section-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 3px solid #8b0000; }
+    
+    .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+    
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+    .card a { text-decoration: none; color: inherit; display: block; padding: 24px; }
+    .card .category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #fff; background: #8b0000; padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
+    .card .category.economy { background: #2980b9; }
+    .card h2 { font-size: 1.1rem; line-height: 1.5; margin-bottom: 12px; color: #1a1a1a; }
+    .card .summary { font-size: 0.88rem; color: #555; line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .card .meta { margin-top: 14px; font-size: 0.8rem; color: #888; }
+    
+    footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px; margin-top: 48px; font-size: 0.8rem; }
+    
+    @media (max-width: 768px) {
+      .header-top h1 { font-size: 1.3rem; }
+      nav ul { flex-wrap: wrap; }
+      nav ul li a { padding: 8px 14px; font-size: 0.8rem; }
+      .articles { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-<header>
-  <div class="header-top">
-    <div class="logo">Nexus6 ビジネスニュース<span>Business Impact Intelligence</span></div>
-    <div class="header-date" id="current-date"></div>
-  </div>
-  <nav>
-    <ul>
-      <li><a href="#" class="active">トップ</a></li>
-      <li><a href="#">経済・為替</a></li>
-      <li><a href="#">競合・市場</a></li>
-      <li><a href="#">金融政策</a></li>
-      <!-- 分析対象事業（domain-config から動的に挿入） -->
-      <li id="nav-divisions"></li>
-    </ul>
-  </nav>
-</header>
-
-<div class="ticker">
-  <div class="ticker-wrap">
-    <div class="ticker-item">USD/JPY 158.42 (+2.3%) 急激な円安進行で市場に緊張走る</div>
-    <div class="ticker-item">大手通信A社とB社が経営統合を正式発表 ─ 業界再編加速へ</div>
-    <div class="ticker-item">日銀 政策金利0.75%へ引き上げ決定 ─ 追加利上げ観測も</div>
-    <div class="ticker-item">携帯事業：端末調達コスト15%上昇見込み ─ 為替影響分析</div>
-    <div class="ticker-item">SNS広告収益：外資系出稿量の変動に注視</div>
-    <div class="ticker-item">SI事業：顧客企業のIT投資判断に金利政策が影響</div>
-    <div class="ticker-item">USD/JPY 158.42 (+2.3%) 急激な円安進行で市場に緊張走る</div>
-    <div class="ticker-item">大手通信A社とB社が経営統合を正式発表 ─ 業界再編加速へ</div>
-    <div class="ticker-item">日銀 政策金利0.75%へ引き上げ決定 ─ 追加利上げ観測も</div>
-    <div class="ticker-item">携帯事業：端末調達コスト15%上昇見込み ─ 為替影響分析</div>
-    <div class="ticker-item">SNS広告収益：外資系出稿量の変動に注視</div>
-    <div class="ticker-item">SI事業：顧客企業のIT投資判断に金利政策が影響</div>
-  </div>
-</div>
-
-<main>
-  <h2 class="section-title">速報・トップニュース</h2>
-  <div class="hero">
-    <div class="card card-featured">
-      <a href="article-1.html">
-        <div class="card-img">💱</div>
-        <div class="card-body">
-          <span class="card-category">経済・為替</span>
-          <h3 class="card-title">【緊急】円相場が1ドル=158円台に急落 ─ 海外調達コスト・外貨建て契約への波及不可避</h3>
-          <p class="card-summary">外国為替市場で急激な円安が進行し、1ドル=158円台を記録。携帯電話事業における端末・基地局の海外調達コスト、SNS事業の外貨建て広告収益、SI事業の海外委託費用など、全事業領域に広範な影響が見込まれる。財務部門は緊急のヘッジポジション見直しに着手。</p>
-          <div class="card-meta">
-            <span>2025年7月8日 14:32</span>
-            <span>影響度: <span class="impact-badge impact-high">高</span></span>
-          </div>
-        </div>
-      </a>
+  <header>
+    <div class="header-top">
+      <h1>Nexus6 ニュースポータル</h1>
+      <span class="date">2026年7月11日（土）</span>
     </div>
-  </div>
-
-  <h2 class="section-title">ビジネスインパクト分析</h2>
-  <div class="articles-grid">
-    <div class="card">
-      <a href="article-2.html">
-        <div class="card-img">🏢</div>
-        <div class="card-body">
-          <span class="card-category market">競合・市場</span>
-          <h3 class="card-title">通信大手2社が経営統合を発表 ─ 市場シェア・価格競争・顧客流出リスクに警戒</h3>
-          <p class="card-summary">主要競合である大手通信A社とB社が経営統合を正式発表。統合後のシェアは国内市場の35%超に。携帯電話事業ではMNP流出加速、SNS事業では広告主の出稿先シフト、SI事業では法人顧客の取引見直しリスクが浮上。</p>
-          <div class="card-meta">
-            <span>2025年7月7日 09:15</span>
-            <span>影響度: <span class="impact-badge impact-high">高</span></span>
-          </div>
-        </div>
-      </a>
+    <div class="ticker">
+      <div class="ticker-inner">
+        <span>総務省、5G周波数帯の追加割当を決定——3.8GHz帯を120MHz幅開放</span>
+        <span>EU、大規模プラットフォーム規制を強化——Meta・TikTokに追加義務</span>
+        <span>経産省「クラウド・バイ・デフォルト2.0」策定——官公庁IT調達の7割をクラウド前提に</span>
+        <span>総務省、5G周波数帯の追加割当を決定——3.8GHz帯を120MHz幅開放</span>
+        <span>EU、大規模プラットフォーム規制を強化——Meta・TikTokに追加義務</span>
+        <span>経産省「クラウド・バイ・デフォルト2.0」策定——官公庁IT調達の7割をクラウド前提に</span>
+      </div>
     </div>
+    <nav>
+      <ul>
+        <li><a href="#" class="active">トップ</a></li>
+        <li><a href="#">規制・政策</a></li>
+        <li><a href="#">経済・産業</a></li>
+        <li><a href="#">テクノロジー</a></li>
+        <li><a href="#">セキュリティ</a></li>
+      </ul>
+    </nav>
+  </header>
 
-    <div class="card">
-      <a href="article-3.html">
-        <div class="card-img">🏦</div>
-        <div class="card-body">
-          <span class="card-category policy">金融政策</span>
-          <h3 class="card-title">日銀が追加利上げ決定 ─ 設備投資・IT予算・広告出稿に連鎖的影響</h3>
-          <p class="card-summary">日本銀行は金融政策決定会合で政策金利の0.75%への引き上げを決定。企業の設備投資判断の慎重化により、SI事業の受注環境が変化。広告主のマーケティング予算圧縮でSNS広告収益にも下押し圧力。携帯事業では基地局投資計画の見直し検討。</p>
-          <div class="card-meta">
-            <span>2025年7月6日 16:45</span>
-            <span>影響度: <span class="impact-badge impact-medium">中</span></span>
-          </div>
-        </div>
-      </a>
+  <main>
+    <h2 class="section-title">最新ニュース</h2>
+    <div class="articles">
+      <article class="card">
+        <a href="article-1.html">
+          <span class="category">規制・政策</span>
+          <h2>総務省、2026年度中に5G周波数帯の追加割当を決定——3.8GHz帯を新たに120MHz幅開放</h2>
+          <p class="summary">総務省は第5世代移動通信システム向けに3.8GHz帯（3800〜3920MHz）を新たに開放する方針を正式発表した。都市部における5Gトラフィックが前年比で約62%増加し、既存帯域の逼迫が背景に。</p>
+          <p class="meta">2026年7月10日 ｜ 日本経済新聞</p>
+        </a>
+      </article>
+
+      <article class="card">
+        <a href="article-2.html">
+          <span class="category">規制・政策</span>
+          <h2>欧州連合、大規模プラットフォーム規制を強化——デジタルサービス法に基づき Meta・TikTok に追加義務</h2>
+          <p class="summary">欧州委員会はDSAに基づく監査の結果、MetaおよびByteDanceに対し未成年保護アルゴリズムの透明性確保とターゲティング広告の制限強化を命じた。違反時の制裁金は全世界売上高の最大6%。</p>
+          <p class="meta">2026年7月8日 ｜ Reuters</p>
+        </a>
+      </article>
+
+      <article class="card">
+        <a href="article-3.html">
+          <span class="category economy">経済・産業</span>
+          <h2>経済産業省、DX推進に向け「クラウド・バイ・デフォルト2.0」を策定——官公庁IT調達の7割をクラウド前提に</h2>
+          <p class="summary">経済産業省は新規システムの70%以上をクラウドサービス上に構築することを義務付ける新方針を公表。対象調達案件は年間約8,200件、総額約1兆2,000億円に上る見込み。</p>
+          <p class="meta">2026年7月9日 ｜ ITmedia NEWS</p>
+        </a>
+      </article>
     </div>
-  </div>
+  </main>
 
-  <div class="sidebar">
-    <h3>事業領域別インパクトサマリ</h3>
-    <ul>
-      <li>📱 <strong>携帯電話事業</strong>：端末調達コスト上昇(+15%)、MNP転出リスク増大、基地局投資見直し<span class="impact-badge impact-high">高</span></li>
-      <li>💬 <strong>SNS事業</strong>：外資系広告主の出稿減、競合プラットフォームへのユーザー流出懸念<span class="impact-badge impact-medium">中</span></li>
-      <li>💻 <strong>SI事業</strong>：顧客企業IT予算縮小(金利上昇)、競合統合による案件集約リスク<span class="impact-badge impact-medium">中</span></li>
-      <li>📊 <strong>全社共通</strong>：為替ヘッジコスト増、人件費圧力、中期経営計画の前提条件見直し<span class="impact-badge impact-high">高</span></li>
-    </ul>
-  </div>
-
-  <div class="sidebar" style="margin-top: 20px;">
-    <h3>通知済み部署</h3>
-    <ul>
-      <li>✅ 携帯電話事業本部 端末調達部 ─ 為替急変シナリオ通知済み</li>
-      <li>✅ SNS事業部 広告営業グループ ─ 競合統合シナリオ通知済み</li>
-      <li>✅ SI事業部 営業企画課 ─ 金融政策転換シナリオ通知済み</li>
-      <li>✅ 経営企画部 リスク管理室 ─ 全シナリオ統合レポート送付済み</li>
-      <li>⏳ 財務部 為替管理課 ─ ヘッジ戦略見直し中</li>
-    </ul>
-  </div>
-</main>
-
-<footer>
-  <p>&copy; 2025 Nexus6 ビジネスニュース ─ ニュース分析・インパクト診断システム</p>
-  <p style="margin-top: 8px;"><a href="sitemap.xml">サイトマップ</a> | <a href="robots.txt">robots.txt</a></p>
-</footer>
-
-<script>
-(function() {
-  var now = new Date();
-  var opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-  document.getElementById('current-date').textContent = now.toLocaleDateString('ja-JP', opts);
-
-  // domain-config から分析対象事業を動的に読み込み
-  fetch('/api/domain-config')
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      var placeholder = document.getElementById('nav-divisions');
-      if (placeholder && data.divisions) {
-        var fragment = document.createDocumentFragment();
-        data.divisions.forEach(function(d) {
-          var li = document.createElement('li');
-          var a = document.createElement('a');
-          a.href = '#';
-          a.textContent = d.label;
-          li.appendChild(a);
-          fragment.appendChild(li);
-        });
-        placeholder.parentNode.replaceChild(fragment, placeholder);
-      }
-    })
-    .catch(function(err) { console.warn('domain-config load failed:', err); });
-})();
-</script>
+  <footer>
+    <p>&copy; 2026 Nexus6 ニュースポータル — ニュース分析・インパクト診断システム デモ環境</p>
+  </footer>
 </body>
 </html>

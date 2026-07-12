@@ -14,11 +14,11 @@ const tabs: { id: TabId; label: string; icon: string }[] = [
   { id: 'recommend', label: 'レコメンド', icon: '💡' },
 ];
 
-const categoryColors: Record<string, string> = {
-  '為替': 'bg-blue-500',
-  '競合統合': 'bg-purple-500',
-  '日銀利上げ': 'bg-amber-500',
-};
+const defaultColors = ['bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500', 'bg-cyan-500'];
+
+function getCategoryColor(_category: string, index: number): string {
+  return defaultColors[index % defaultColors.length];
+}
 
 export default function App() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -104,7 +104,7 @@ export default function App() {
           {/* Article selector bar */}
           <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-1">分析対象:</span>
-            {articles.map((article) => (
+            {articles.map((article, idx) => (
               <button
                 key={article.id}
                 onClick={() => runAnalysis(article)}
@@ -114,7 +114,7 @@ export default function App() {
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${categoryColors[article.category] ?? 'bg-gray-400'}`} />
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getCategoryColor(article.category, idx)}`} />
                 {article.category}
               </button>
             ))}

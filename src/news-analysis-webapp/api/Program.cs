@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
@@ -274,17 +275,29 @@ app.MapGet("/api/domain-config", (IOptions<DivisionsConfig> divisionsConfig) =>
 // News articles list
 app.MapGet("/api/news", () =>
 {
+    // news-scenarios.json からニュースシナリオを読み込み
+    var scenariosPath = Path.Combine(AppContext.BaseDirectory, "news-scenarios.json");
+    if (File.Exists(scenariosPath))
+    {
+        try
+        {
+            var json = File.ReadAllText(scenariosPath);
+            var scenarios = JsonSerializer.Deserialize<List<NewsArticle>>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (scenarios != null && scenarios.Count > 0)
+                return Results.Ok(scenarios);
+        }
+        catch { /* fall through to default */ }
+    }
+
+    // フォールバック: ファイルが無い場合のデフォルト
     var articles = new List<NewsArticle>
     {
-        new("1", "円相場が1ドル=158円台に急落 — 携帯電話・SNS・SI事業への影響分析", "為替",
-            "/news-portal/article-1.html",
-            "外国為替市場で円相場が急落し、対ドルで一時1ドル=158円42銭を記録。携帯電話事業の端末調達コスト、SNS事業の広告収益、SI事業の海外委託費用に広範な影響。"),
-        new("2", "通信大手2社が経営統合を発表 — 市場シェア・顧客流出リスクに警戒", "競合統合",
-            "/news-portal/article-2.html",
-            "国内通信大手A社とB社が経営統合を正式発表。統合後のシェアは国内市場の35%超。携帯電話事業のMNP流出、SNS事業の広告主シフト、SI事業の法人顧客取引見直しリスク。"),
-        new("3", "日銀、追加利上げを決定 — 政策金利0.75%に引き上げ", "日銀利上げ",
-            "/news-portal/article-3.html",
-            "日本銀行が政策金利を0.75%に引き上げ。SI事業の顧客IT投資抑制、SNS広告予算圧縮、携帯事業の基地局投資計画見直しなど全事業に波及。")
+        new("1", "ニュースシナリオが未設定です", "未設定",
+            "/news-portal/index.html",
+            "EnvironmentSetup を実行してニュースシナリオを生成してください。")
     };
     return Results.Ok(articles);
 });

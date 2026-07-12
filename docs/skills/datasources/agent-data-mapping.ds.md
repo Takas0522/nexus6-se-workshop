@@ -106,15 +106,15 @@ INSERT INTO gold_fact_news_impact_assessments (
 
 | ニュースカテゴリ | 影響ドメイン | 実行スキル |
 |---|---|---|
-| `supply_chain` | mobile | `mobile/supplychain-semiconductor-shortage.skill.md` |
-| `supply_chain` | sns | `sns/supplychain-semiconductor-shortage.skill.md` |
-| `supply_chain` | si | `si/supplychain-semiconductor-shortage.skill.md` |
-| `regulation` | mobile | `mobile/regulation-data-privacy-dsa.skill.md` |
-| `regulation` | sns | `sns/regulation-data-privacy-dsa.skill.md` |
-| `regulation` | si | `si/regulation-data-privacy-dsa.skill.md` |
-| `infrastructure` | mobile | `mobile/infrastructure-telecom-quality-standard.skill.md` |
-| `infrastructure` | sns | `sns/infrastructure-telecom-quality-standard.skill.md` |
-| `infrastructure` | si | `si/infrastructure-telecom-quality-standard.skill.md` |
+| `regulation` (5G帯域) | mobile | `mobile/regulation-5g-spectrum-allocation.skill.md` |
+| `regulation` (5G帯域) | sns | `sns/regulation-5g-rich-content-demand.skill.md` |
+| `regulation` (5G帯域) | si | `si/regulation-5g-infrastructure-projects.skill.md` |
+| `regulation` (DSA) | mobile | `mobile/regulation-platform-dsa-spillover.skill.md` |
+| `regulation` (DSA) | sns | `sns/regulation-dsa-platform-compliance.skill.md` |
+| `regulation` (DSA) | si | `si/regulation-dsa-compliance-consulting.skill.md` |
+| `economy` (クラウド) | mobile | `mobile/economy-cloud-default-telecom-demand.skill.md` |
+| `economy` (クラウド) | sns | `sns/economy-cloud-default-b2g-opportunity.skill.md` |
+| `economy` (クラウド) | si | `si/economy-cloud-default-government-projects.skill.md` |
 
 ### クエリパターン
 
@@ -438,6 +438,9 @@ T+5min   [Agent 4] 通知配信
 | `sqldb_si_01.contracts` | - | - | R | - |
 | `sqldb_si_01.transactions` | - | - | R | - |
 | `sqldb_si_01.inventory` | - | - | R | - |
+| `sqldb_news_01.news_articles` | W | R | R | - |
+| `sqldb_news_01.impact_analyses` | - | W | R | R |
+| `sqldb_news_01.notifications` | - | - | - | W |
 | Microsoft Teams API | - | - | - | W |
 | Microsoft Outlook API | - | - | - | W |
 | Power Automate | - | - | - | T |
@@ -452,25 +455,25 @@ T+5min   [Agent 4] 通知配信
 
 | スキルファイル | 主要参照テーブル | 主要KPI |
 |---|---|---|
-| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_mobile_inventory_health`, `sqldb_mobile_01.inventory`, `sqldb_mobile_01.contracts` | 在庫充足率、欠品率、MNP純増減 |
-| `regulation-data-privacy-dsa.skill.md` | `gold_agg_mobile_arpu`, `sqldb_mobile_01.transactions`, `sqldb_mobile_01.customers` | ARPU、顧客データ利用率 |
-| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_churn_risk_scores`, `sqldb_mobile_01.contracts`, `gold_agg_revenue_by_domain` | 解約率、設備投資比率 |
+| `mobile/regulation-5g-spectrum-allocation.skill.md` | `gold_agg_mobile_inventory_health`, `sqldb_mobile_01.contracts`, `sqldb_mobile_01.inventory` | 帯域逼迫率、設備投資額、端末5G対応率 |
+| `mobile/regulation-platform-dsa-spillover.skill.md` | `gold_agg_mobile_arpu`, `sqldb_mobile_01.transactions`, `sqldb_sns_01.ad_inventory` | マーケティング依存度、データ連携契約数、ARPU |
+| `mobile/economy-cloud-default-telecom-demand.skill.md` | `gold_agg_revenue_by_domain`, `sqldb_si_01.contracts`, `sqldb_mobile_01.contracts` | 法人回線契約数、クラウド直結需要、SASE対応率 |
 
 ### SNS事業スキル
 
 | スキルファイル | 主要参照テーブル | 主要KPI |
 |---|---|---|
-| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_sns_dau_mau`, `sqldb_sns_01.customers`, `sqldb_sns_01.transactions` | DAU/MAU比率、新規登録数 |
-| `regulation-data-privacy-dsa.skill.md` | `gold_agg_sns_ad_revenue`, `gold_agg_sns_ad_fill_rate`, `sqldb_sns_01.ad_inventory` | eCPM、充填率、広告収益 |
-| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_sns_dau_mau`, `gold_agg_sns_ad_revenue`, `sqldb_sns_01.transactions` | DAU/MAU、広告収益、可用性 |
+| `sns/regulation-5g-rich-content-demand.skill.md` | `gold_agg_sns_dau_mau`, `gold_agg_sns_ad_revenue`, `sqldb_sns_01.ad_inventory` | 動画コンテンツ比率、動画広告CPM、CDNキャパシティ |
+| `sns/regulation-dsa-platform-compliance.skill.md` | `gold_agg_sns_ad_revenue`, `gold_agg_sns_ad_fill_rate`, `sqldb_sns_01.customers`, `sqldb_sns_01.transactions` | 行動ターゲティング比率、未成年比率、eCPM、広告主離反率 |
+| `sns/economy-cloud-default-b2g-opportunity.skill.md` | `sqldb_sns_01.customers`, `sqldb_sns_01.contracts`, `sqldb_si_01.customers` | 官公庁アカウント数、API連携数、法人プラン契約数 |
 
 ### SI事業スキル
 
 | スキルファイル | 主要参照テーブル | 主要KPI |
 |---|---|---|
-| `supplychain-semiconductor-shortage.skill.md` | `gold_agg_si_project_progress`, `sqldb_si_01.contracts`, `sqldb_si_01.inventory` | 案件遅延率、HW在庫 |
-| `regulation-data-privacy-dsa.skill.md` | `gold_agg_si_project_progress`, `gold_agg_si_resource_utilization`, `sqldb_si_01.customers` | パイプライン総額、リソース稼働率 |
-| `infrastructure-telecom-quality-standard.skill.md` | `gold_agg_si_resource_utilization`, `sqldb_si_01.contracts`, `sqldb_si_01.inventory` | リソース稼働率、通信セクター比率 |
+| `si/regulation-5g-infrastructure-projects.skill.md` | `gold_agg_si_resource_utilization`, `sqldb_si_01.customers`, `sqldb_si_01.contracts`, `sqldb_si_01.resource_inventory` | キャリア顧客数、5G実績件数、ネットワークエンジニア数、稼働率 |
+| `si/regulation-dsa-compliance-consulting.skill.md` | `gold_agg_si_project_progress`, `sqldb_si_01.customers`, `sqldb_si_01.resource_inventory`, `sqldb_sns_01.ad_inventory` | メディア顧客数、AI/ML実績、プライバシー案件数、アドテック実績 |
+| `si/economy-cloud-default-government-projects.skill.md` | `gold_agg_si_resource_utilization`, `gold_agg_si_project_progress`, `sqldb_si_01.customers`, `sqldb_si_01.contracts`, `sqldb_si_01.resource_inventory` | 官公庁顧客数、クラウド認定エンジニア数、ゼロトラスト実績、パートナー数 |
 
 ---
 
@@ -483,6 +486,7 @@ T+5min   [Agent 4] 通知配信
 | sqldb_mobile_01 | Managed Identity | Azure SQL Database |
 | sqldb_sns_01 | Managed Identity | Azure SQL Database |
 | sqldb_si_01 | Managed Identity | Azure SQL Database |
+| sqldb_news_01 | Managed Identity | Azure SQL Database |
 | Bing Grounding | API Key (Key Vault) | AI Foundry 組み込み |
 | Microsoft Teams | Managed Identity (Graph API) | アプリ権限: ChannelMessage.Send |
 | Microsoft Outlook | Managed Identity (Graph API) | アプリ権限: Mail.Send |

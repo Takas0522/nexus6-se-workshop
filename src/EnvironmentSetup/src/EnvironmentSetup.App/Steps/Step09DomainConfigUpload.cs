@@ -84,6 +84,35 @@ public class Step09DomainConfigUpload : ISetupStep
             Console.WriteLine($"    → {relativePath}");
         }
         Console.WriteLine("    ✓ Docker ビルド時にローカルファイルとして埋め込まれます");
+
+        // 5. news-scenarios.json を生成（Step02 の分析結果から）
+        var analysis = state.Analysis;
+        if (analysis != null && analysis.NewsScenarios.Count > 0)
+        {
+            Console.WriteLine("\n  📰 news-scenarios.json を生成中...");
+            var scenariosData = analysis.NewsScenarios.Select((s, i) => new
+            {
+                id = (i + 1).ToString(),
+                title = s.Title,
+                summary = s.Summary,
+                category = s.Category,
+                url = $"/news-portal/article-{i + 1}.html"
+            });
+            var scenariosJson = JsonSerializer.Serialize(scenariosData, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            var scenariosPath = Path.Combine(outputDir, "news-scenarios.json");
+            await File.WriteAllTextAsync(scenariosPath, scenariosJson, ct);
+
+            // webapp ソースにコピー
+            var webappScenariosTarget = Path.Combine(repoRoot, "src", "news-analysis-webapp", "api", "news-scenarios.json");
+            File.Copy(scenariosPath, webappScenariosTarget, overwrite: true);
+            Console.WriteLine($"    → {Path.GetRelativePath(repoRoot, webappScenariosTarget)}");
+            Console.WriteLine("    ✓ news-scenarios.json 生成完了");
+        }
     }
 
     private static string FindRepoRoot()
