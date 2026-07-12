@@ -112,7 +112,13 @@ public sealed class ConfigDrivenDivisionRecommendAgent : IWorkflowStep<NewsAnaly
             if (string.IsNullOrWhiteSpace(headline) || nextActions.Length == 0)
                 return FallbackRecommendation();
 
-            return new DivisionRecommendation(_config.Id, headline, nextActions, dataReferences)
+            return new DivisionRecommendation(
+                _config.Id,
+                ReferenceCatalog.LocalizeText(headline),
+                nextActions.Select(a => new NextAction(
+                    ReferenceCatalog.LocalizeText(a.Title),
+                    ReferenceCatalog.LocalizeText(a.Body))).ToArray(),
+                dataReferences)
             {
                 SourceFiles = sourceFiles,
                 KpiReferences = kpiReferences
@@ -177,11 +183,14 @@ public sealed class ConfigDrivenDivisionRecommendAgent : IWorkflowStep<NewsAnaly
         foreach (var item in array.EnumerateArray())
         {
             if (item.ValueKind != JsonValueKind.Object) continue;
-            yield return new KpiReference(
-                item.TryGetProperty("physical_name", out var pn) ? pn.GetString() ?? "" : "",
-                item.TryGetProperty("value", out var v) ? v.GetString() ?? "" : "",
-                item.TryGetProperty("unit", out var u) ? u.GetString() ?? "" : "",
-                item.TryGetProperty("table", out var tb) ? tb.GetString() ?? "" : "");
+            var physicalName = item.TryGetProperty("physical_name", out var pn) ? pn.GetString() ?? "" : "";
+            if (string.IsNullOrWhiteSpace(physicalName)) continue;
+            yield return ReferenceCatalog.LocalizeKpi(new KpiReference(
+                physicalName,
+                LogicalNameJa: item.TryGetProperty("logical_name_ja", out var ln) ? ln.GetString() ?? "" : "",
+                Value: item.TryGetProperty("value", out var v) ? v.GetString() ?? v.ToString() : null,
+                Unit: item.TryGetProperty("unit", out var u) ? u.GetString() : null,
+                Table: item.TryGetProperty("table", out var tb) ? tb.GetString() : null));
         }
     }
 
