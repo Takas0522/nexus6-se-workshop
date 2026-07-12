@@ -1,0 +1,42 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+local.settings.json
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+bin/
+obj/
+publish/
+*.publish.zip
+
+# Function app deployment artifacts
+src/news-trigger-function/publish.zip
+
+# Logs and temporary files
+*.log
+.cache/
+.tmp/
+tmp/
+temp/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# EnvironmentSetup CLI runtime outputs
+setup-state.json
+output/
+logs/

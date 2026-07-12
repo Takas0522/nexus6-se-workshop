@@ -1,0 +1,85 @@
+{
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.5",
+        "body": [
+          {
+            "type": "Container",
+            "style": "emphasis",
+            "bleed": true,
+            "items": [
+              {
+                "type": "TextBlock",
+                "text": "Mobile Web Pulse Recommendation",
+                "weight": "Bolder",
+                "size": "Large",
+                "color": "Accent",
+                "wrap": true
+              },
+              {
+                "type": "TextBlock",
+                "text": "Mobile stub recommendation",
+                "weight": "Bolder",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "type": "FactSet",
+            "facts": [
+              { "title": "Risk", "value": "high" },
+              { "title": "Division", "value": "Mobile" }
+            ]
+          },
+          {
+            "type": "TextBlock",
+            "text": "Next Actions",
+            "weight": "Bolder",
+            "spacing": "Medium"
+          },
+          {
+  "type": "TextBlock",
+  "text": "\u2022 Review Mobile KPI dashboard",
+  "wrap": true
+},
+              {
+  "type": "TextBlock",
+  "text": "\u2022 Prepare Mobile mitigation plan",
+  "wrap": true
+},
+          {
+            "type": "TextBlock",
+            "text": "Data References",
+            "weight": "Bolder",
+            "spacing": "Medium"
+          },
+          {
+  "type": "TextBlock",
+  "text": "\u2022 mock://mobile/kpi",
+  "wrap": true
+},
+              {
+  "type": "TextBlock",
+  "text": "\u2022 mock://impact-scores",
+  "wrap": true
+}
+        ],
+        "actions": [
+          {
+            "type": "Action.Submit",
+            "title": "確認済みにする",
+            "data": {
+              "division": "Mobile",
+              "action": "acknowledge-recommendation"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

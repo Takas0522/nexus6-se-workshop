@@ -28,3 +28,8 @@
 - プロジェクトルート: [README.md](README.md)
 - Scenario 文書フォルダ: [docs/scenario](docs/scenario)
 - Use case 文書フォルダ: [docs/usecase](docs/usecase)
+
+## インフラ・デプロイ作業ルール
+- Azure インフラ関連のエラー（Bicep デプロイ失敗、RBAC 401/403、リージョン/クォータ問題、Fabric/Foundry エラー等）が発生した場合は、**まず `.github/skills/infra-troubleshooting/SKILL.md` を参照**してから対処してください。
+- Skill に記載済みの既知問題を再発させる修正は禁止です。Skill の Gotchas セクションを必ず確認してください。
+- 新たなインフラ問題を解決した場合は、Skill の Troubleshooting テーブルおよび Gotchas セクションに追記してください。

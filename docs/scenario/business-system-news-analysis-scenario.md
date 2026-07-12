@@ -1,0 +1,48 @@
+# 業務システム別ニュース分析シナリオ
+
+## 目的
+外部ニュースを発信源としつつ、ニュース自体やNextActionをマスタ化せず、各事業部が保有する業務システムの内部データだけを使ってインサイトを得る。
+
+## 前提
+- 事業はモバイル通信、Eコマース、Fintechの3サービスに分離している。
+- 各事業は独立した業務システムを持つ。
+- ニュースはきっかけであり、実際の判定は各業務システムのデータで行う。
+
+## シナリオ1: 為替の急変動（円安ショック）
+- モバイル: 端末仕入・基地局保守・設備投資に影響
+- Eコマース: 越境EC・海外出店者の仕入や価格に影響
+- Fintech: FX・証券・海外決済・暗号資産の収益性とリスクに影響
+
+## シナリオ2: 競合経済圏の大型統合・ポイント改定
+- モバイル: 料金・乗換競争に影響
+- Eコマース: ポイント還元競争に影響
+- Fintech: 決済・カードのシェア競争に影響
+
+## シナリオ3: 日銀の金融政策転換（利上げ・金利上昇）
+- モバイル: 端末分割・設備投資コストに影響
+- Eコマース: 消費下押しで需要に影響
+- Fintech: 銀行利ざや、住宅ローン、リボ、証券に影響
+
+## 共通の考え方
+1. ニュースは外部入力として受ける。
+2. 各事業の業務システムにある売上、コスト、契約、在庫、与信、利用履歴を参照する。
+3. 事業部ごとに影響要因を内部データから解釈する。
+4. 結果として、事業部の意思決定材料を作る。
+
+## 関連仕様
+- [モバイル通信業務システムデータモデル](../usecase/mobile-telecom-system-data-model.md)
+- [Eコマース業務システムデータモデル](../usecase/ecommerce-system-data-model.md)
+- [Fintech業務システムデータモデル](../usecase/fintech-system-data-model.md)
+
+## Demo 入力源（ニュース記事プレビュー）
+
+Demo 実演時のニュース入力源として、`src/news-portal/` 配下に静的 HTML 記事を配置している。これは **外部ニュースサイトを模した「読み取り対象」** であり、人間がブラウザから閲覧したり「分析開始」ボタンを押したりすることは想定しない。
+
+| ファイル | 想定シナリオ |
+|---|---|
+| `src/news-portal/index.html` | 記事一覧ページ |
+| `src/news-portal/article-fx1.html` | シナリオ1（為替急変） |
+| `src/news-portal/article-comp1.html` | シナリオ2（競合経済圏統合） |
+| `src/news-portal/article-boj1.html` | シナリオ3（日銀金融政策転換） |
+
+Demo フロー: **Foundry Scheduled Trigger** が cron 起動 → Foundry Trigger Agent が WebIQ/Bing Grounding に **BLOB 静的サイトの URL を指定** して記事本文を取得 → 新着分を Azure Storage Queue (`news-analysis-jobs`) に enqueue → Hosted Agent (.NET) の `QueueBackgroundService` が dequeue → Agent 1〜4 を順次実行 → Teams / DevUI で結果確認。News Portal 側はコード（JavaScript・API 呼び出し）を持たない純粋な静的サイトで、人手のボタン操作も発生しない。

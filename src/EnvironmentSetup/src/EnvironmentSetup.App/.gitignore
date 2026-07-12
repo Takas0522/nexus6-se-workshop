@@ -1,0 +1,5 @@
+# 実行時に生成される成果物
+output/
+*.html
+*.sql
+setup-state.json

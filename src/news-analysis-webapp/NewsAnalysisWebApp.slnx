@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/api/">
+    <Project Path="api/NewsAnalysisWebApp.Api.csproj" />
+  </Folder>
+  <Project Path="../news-analysis-agent/src/NewsAnalysisAgent.Agents/NewsAnalysisAgent.Agents.csproj" />
+  <Project Path="../news-analysis-agent/src/NewsAnalysisAgent.Models/NewsAnalysisAgent.Models.csproj" />
+  <Project Path="../news-analysis-agent/src/NewsAnalysisAgent.Orchestration/NewsAnalysisAgent.Orchestration.csproj" />
+  <Project Path="../news-analysis-agent/src/NewsAnalysisAgent.Tools/NewsAnalysisAgent.Tools.csproj" />
+</Solution>

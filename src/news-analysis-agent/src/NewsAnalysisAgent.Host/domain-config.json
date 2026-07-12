@@ -1,0 +1,182 @@
+{
+  "divisions": [
+    {
+      "id": "div_f6d0",
+      "label": "AI\u30A8\u30FC\u30B8\u30A7\u30F3\u30C8",
+      "interestAreas": [
+        "\u4E8B\u696DKPI",
+        "\u30B3\u30B9\u30C8\u6307\u6A19",
+        "\u30EA\u30B9\u30AF\u6307\u6A19",
+        "\u9867\u5BA2\u6307\u6A19",
+        "\u53CE\u76CA\u6307\u6A19"
+      ],
+      "fabricTable": "div_f6d0_ai_risk_summary",
+      "teamsTeamId": "",
+      "teamsChannelId": "",
+      "teamsWorkflowsUrl": "",
+      "foundryAssistantName": "nexus6-div_f6d0-recommend-filesearch"
+    },
+    {
+      "id": "game",
+      "label": "\u30B2\u30FC\u30E0\u4E8B\u696D",
+      "interestAreas": [
+        "\u4E8B\u696DKPI",
+        "\u30B3\u30B9\u30C8\u6307\u6A19",
+        "\u30EA\u30B9\u30AF\u6307\u6A19",
+        "\u9867\u5BA2\u6307\u6A19",
+        "\u53CE\u76CA\u6307\u6A19"
+      ],
+      "fabricTable": "game_ai_risk_summary",
+      "teamsTeamId": "",
+      "teamsChannelId": "",
+      "teamsWorkflowsUrl": "",
+      "foundryAssistantName": "nexus6-game-recommend-filesearch"
+    },
+    {
+      "id": "div_6e2f",
+      "label": "\u30CD\u30C3\u30C8\u30EF\u30FC\u30AF\u30B5\u30FC\u30D3\u30B9\u4E8B\u696D",
+      "interestAreas": [
+        "\u4E8B\u696DKPI",
+        "\u30B3\u30B9\u30C8\u6307\u6A19",
+        "\u30EA\u30B9\u30AF\u6307\u6A19",
+        "\u9867\u5BA2\u6307\u6A19",
+        "\u53CE\u76CA\u6307\u6A19"
+      ],
+      "fabricTable": "div_6e2f_ai_risk_summary",
+      "teamsTeamId": "",
+      "teamsChannelId": "",
+      "teamsWorkflowsUrl": "",
+      "foundryAssistantName": "nexus6-div_6e2f-recommend-filesearch"
+    }
+  ],
+  "kpiLabels": {
+    "year_month": {
+      "logicalNameJa": "\u5BFE\u8C61\u5E74\u6708",
+      "unit": "yyyy-MM"
+    },
+    "division": {
+      "logicalNameJa": "\u4E8B\u696D\u90E8",
+      "unit": ""
+    },
+    "gross_revenue_jpy": {
+      "logicalNameJa": "\u6708\u6B21\u58F2\u4E0A\u9AD8",
+      "unit": "\u5186"
+    },
+    "total_cost_jpy": {
+      "logicalNameJa": "\u7DCF\u30B3\u30B9\u30C8",
+      "unit": "\u5186"
+    },
+    "gross_margin_jpy": {
+      "logicalNameJa": "\u7C97\u5229\u984D",
+      "unit": "\u5186"
+    },
+    "gross_margin_rate": {
+      "logicalNameJa": "\u7C97\u5229\u7387",
+      "unit": "%"
+    },
+    "active_customer_count": {
+      "logicalNameJa": "\u30A2\u30AF\u30C6\u30A3\u30D6\u9867\u5BA2\u6570",
+      "unit": "\u4EBA"
+    },
+    "churn_rate": {
+      "logicalNameJa": "\u89E3\u7D04\u7387",
+      "unit": "%"
+    },
+    "churned_customer_count": {
+      "logicalNameJa": "\u96E2\u8131\u9867\u5BA2\u6570",
+      "unit": "\u4EBA"
+    },
+    "metric_name": {
+      "logicalNameJa": "\u6307\u6A19\u540D",
+      "unit": ""
+    },
+    "metric_value": {
+      "logicalNameJa": "\u6307\u6A19\u5024",
+      "unit": ""
+    },
+    "metric_unit": {
+      "logicalNameJa": "\u5358\u4F4D",
+      "unit": ""
+    },
+    "description": {
+      "logicalNameJa": "\u8AAC\u660E",
+      "unit": ""
+    },
+    "fx_exposure_usd": {
+      "logicalNameJa": "USD\u70BA\u66FF\u30A8\u30AF\u30B9\u30DD\u30FC\u30B8\u30E3\u30FC",
+      "unit": "USD"
+    },
+    "fx_exposure_other_jpy": {
+      "logicalNameJa": "\u305D\u306E\u4ED6\u901A\u8CA8\u30A8\u30AF\u30B9\u30DD\u30FC\u30B8\u30E3\u30FC",
+      "unit": "\u5186"
+    },
+    "ad_revenue_jpy": {
+      "logicalNameJa": "\u5E83\u544A\u53CE\u76CA",
+      "unit": "\u5186"
+    },
+    "dau": {
+      "logicalNameJa": "DAU\uFF08\u65E5\u6B21\u30A2\u30AF\u30C6\u30A3\u30D6\u30E6\u30FC\u30B6\u30FC\uFF09",
+      "unit": "\u4EBA"
+    },
+    "subscription_revenue_jpy": {
+      "logicalNameJa": "\u30B5\u30D6\u30B9\u30AF\u30EA\u30D7\u30B7\u30E7\u30F3\u53CE\u76CA",
+      "unit": "\u5186"
+    },
+    "content_production_cost_jpy": {
+      "logicalNameJa": "\u30B3\u30F3\u30C6\u30F3\u30C4\u5236\u4F5C\u8CBB",
+      "unit": "\u5186"
+    },
+    "streaming_infra_cost_jpy": {
+      "logicalNameJa": "\u914D\u4FE1\u30A4\u30F3\u30D5\u30E9\u30B3\u30B9\u30C8",
+      "unit": "\u5186"
+    },
+    "game_revenue_jpy": {
+      "logicalNameJa": "\u30B2\u30FC\u30E0\u58F2\u4E0A",
+      "unit": "\u5186"
+    },
+    "in_app_purchase_jpy": {
+      "logicalNameJa": "\u30A2\u30D7\u30EA\u5185\u8AB2\u91D1\u984D",
+      "unit": "\u5186"
+    },
+    "server_cost_jpy": {
+      "logicalNameJa": "\u30B5\u30FC\u30D0\u30FC\u30B3\u30B9\u30C8",
+      "unit": "\u5186"
+    },
+    "concurrent_users": {
+      "logicalNameJa": "\u540C\u6642\u63A5\u7D9A\u30E6\u30FC\u30B6\u30FC\u6570",
+      "unit": "\u4EBA"
+    },
+    "mnp_out_rate": {
+      "logicalNameJa": "MNP\u8EE2\u51FA\u7387",
+      "unit": "%"
+    },
+    "device_fx_cost_jpy": {
+      "logicalNameJa": "\u6D77\u5916\u7AEF\u672B\u4ED5\u5165\u30B3\u30B9\u30C8",
+      "unit": "\u5186"
+    },
+    "campaign_roi": {
+      "logicalNameJa": "\u30AD\u30E3\u30F3\u30DA\u30FC\u30F3ROI",
+      "unit": "\u500D"
+    },
+    "crossborder_fx_cost_jpy": {
+      "logicalNameJa": "\u8D8A\u5883EC\u70BA\u66FF\u30B3\u30B9\u30C8",
+      "unit": "\u5186"
+    },
+    "fx_position_usd": {
+      "logicalNameJa": "USD\u5EFA\u3066FX\u30DD\u30B8\u30B7\u30E7\u30F3",
+      "unit": "USD"
+    },
+    "loan_delinquency_rate": {
+      "logicalNameJa": "\u30ED\u30FC\u30F3\u5EF6\u6EDE\u7387",
+      "unit": "%"
+    },
+    "loan_balance": {
+      "logicalNameJa": "\u30ED\u30FC\u30F3\u6B8B\u9AD8",
+      "unit": "\u5186"
+    },
+    "avg_interest_rate": {
+      "logicalNameJa": "\u5E73\u5747\u8CB8\u51FA\u91D1\u5229",
+      "unit": "%"
+    }
+  }
+}

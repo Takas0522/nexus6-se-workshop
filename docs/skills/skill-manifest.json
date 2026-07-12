@@ -1,0 +1,74 @@
+{
+  "fintech_skill_mortgage-rate-hike.md": {
+    "title_ja": "住宅ローン金利上昇インパクト判断",
+    "owner": "金融部門 ベテラン審査担当"
+  },
+  "fintech_skill_fx-exposure.md": {
+    "title_ja": "為替エクスポージャー影響判断",
+    "owner": "金融部門 市場リスク担当"
+  },
+  "fintech_skill_card-share.md": {
+    "title_ja": "カード決済シェア低下シナリオ",
+    "owner": "金融部門 決済事業担当"
+  },
+  "mobile_skill_competitor-mnp.md": {
+    "title_ja": "競合 MNP 流出シナリオ",
+    "owner": "モバイル事業 顧客戦略"
+  },
+  "mobile_skill_fx-impact.md": {
+    "title_ja": "為替による端末調達コスト影響",
+    "owner": "モバイル事業 端末調達"
+  },
+  "mobile_skill_boj-installment.md": {
+    "title_ja": "日銀利上げと端末分割払い影響",
+    "owner": "モバイル事業 ファイナンス"
+  },
+  "mobile_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約インパクト判断",
+    "owner": "携帯電話事業 端末調達"
+  },
+  "mobile_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法インパクト判断",
+    "owner": "携帯電話事業 コンプライアンス"
+  },
+  "mobile_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃インパクト判断",
+    "owner": "携帯電話事業 IT基盤・CSIRT"
+  },
+  "sns_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約によるSNSインフラ影響判断",
+    "owner": "SNS事業 インフラ・広告基盤"
+  },
+  "sns_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法によるSNS広告収益影響判断",
+    "owner": "SNS事業 プライバシー・広告戦略"
+  },
+  "sns_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃によるSNSプラットフォーム影響判断",
+    "owner": "SNS事業 インフラ・CSIRT"
+  },
+  "si_skill_semiconductor-shortage.md": {
+    "title_ja": "半導体供給制約によるSIプロジェクト納期影響判断",
+    "owner": "SI事業 プロジェクト管理・調達"
+  },
+  "si_skill_data-privacy-regulation.md": {
+    "title_ja": "改正個人情報保護法によるSI事業影響判断",
+    "owner": "SI事業 法務・コンプライアンス"
+  },
+  "si_skill_cloud-cyber-attack.md": {
+    "title_ja": "クラウドサイバー攻撃による顧客システム影響判断",
+    "owner": "SI事業 運用管理・CSIRT"
+  },
+  "ecommerce_skill_consumer-sentiment.md": {
+    "title_ja": "消費者マインド悪化時の需要判断",
+    "owner": "EC事業 需要予測"
+  },
+  "ecommerce_skill_fx-crossborder.md": {
+    "title_ja": "越境 EC 為替コスト影響",
+    "owner": "EC事業 海外調達"
+  },
+  "ecommerce_skill_point-competition.md": {
+    "title_ja": "ポイント競争と販促費判断",
+    "owner": "EC事業 CRM・販促"
+  }
+}

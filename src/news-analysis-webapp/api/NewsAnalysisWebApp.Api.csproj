@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Agents/NewsAnalysisAgent.Agents.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Models/NewsAnalysisAgent.Models.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Orchestration/NewsAnalysisAgent.Orchestration.csproj" />
+    <ProjectReference Include="../../news-analysis-agent/src/NewsAnalysisAgent.Tools/NewsAnalysisAgent.Tools.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.*" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="domain-config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Update="news-scenarios.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

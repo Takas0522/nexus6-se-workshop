@@ -1,0 +1,37 @@
+# a-infra-iac execution log
+datetime: 2026-06-27T09:09:28Z
+subscription: b604add2-86ec-47d6-bd23-672ca63c216a
+tenant: 9e575763-d389-4aa8-b0a9-a64ba4cc1029
+resourceGroup: rg-nexus6-swc
+location: swedencentral
+suffix: 1t2i
+
+## Name checks
+az storage account check-name --name stnexus6skill1t2i => nameAvailable: true
+az storage account check-name --name stnexus6portal1t2i => nameAvailable: true
+
+## Commands
+az provider register -n Microsoft.App --wait
+az provider register -n Microsoft.OperationalInsights --wait
+az provider register -n Microsoft.ContainerRegistry --wait
+az storage account create -g rg-nexus6-swc -n stnexus6skill1t2i -l swedencentral --sku Standard_LRS --kind StorageV2 --hns true --tags project=nexus6-se-workshop env=demo
+az storage account create -g rg-nexus6-swc -n stnexus6portal1t2i -l swedencentral --sku Standard_LRS --kind StorageV2 --tags project=nexus6-se-workshop env=demo
+az storage container create --account-name stnexus6skill1t2i --name skill-docs --auth-mode login
+az storage queue create --account-name stnexus6skill1t2i --name news-analysis-jobs --auth-mode login
+az storage blob service-properties update --account-name stnexus6portal1t2i --static-website --index-document index.html --auth-mode login
+az keyvault create -g rg-nexus6-swc -n kv-nexus6-swc -l swedencentral --sku standard --enable-rbac-authorization true --retention-days 7 --tags project=nexus6-se-workshop env=demo
+az acr create -g rg-nexus6-swc -n crnexus6swc --sku Basic --admin-enabled false --tags project=nexus6-se-workshop env=demo
+az monitor log-analytics workspace create -g rg-nexus6-swc -n log-nexus6-swc -l swedencentral --sku PerGB2018 --tags project=nexus6-se-workshop env=demo
+az monitor app-insights component create -g rg-nexus6-swc --app appi-nexus6-swc -l swedencentral --application-type web --kind web --workspace <workspace-resource-id> --tags project=nexus6-se-workshop env=demo
+az containerapp env create -g rg-nexus6-swc -n cae-nexus6-swc -l swedencentral --logs-workspace-id <workspace-customer-id> --logs-workspace-key <redacted> --tags project=nexus6-se-workshop env=demo
+
+## az resource list -g rg-nexus6-swc -o table
+Name                ResourceGroup    Location       Type                                      Status
+------------------  ---------------  -------------  ----------------------------------------  ---------
+stnexus6skill1t2i   rg-nexus6-swc    swedencentral  Microsoft.Storage/storageAccounts         Succeeded
+stnexus6portal1t2i  rg-nexus6-swc    swedencentral  Microsoft.Storage/storageAccounts         Succeeded
+kv-nexus6-swc       rg-nexus6-swc    swedencentral  Microsoft.KeyVault/vaults                 Succeeded
+crnexus6swc         rg-nexus6-swc    swedencentral  Microsoft.ContainerRegistry/registries    Succeeded
+log-nexus6-swc      rg-nexus6-swc    swedencentral  Microsoft.OperationalInsights/workspaces  Succeeded
+appi-nexus6-swc     rg-nexus6-swc    swedencentral  Microsoft.Insights/components             Succeeded
+cae-nexus6-swc      rg-nexus6-swc    swedencentral  Microsoft.App/managedEnvironments         Succeeded
