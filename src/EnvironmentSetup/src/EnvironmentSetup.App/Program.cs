@@ -265,7 +265,56 @@ static async Task CleanupResources(SetupState state, AzureCliWrapper az, string 
         Console.WriteLine("  ℹ️ Entra ID App: 未設定 (スキップ)");
     }
 
-    // 4. setup-state.json を削除
+    // 4. Cognitive Services ソフトデリート済みアカウントをパージ
+    Console.Write("  🔍 ソフトデリート済み Cognitive Services を検索中...");
+    try
+    {
+        var deletedJson = await az.RunAsync("cognitiveservices account list-deleted -o json", silent: true);
+        var deletedDoc = System.Text.Json.JsonDocument.Parse(deletedJson);
+        var purgeTargets = deletedDoc.RootElement.EnumerateArray()
+            .Where(a => (a.GetProperty("name").GetString() ?? "").StartsWith("fd-nexus6"))
+            .ToList();
+
+        if (purgeTargets.Count == 0)
+        {
+            Console.WriteLine(" 未検出 (スキップ)");
+        }
+        else
+        {
+            Console.WriteLine($" {purgeTargets.Count} 件検出");
+            foreach (var target in purgeTargets)
+            {
+                var name = target.GetProperty("name").GetString()!;
+                // id format: /subscriptions/.../resourceGroups/{rg}/providers/.../accounts/{name}
+                var idParts = (target.GetProperty("id").GetString() ?? "").Split('/');
+                var rgIdx = Array.IndexOf(idParts, "resourceGroups");
+                var targetRg = rgIdx >= 0 && rgIdx + 1 < idParts.Length ? idParts[rgIdx + 1] : "";
+                var location = target.TryGetProperty("properties", out var props)
+                    && props.TryGetProperty("location", out var loc)
+                    ? loc.GetString() ?? "northeurope" : "northeurope";
+
+                Console.Write($"    🗑️ パージ中: {name} (RG={targetRg}, loc={location})...");
+                try
+                {
+                    await az.RunAsync(
+                        $"cognitiveservices account purge --name {name} --resource-group {targetRg} --location {location}",
+                        silent: true);
+                    Console.WriteLine(" ✓");
+                    deleted.Add($"CS purge: {name}");
+                }
+                catch (Exception ex2)
+                {
+                    Console.WriteLine($" ⚠️ {ex2.Message[..Math.Min(80, ex2.Message.Length)]}");
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($" ⚠️ {ex.Message[..Math.Min(80, ex.Message.Length)]}");
+    }
+
+    // 5. setup-state.json を削除
     Console.WriteLine();
     if (File.Exists(stateFile))
     {
