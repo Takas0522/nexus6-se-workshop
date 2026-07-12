@@ -10,6 +10,7 @@ ConsoleApp.Run(args, async (
     bool useDefaults = false,
     bool verbose = false,
     bool nonInteractive = false,
+    bool cleanup = false,
     string domains = "",
     int employees = 0,
     string notificationTeam = "",
@@ -30,6 +31,16 @@ ConsoleApp.Run(args, async (
 
     Directory.CreateDirectory(logDir);
 
+    var stateManager = new StateManager(stateFile);
+    var state = await stateManager.LoadAsync();
+
+    // --cleanup: setup-state.json の情報を元にリソースを全削除
+    if (cleanup)
+    {
+        await CleanupResources(state, new AzureCliWrapper(verbose, logDir), stateFile);
+        return;
+    }
+
     var niConfig = new NonInteractiveConfig
     {
         Enabled = nonInteractive,
@@ -40,9 +51,6 @@ ConsoleApp.Run(args, async (
         ResourceGroup = resourceGroup,
         WebIqApiKey = webiqApiKey,
     };
-
-    var stateManager = new StateManager(stateFile);
-    var state = await stateManager.LoadAsync();
 
     await using var copilotService = new CopilotService();
     var azureCli = new AzureCliWrapper(verbose, logDir);
@@ -145,3 +153,104 @@ ConsoleApp.Run(args, async (
         Console.WriteLine();
     }
 });
+
+static async Task CleanupResources(SetupState state, AzureCliWrapper az, string stateFile)
+{
+    Console.WriteLine("╔══════════════════════════════════════════════════════════╗");
+    Console.WriteLine("║  🗑️  環境クリーンアップ                                 ║");
+    Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+    Console.WriteLine();
+
+    var deleted = new List<string>();
+
+    // 1. Azure Resource Group
+    var rg = state.Azure?.ResourceGroup;
+    if (!string.IsNullOrWhiteSpace(rg))
+    {
+        Console.Write($"  🗑️ Resource Group '{rg}' を削除中...");
+        try
+        {
+            await az.RunAsync($"group delete --name {rg} --yes --no-wait", silent: true);
+            Console.WriteLine(" ✓ (非同期削除開始)");
+            deleted.Add($"RG: {rg}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($" ⚠️ {ex.Message[..Math.Min(80, ex.Message.Length)]}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("  ℹ️ Resource Group: 未設定 (スキップ)");
+    }
+
+    // 2. Fabric Workspace
+    var wsId = state.Medallion?.WorkspaceId;
+    if (!string.IsNullOrWhiteSpace(wsId))
+    {
+        Console.Write($"  🗑️ Fabric Workspace '{wsId}' を削除中...");
+        try
+        {
+            await az.RunAsync(
+                $"rest --method DELETE --url \"https://api.fabric.microsoft.com/v1/workspaces/{wsId}\" " +
+                "--resource \"https://api.fabric.microsoft.com\"",
+                silent: true);
+            Console.WriteLine(" ✓");
+            deleted.Add($"Fabric WS: {wsId}");
+        }
+        catch (Exception ex)
+        {
+            // 404 = already deleted
+            if (ex.Message.Contains("404") || ex.Message.Contains("NotFound"))
+                Console.WriteLine(" ✓ (既に削除済み)");
+            else
+                Console.WriteLine($" ⚠️ {ex.Message[..Math.Min(80, ex.Message.Length)]}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("  ℹ️ Fabric Workspace: 未設定 (スキップ)");
+    }
+
+    // 3. Entra ID App
+    var appId = state.Deployment?.EntraAppId;
+    if (!string.IsNullOrWhiteSpace(appId))
+    {
+        Console.Write($"  🗑️ Entra ID App '{appId}' を削除中...");
+        try
+        {
+            await az.RunAsync($"ad app delete --id {appId}", silent: true);
+            Console.WriteLine(" ✓");
+            deleted.Add($"Entra App: {appId}");
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("404") || ex.Message.Contains("does not exist"))
+                Console.WriteLine(" ✓ (既に削除済み)");
+            else
+                Console.WriteLine($" ⚠️ {ex.Message[..Math.Min(80, ex.Message.Length)]}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("  ℹ️ Entra ID App: 未設定 (スキップ)");
+    }
+
+    // 4. setup-state.json を削除
+    Console.WriteLine();
+    if (File.Exists(stateFile))
+    {
+        File.Delete(stateFile);
+        Console.WriteLine($"  🗑️ {stateFile} を削除しました。");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("  ───────────────────────────────────────────────");
+    Console.WriteLine($"  ✅ クリーンアップ完了 ({deleted.Count} リソース削除)");
+    foreach (var item in deleted)
+        Console.WriteLine($"     • {item}");
+    Console.WriteLine();
+    Console.WriteLine("  💡 RG の完全削除には数分かかります。");
+    Console.WriteLine("     再構築するには: dotnet run -- --step 1");
+    Console.WriteLine();
+}
