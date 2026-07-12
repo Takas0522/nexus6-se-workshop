@@ -54,11 +54,12 @@ public class Step07MedallionSetup : ISetupStep
         // 3. Seed データを Bronze にアップロード
         await UploadSeedDataAsync(wsId, bronze, analysis, ct);
 
-        // 4. ETL Notebook を作成
+        // 4. ETL Notebook を作成 (Bronze に CSV → Delta テーブル変換)
         var nbBronzeToSilver = await EnsureNotebookAsync(wsId, "nb_bronze_to_silver",
-            BuildBronzeToSilverCode(analysis, bronze, silver), silver.Id, ct);
+            BuildBronzeToSilverCode(analysis, bronze, silver), bronze.Id, ct);
+        // Silver→Gold は Bronze テーブルをそのまま参照するため不要だが、Notebook は維持
         var nbSilverToGold = await EnsureNotebookAsync(wsId, "nb_silver_to_gold",
-            BuildSilverToGoldCode(analysis, silver, gold), gold.Id, ct);
+            BuildSilverToGoldCode(analysis, silver, gold), bronze.Id, ct);
 
         Console.WriteLine($"    Notebook (Bronze→Silver): {nbBronzeToSilver}");
         Console.WriteLine($"    Notebook (Silver→Gold):   {nbSilverToGold}\n");
@@ -80,6 +81,23 @@ public class Step07MedallionSetup : ISetupStep
             BronzeToSilverNotebookId = nbBronzeToSilver,
             SilverToGoldNotebookId = nbSilverToGold
         };
+
+        // 7. Bronze Lakehouse SQL Endpoint を取得して Deployment に保存
+        try
+        {
+            var sqlEndpoint = await GetLakehouseSqlEndpointAsync(wsId, bronze.Id);
+            if (!string.IsNullOrEmpty(sqlEndpoint))
+            {
+                state.Deployment ??= new DeploymentResult();
+                state.Deployment.FabricSqlEndpoint = sqlEndpoint;
+                state.Deployment.FabricDatabase = "lh_bronze";
+                Console.WriteLine($"    SQL Endpoint: {sqlEndpoint}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"    ⚠️ SQL Endpoint 取得スキップ: {ex.Message}");
+        }
 
         Console.WriteLine($"\n  ✓ メダリオンアーキテクチャ構築完了");
     }
@@ -358,34 +376,39 @@ public class Step07MedallionSetup : ISetupStep
     {
         Console.WriteLine("    Seed データを Bronze にアップロード中...");
 
-        // テーブル定義からCSVシードデータを生成して OneLake にアップロード
         var seedDir = Path.GetFullPath("./output/seed");
         Directory.CreateDirectory(seedDir);
 
-        foreach (var table in analysis.Tables)
+        // output/seed/ 配下の全 CSV をアップロード
+        var csvFiles = Directory.GetFiles(seedDir, "*.csv");
+        if (csvFiles.Length == 0)
         {
-            var csvPath = Path.Combine(seedDir, $"{table.TableName}.csv");
-            if (!File.Exists(csvPath))
-            {
-                // ヘッダー行のみのCSVを生成 (実データは Step06 で SQL に投入済み)
-                var header = string.Join(",", table.Columns.Select(c => c.Name));
-                await File.WriteAllTextAsync(csvPath, header + "\n", ct);
-            }
+            Console.WriteLine("      ⚠️ Seed CSV が見つかりません。Step 6 を先に実行してください。");
+            return;
+        }
 
-            // OneLake DFS API でアップロード
-            var oneLakePath = $"{wsId}/{bronze.Id}/Files/seed/{table.TableName}.csv";
+        var token = await GetStorageTokenAsync();
+        var uploaded = 0;
+        foreach (var csvPath in csvFiles)
+        {
+            var fileName = Path.GetFileName(csvPath);
+            var fileSize = new FileInfo(csvPath).Length;
+            if (fileSize <= 10) // ヘッダーのみファイルはスキップ
+                continue;
+
+            var oneLakePath = $"{wsId}/{bronze.Id}/Files/seed/{fileName}";
             try
             {
-                var token = await GetStorageTokenAsync();
                 await UploadToOneLakeAsync(oneLakePath, csvPath, token);
+                uploaded++;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"      ⚠️ {table.TableName}.csv アップロードスキップ: {ex.Message}");
+                Console.WriteLine($"      ⚠️ {fileName} アップロードスキップ: {ex.Message}");
             }
         }
 
-        Console.WriteLine("      ✓ Seed アップロード完了");
+        Console.WriteLine($"      ✓ Seed アップロード完了 ({uploaded}/{csvFiles.Length} ファイル)");
     }
 
     private async Task<string> GetStorageTokenAsync()
@@ -393,6 +416,25 @@ public class Step07MedallionSetup : ISetupStep
         return await _az.RunAsync(
             "account get-access-token --resource https://storage.azure.com --query accessToken -o tsv",
             silent: true);
+    }
+
+    private async Task<string?> GetLakehouseSqlEndpointAsync(string wsId, string lakehouseId)
+    {
+        // Fabric Lakehouse の SQL analytics endpoint を取得
+        var json = await _az.RunAsync(
+            $"rest --method get --url \"{FabricResource}/v1/workspaces/{wsId}/lakehouses/{lakehouseId}\" --resource \"{FabricResource}\"",
+            silent: true);
+        var doc = JsonDocument.Parse(json);
+
+        if (doc.RootElement.TryGetProperty("properties", out var props) &&
+            props.TryGetProperty("sqlEndpointProperties", out var sqlProps) &&
+            sqlProps.TryGetProperty("connectionString", out var connStr))
+        {
+            return connStr.GetString();
+        }
+
+        // フォールバック: SQL Endpoint アイテムから取得を試みる
+        return null;
     }
 
     private async Task UploadToOneLakeAsync(string oneLakePath, string localPath, string token)
@@ -561,10 +603,12 @@ public class Step07MedallionSetup : ISetupStep
         sb.AppendLine("# Bronze → Silver ETL: データクレンジングと型変換");
         sb.AppendLine("from pyspark.sql import SparkSession");
         sb.AppendLine("from pyspark.sql.functions import col, trim, current_timestamp");
+        sb.AppendLine("import os");
         sb.AppendLine();
         sb.AppendLine("spark = SparkSession.builder.getOrCreate()");
         sb.AppendLine();
 
+        // 汎用テーブル (analysis.Tables)
         foreach (var table in analysis.Tables)
         {
             sb.AppendLine($"# --- {table.TableName} ---");
@@ -572,7 +616,6 @@ public class Step07MedallionSetup : ISetupStep
             sb.AppendLine($"    df_{table.TableName} = spark.read.format(\"csv\").option(\"header\", \"true\").load(\"Files/seed/{table.TableName}.csv\")");
             sb.AppendLine($"    df_{table.TableName} = df_{table.TableName}.withColumn(\"_ingested_at\", current_timestamp())");
 
-            // 型変換
             foreach (var col in table.Columns)
             {
                 var sparkType = MapToSparkType(col.Type);
@@ -587,35 +630,42 @@ public class Step07MedallionSetup : ISetupStep
             sb.AppendLine();
         }
 
+        // risk_summary CSV を自動検出して Silver テーブル化
+        sb.AppendLine("# --- risk_summary テーブル (自動検出) ---");
+        sb.AppendLine("import glob as _glob");
+        sb.AppendLine("seed_files = _glob.glob('/lakehouse/default/Files/seed/*_risk_summary.csv')");
+        sb.AppendLine("for csv_path in seed_files:");
+        sb.AppendLine("    table_name = os.path.basename(csv_path).replace('.csv', '')");
+        sb.AppendLine("    try:");
+        sb.AppendLine("        df = spark.read.format('csv').option('header', 'true').load(f'Files/seed/{table_name}.csv')");
+        sb.AppendLine("        df = df.withColumn('_ingested_at', current_timestamp())");
+        sb.AppendLine("        df = df.withColumn('metric_value', col('metric_value').cast('double'))");
+        sb.AppendLine("        df.write.mode('overwrite').format('delta').saveAsTable(table_name)");
+        sb.AppendLine("        print(f'{table_name}: {df.count()} rows written to Silver')");
+        sb.AppendLine("    except Exception as e:");
+        sb.AppendLine("        print(f'{table_name}: skipped - {e}')");
+
         return sb.ToString();
     }
 
     private static string BuildSilverToGoldCode(AnalysisResult analysis, LakehouseInfo silver, LakehouseInfo gold)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Silver → Gold ETL: KPI集計とビジネスビュー作成");
+        sb.AppendLine("# Silver → Gold ETL: テーブル確認とバリデーション");
         sb.AppendLine("from pyspark.sql import SparkSession");
-        sb.AppendLine("from pyspark.sql.functions import col, sum as _sum, count, avg, max as _max, lit");
         sb.AppendLine();
         sb.AppendLine("spark = SparkSession.builder.getOrCreate()");
         sb.AppendLine();
-
-        // テーブル読み込み
-        foreach (var table in analysis.Tables)
-        {
-            sb.AppendLine($"try:");
-            sb.AppendLine($"    {table.TableName} = spark.read.format(\"delta\").table(\"{table.TableName}\")");
-            sb.AppendLine($"except: {table.TableName} = None");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("# Gold テーブルとしてそのまま公開 (集計ロジックはドメインに依存)");
-        foreach (var table in analysis.Tables)
-        {
-            sb.AppendLine($"if {table.TableName} is not None:");
-            sb.AppendLine($"    {table.TableName}.write.mode(\"overwrite\").format(\"delta\").saveAsTable(\"gold_{table.TableName}\")");
-            sb.AppendLine($"    print(f\"gold_{table.TableName}: {{{table.TableName}.count()}} rows\")");
-        }
+        sb.AppendLine("# テーブル一覧の表示 (バリデーション)");
+        sb.AppendLine("tables = spark.catalog.listTables()");
+        sb.AppendLine("print(f'Total tables: {len(tables)}')");
+        sb.AppendLine("for t in tables:");
+        sb.AppendLine("    if not t.isTemporary:");
+        sb.AppendLine("        try:");
+        sb.AppendLine("            df = spark.read.format('delta').table(t.name)");
+        sb.AppendLine("            print(f'  ✓ {t.name}: {df.count()} rows')");
+        sb.AppendLine("        except Exception as e:");
+        sb.AppendLine("            print(f'  ✗ {t.name}: {e}')");
 
         return sb.ToString();
     }

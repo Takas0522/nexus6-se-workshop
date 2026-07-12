@@ -1,10 +1,12 @@
+using System.Globalization;
 using EnvironmentSetup.App.Models;
 using EnvironmentSetup.App.Services;
 
 namespace EnvironmentSetup.App.Steps;
 
 /// <summary>
-/// ステップ6: データ作成 - Copilot SDKでデータ生成しFabric SQLに投入
+/// ステップ6: データ作成 - 各事業部の risk_summary Seed CSV を生成して output/seed に保存。
+/// Step07 で Bronze にアップロード → Notebook 実行 → Gold テーブル化される。
 /// </summary>
 public class Step06DataCreation : ISetupStep
 {
@@ -22,64 +24,123 @@ public class Step06DataCreation : ISetupStep
     {
         var analysis = state.Analysis
             ?? throw new InvalidOperationException("分析が未完了です。Step 2 を先に実行してください。");
-        var deployment = state.Deployment
-            ?? throw new InvalidOperationException("デプロイが未完了です。Step 5 を先に実行してください。");
+        var assessment = state.Assessment
+            ?? throw new InvalidOperationException("アセスメントが未完了です。Step 1 を先に実行してください。");
 
-        Console.WriteLine("  Copilot SDK を使用してデモデータを生成中...\n");
+        Console.WriteLine("  事業部 KPI Seed データを生成中...\n");
 
-        var outputDir = Path.GetFullPath("./output/data");
-        Directory.CreateDirectory(outputDir);
+        var seedDir = Path.GetFullPath("./output/seed");
+        Directory.CreateDirectory(seedDir);
 
-        // 各データベースのデータを生成
-        var databases = analysis.Tables
-            .Select(t => t.Database)
-            .Distinct()
-            .ToList();
-
-        foreach (var db in databases)
+        // 各事業部ごとに risk_summary CSV を生成
+        foreach (var domain in assessment.Domains)
         {
-            var tables = analysis.Tables.Where(t => t.Database == db).ToList();
-            Console.WriteLine($"  📊 {db} のデータを生成中 ({tables.Count} テーブル)...");
+            var divisionId = NormalizeDivisionId(domain);
+            var tableName = $"{divisionId}_risk_summary";
+            var csvPath = Path.Combine(seedDir, $"{tableName}.csv");
 
+            Console.WriteLine($"  📊 {domain} ({tableName}) の KPI データを生成中...");
+
+            // Copilot SDK で業種固有の KPI データを生成
             var prompt = $"""
-                以下のテーブル定義に基づいて、リアルなデモデータのINSERT文を生成してください。
-                データベース: {db}
+                以下の事業部のKPI実績データをCSV形式で生成してください。
+
+                事業部: {domain}
+                従業員規模: {assessment.EmployeeCount}名
+
+                CSVヘッダー: year_month,metric_name,metric_value,metric_unit,description
                 
-                テーブル:
-                {string.Join("\n", tables.Select(t => $"- {t.TableName} ({t.EstimatedRows}行): {t.Description}\n  列: {string.Join(", ", t.Columns.Select(c => $"{c.Name}({c.Type})"))}"))}
-
                 要件:
-                - 日本語のリアルなデモデータ
-                - 各テーブルの最初の100行分のINSERT文を生成
-                - SQL Server構文 (nvarchar, datetime2等)
-                - 値は業務領域にふさわしいリアルなデータ
+                - 2025-01〜2026-06 の18ヶ月分
+                - 各月に5〜8個のKPI指標を含める (合計90〜144行)
+                - 指標例: 売上高, 営業利益率, 顧客数, ARPU, 解約率, NPS, 稼働率, コスト比率など
+                - 値は業界に適したリアルな数値
+                - metric_unit は 百万円, %, 千人, 円, ポイント, 件 などを使用
+                - descriptionは20文字以内の簡潔な説明
+                - ヘッダー行を含め、CSVのみ出力 (マークダウンや説明不要)
 
-                INSERT文のみ出力してください。
+                CSVのみ出力してください。
                 """;
 
-            var sql = await _copilot.GenerateAsync(prompt);
-            var filePath = Path.Combine(outputDir, $"{db}_data.sql");
-            await File.WriteAllTextAsync(filePath, sql, ct);
-            Console.WriteLine($"    → {filePath}");
+            try
+            {
+                var csvContent = await _copilot.GenerateAsync(prompt);
+                csvContent = CleanCsvOutput(csvContent);
+                await File.WriteAllTextAsync(csvPath, csvContent, ct);
+                var lineCount = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length - 1;
+                Console.WriteLine($"    ✓ {lineCount} 行生成 → {csvPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"    ⚠️ Copilot 生成失敗、フォールバックデータを使用: {ex.Message}");
+                var fallback = GenerateFallbackCsv(domain, divisionId);
+                await File.WriteAllTextAsync(csvPath, fallback, ct);
+                Console.WriteLine($"    ✓ フォールバックデータ生成 → {csvPath}");
+            }
         }
 
-        // Fabric SQL への投入
-        if (!string.IsNullOrEmpty(deployment.FabricSqlEndpoint))
+        // 汎用テーブルの seed CSV も生成 (analysis.Tables がある場合)
+        foreach (var table in analysis.Tables)
         {
-            Console.WriteLine("\n  Fabric SQL にデータを投入中...");
-            Console.WriteLine($"    エンドポイント: {deployment.FabricSqlEndpoint}");
-
-            // Note: 実際の投入は sqlcmd や ADO.NET で行う
-            // ここではファイル生成までとし、投入コマンドを案内
-            Console.WriteLine("\n  ℹ️  生成されたSQLファイルを Fabric SQL に投入するには:");
-            Console.WriteLine($"    sqlcmd -S {deployment.FabricSqlEndpoint} -d <db_name> -G -i <file.sql>");
+            var csvPath = Path.Combine(seedDir, $"{table.TableName}.csv");
+            if (!File.Exists(csvPath))
+            {
+                var header = string.Join(",", table.Columns.Select(c => c.Name));
+                await File.WriteAllTextAsync(csvPath, header + "\n", ct);
+            }
         }
-        else
+
+        Console.WriteLine($"\n  ✓ Seed データ生成完了: {seedDir}");
+    }
+
+    private static string CleanCsvOutput(string raw)
+    {
+        var lines = raw.Split('\n')
+            .Where(l => !l.TrimStart().StartsWith("```"))
+            .ToList();
+        var headerIdx = lines.FindIndex(l => l.Contains("year_month") && l.Contains("metric_name"));
+        if (headerIdx > 0)
+            lines = lines.Skip(headerIdx).ToList();
+        return string.Join("\n", lines).Trim() + "\n";
+    }
+
+    private static string GenerateFallbackCsv(string domain, string divisionId)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("year_month,metric_name,metric_value,metric_unit,description");
+
+        var metrics = new[]
         {
-            Console.WriteLine("\n  ⚠️ Fabric SQL エンドポイントが未設定です。");
-            Console.WriteLine("  生成されたSQLファイルを手動で投入してください。");
+            ("売上高", 100.0, 180.0, "百万円", "月次売上高"),
+            ("営業利益率", 8.0, 15.0, "%", "営業利益÷売上高"),
+            ("顧客数", 50.0, 120.0, "千人", "アクティブ顧客数"),
+            ("解約率", 1.5, 4.0, "%", "月次解約率"),
+            ("NPS", 30.0, 60.0, "ポイント", "顧客推奨度指数"),
+            ("稼働率", 95.0, 99.9, "%", "サービス稼働率"),
+        };
+
+        var rng = new Random(divisionId.GetHashCode());
+        for (var y = 2025; y <= 2026; y++)
+        {
+            var maxMonth = y == 2026 ? 6 : 12;
+            for (var m = 1; m <= maxMonth; m++)
+            {
+                var ym = $"{y}-{m:D2}";
+                foreach (var (name, min, max, unit, desc) in metrics)
+                {
+                    var value = Math.Round(min + rng.NextDouble() * (max - min), 1);
+                    sb.AppendLine($"{ym},{name},{value.ToString(CultureInfo.InvariantCulture)},{unit},{desc}");
+                }
+            }
         }
 
-        Console.WriteLine($"\n  ✓ データファイル生成完了: {outputDir}");
+        return sb.ToString();
+    }
+
+    private static string NormalizeDivisionId(string domain)
+    {
+        return domain.ToLowerInvariant()
+            .Replace(" ", "_")
+            .Replace("　", "_");
     }
 }
