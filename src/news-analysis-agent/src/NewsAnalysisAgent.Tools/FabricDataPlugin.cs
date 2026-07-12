@@ -32,6 +32,7 @@ public sealed class FabricDataPlugin(
             return await fallback.GetMonthlyRevenueAsync(yearMonth, ct);
         }
 
+        // Try the requested month first; if no rows, fall back to the latest available month.
         const string sql = """
 SELECT year_month, division, gross_revenue_jpy, total_cost_jpy, gross_margin_jpy,
        gross_margin_rate, active_customer_count, churn_rate
@@ -40,10 +41,30 @@ WHERE year_month = @yearMonth
 ORDER BY division;
 """;
 
+        const string latestSql = """
+SELECT year_month, division, gross_revenue_jpy, total_cost_jpy, gross_margin_jpy,
+       gross_margin_rate, active_customer_count, churn_rate
+FROM kpi_monthly_revenue
+WHERE year_month = (SELECT MAX(year_month) FROM kpi_monthly_revenue)
+ORDER BY division;
+""";
+
         try
         {
             var rows = await QueryRowsAsync(connectionString, sql, [new SqlParameter("@yearMonth", yearMonth)], ct);
-            return JsonSerializer.Serialize(new { source = "fabric", table = "kpi_monthly_revenue", year_month = yearMonth, rows }, JsonOptions);
+            var actualYearMonth = yearMonth;
+            if (rows.Count == 0)
+            {
+                logger.LogInformation("No kpi_monthly_revenue data for {YearMonth}. Querying latest available month.", yearMonth);
+                rows = await QueryRowsAsync(connectionString, latestSql, [], ct);
+                if (rows.Count > 0 && rows[0].TryGetValue("year_month", out var ym) && ym is not null)
+                {
+                    actualYearMonth = ym.ToString()!;
+                }
+            }
+
+            logger.LogInformation("Fabric kpi_monthly_revenue returned {Count} rows for {YearMonth}.", rows.Count, actualYearMonth);
+            return JsonSerializer.Serialize(new { source = "fabric", table = "kpi_monthly_revenue", year_month = actualYearMonth, rows }, JsonOptions);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -70,10 +91,29 @@ WHERE year_month = @yearMonth
 ORDER BY metric_name;
 """;
 
+        var latestSql = $"""
+SELECT TOP (50) year_month, metric_name, metric_value, metric_unit, description
+FROM {tableName}
+WHERE year_month = (SELECT MAX(year_month) FROM {tableName})
+ORDER BY metric_name;
+""";
+
         try
         {
             var rows = await QueryRowsAsync(connectionString, sql, [new SqlParameter("@yearMonth", yearMonth)], ct);
-            return JsonSerializer.Serialize(new { source = "fabric", table = tableName, division = normalizedDivision, year_month = yearMonth, rows }, JsonOptions);
+            var actualYearMonth = yearMonth;
+            if (rows.Count == 0)
+            {
+                logger.LogInformation("No {Table} data for {YearMonth}. Querying latest available month.", tableName, yearMonth);
+                rows = await QueryRowsAsync(connectionString, latestSql, [], ct);
+                if (rows.Count > 0 && rows[0].TryGetValue("year_month", out var ym) && ym is not null)
+                {
+                    actualYearMonth = ym.ToString()!;
+                }
+            }
+
+            logger.LogInformation("Fabric {Table} returned {Count} rows for {YearMonth}.", tableName, rows.Count, actualYearMonth);
+            return JsonSerializer.Serialize(new { source = "fabric", table = tableName, division = normalizedDivision, year_month = actualYearMonth, rows }, JsonOptions);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
