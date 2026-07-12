@@ -1,115 +1,110 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus6 ニュースポータル</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
-    
-    header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 0; }
-    .header-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }
-    .header-top h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.05em; }
-    .header-top .date { font-size: 0.85rem; opacity: 0.9; }
-    
-    .ticker { background: #2c0000; color: #fff; padding: 8px 0; overflow: hidden; white-space: nowrap; }
-    .ticker-inner { display: inline-block; animation: scroll-left 30s linear infinite; }
-    .ticker-inner span { margin-right: 60px; font-size: 0.9rem; }
-    .ticker-inner span::before { content: "⚡ "; color: #ff6b6b; }
-    @keyframes scroll-left { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
-    
-    nav { background: #a00000; border-top: 1px solid rgba(255,255,255,0.2); }
-    nav ul { display: flex; list-style: none; padding: 0 24px; }
-    nav ul li a { display: block; padding: 10px 20px; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; }
-    nav ul li a:hover, nav ul li a.active { background: rgba(255,255,255,0.15); }
-    
-    main { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
-    
-    .section-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 3px solid #8b0000; }
-    
-    .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
-    
-    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
-    .card a { text-decoration: none; color: inherit; display: block; padding: 24px; }
-    .card .category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #fff; background: #8b0000; padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
-    .card .category.economy { background: #2980b9; }
-    .card h2 { font-size: 1.1rem; line-height: 1.5; margin-bottom: 12px; color: #1a1a1a; }
-    .card .summary { font-size: 0.88rem; color: #555; line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-    .card .meta { margin-top: 14px; font-size: 0.8rem; color: #888; }
-    
-    footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px; margin-top: 48px; font-size: 0.8rem; }
-    
-    @media (max-width: 768px) {
-      .header-top h1 { font-size: 1.3rem; }
-      nav ul { flex-wrap: wrap; }
-      nav ul li a { padding: 8px 14px; font-size: 0.8rem; }
-      .articles { grid-template-columns: 1fr; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus6 ニュースポータル</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
+        header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .header-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+        .site-title { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.05em; }
+        .site-date { font-size: 0.85rem; opacity: 0.85; }
+        .ticker-bar { background: #1a1a1a; color: #fff; padding: 8px 0; overflow: hidden; position: relative; }
+        .ticker-label { position: absolute; left: 0; top: 0; bottom: 0; background: #c0392b; color: #fff; font-weight: 700; font-size: 0.8rem; padding: 8px 14px; z-index: 2; display: flex; align-items: center; }
+        .ticker-content { display: flex; animation: ticker 30s linear infinite; padding-left: 80px; white-space: nowrap; }
+        .ticker-content span { margin-right: 60px; font-size: 0.85rem; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        nav { background: #fff; border-bottom: 1px solid #ddd; }
+        .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 0; }
+        .nav-tab { padding: 12px 24px; font-size: 0.9rem; font-weight: 600; color: #555; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .nav-tab:hover, .nav-tab.active { color: #8b0000; border-bottom-color: #c0392b; }
+        main { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .section-heading { font-size: 1.1rem; font-weight: 700; color: #8b0000; border-left: 4px solid #c0392b; padding-left: 12px; margin-bottom: 20px; }
+        .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+        .card { background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+        .card-category { display: inline-block; background: #c0392b; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 2px; margin: 16px 0 0 16px; }
+        .card-body { padding: 12px 16px 20px; }
+        .card-title { font-size: 1.05rem; font-weight: 700; line-height: 1.5; margin-bottom: 8px; }
+        .card-title a { color: #222; text-decoration: none; }
+        .card-title a:hover { color: #8b0000; }
+        .card-summary { font-size: 0.85rem; color: #666; line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-meta { font-size: 0.75rem; color: #999; margin-top: 10px; }
+        footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px 20px; margin-top: 60px; font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; gap: 6px; text-align: center; }
+            .site-title { font-size: 1.4rem; }
+            .nav-inner { overflow-x: auto; }
+            .nav-tab { padding: 10px 16px; font-size: 0.8rem; white-space: nowrap; }
+            .articles { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="header-top">
-      <h1>Nexus6 ニュースポータル</h1>
-      <span class="date">2026年7月11日（土）</span>
+    <header>
+        <div class="header-inner">
+            <div class="site-title">Nexus6 ニュースポータル</div>
+            <div class="site-date">2026年7月12日（土）</div>
+        </div>
+    </header>
+
+    <div class="ticker-bar">
+        <div class="ticker-label">速報</div>
+        <div class="ticker-content">
+            <span>◆ EU、AI規制法の施行細則を7月1日付で発効——テック企業に年間売上高の最大3%の制裁金</span>
+            <span>◆ NVIDIA、次世代GPU「Blackwell Ultra B300」を正式発表——前世代比1.8倍の電力効率</span>
+            <span>◆ 総務省、光ファイバー網整備に追加予算4,200億円——2028年度末までに全世帯カバー率99.9%目標</span>
+            <span>◆ EU、AI規制法の施行細則を7月1日付で発効——テック企業に年間売上高の最大3%の制裁金</span>
+            <span>◆ NVIDIA、次世代GPU「Blackwell Ultra B300」を正式発表——前世代比1.8倍の電力効率</span>
+            <span>◆ 総務省、光ファイバー網整備に追加予算4,200億円——2028年度末までに全世帯カバー率99.9%目標</span>
+        </div>
     </div>
-    <div class="ticker">
-      <div class="ticker-inner">
-        <span>総務省、5G周波数帯の追加割当を決定——3.8GHz帯を120MHz幅開放</span>
-        <span>EU、大規模プラットフォーム規制を強化——Meta・TikTokに追加義務</span>
-        <span>経産省「クラウド・バイ・デフォルト2.0」策定——官公庁IT調達の7割をクラウド前提に</span>
-        <span>総務省、5G周波数帯の追加割当を決定——3.8GHz帯を120MHz幅開放</span>
-        <span>EU、大規模プラットフォーム規制を強化——Meta・TikTokに追加義務</span>
-        <span>経産省「クラウド・バイ・デフォルト2.0」策定——官公庁IT調達の7割をクラウド前提に</span>
-      </div>
-    </div>
+
     <nav>
-      <ul>
-        <li><a href="#" class="active">トップ</a></li>
-        <li><a href="#">規制・政策</a></li>
-        <li><a href="#">経済・産業</a></li>
-        <li><a href="#">テクノロジー</a></li>
-        <li><a href="#">セキュリティ</a></li>
-      </ul>
+        <div class="nav-inner">
+            <a href="#" class="nav-tab active">トップ</a>
+            <a href="article-1.html" class="nav-tab">規制・法務</a>
+            <a href="article-2.html" class="nav-tab">テクノロジー・半導体</a>
+            <a href="article-3.html" class="nav-tab">政策・通信インフラ</a>
+        </div>
     </nav>
-  </header>
 
-  <main>
-    <h2 class="section-title">最新ニュース</h2>
-    <div class="articles">
-      <article class="card">
-        <a href="article-1.html">
-          <span class="category">規制・政策</span>
-          <h2>総務省、2026年度中に5G周波数帯の追加割当を決定——3.8GHz帯を新たに120MHz幅開放</h2>
-          <p class="summary">総務省は第5世代移動通信システム向けに3.8GHz帯（3800〜3920MHz）を新たに開放する方針を正式発表した。都市部における5Gトラフィックが前年比で約62%増加し、既存帯域の逼迫が背景に。</p>
-          <p class="meta">2026年7月10日 ｜ 日本経済新聞</p>
-        </a>
-      </article>
+    <main>
+        <h2 class="section-heading">最新ニュース</h2>
+        <div class="articles">
+            <article class="card">
+                <span class="card-category">規制・法務</span>
+                <div class="card-body">
+                    <h3 class="card-title"><a href="article-1.html">EU、AI規制法の施行細則を7月1日付で発効——域内で事業展開するテック企業に年間売上高の最大3%の制裁金</a></h3>
+                    <p class="card-summary">欧州連合（EU）は2026年7月1日、AI規制法（AI Act）の施行細則を正式に発効させた。汎用目的AI（GPAI）モデルの提供者に対し、学習データの著作権処理証明および安全性評価レポートの提出を義務化。</p>
+                    <div class="card-meta">2026年7月1日 配信</div>
+                </div>
+            </article>
 
-      <article class="card">
-        <a href="article-2.html">
-          <span class="category">規制・政策</span>
-          <h2>欧州連合、大規模プラットフォーム規制を強化——デジタルサービス法に基づき Meta・TikTok に追加義務</h2>
-          <p class="summary">欧州委員会はDSAに基づく監査の結果、MetaおよびByteDanceに対し未成年保護アルゴリズムの透明性確保とターゲティング広告の制限強化を命じた。違反時の制裁金は全世界売上高の最大6%。</p>
-          <p class="meta">2026年7月8日 ｜ Reuters</p>
-        </a>
-      </article>
+            <article class="card">
+                <span class="card-category">テクノロジー・半導体</span>
+                <div class="card-body">
+                    <h3 class="card-title"><a href="article-2.html">NVIDIA、次世代GPU「Blackwell Ultra B300」を正式発表——TSMC 3nmプロセス採用で前世代比1.8倍の電力効率を実現</a></h3>
+                    <p class="card-summary">米NVIDIAは台北で開催されたCOMPUTEX 2026において次世代GPUアーキテクチャ「Blackwell Ultra B300」を正式発表。AI推論性能が2.5倍、電力効率が1.8倍に向上。</p>
+                    <div class="card-meta">2026年7月8日 配信</div>
+                </div>
+            </article>
 
-      <article class="card">
-        <a href="article-3.html">
-          <span class="category economy">経済・産業</span>
-          <h2>経済産業省、DX推進に向け「クラウド・バイ・デフォルト2.0」を策定——官公庁IT調達の7割をクラウド前提に</h2>
-          <p class="summary">経済産業省は新規システムの70%以上をクラウドサービス上に構築することを義務付ける新方針を公表。対象調達案件は年間約8,200件、総額約1兆2,000億円に上る見込み。</p>
-          <p class="meta">2026年7月9日 ｜ ITmedia NEWS</p>
-        </a>
-      </article>
-    </div>
-  </main>
+            <article class="card">
+                <span class="card-category">政策・通信インフラ</span>
+                <div class="card-body">
+                    <h3 class="card-title"><a href="article-3.html">総務省、日本国内の光ファイバー網整備に追加予算4,200億円を計上——2028年度末までに全世帯カバー率99.9%を目指す</a></h3>
+                    <p class="card-summary">総務省は2026年度補正予算案において国内光ファイバー網整備事業に追加で4,200億円を計上する方針を発表。中山間地域や離島部を中心に約52万世帯の未整備解消を目指す。</p>
+                    <div class="card-meta">2026年7月10日 配信</div>
+                </div>
+            </article>
+        </div>
+    </main>
 
-  <footer>
-    <p>&copy; 2026 Nexus6 ニュースポータル — ニュース分析・インパクト診断システム デモ環境</p>
-  </footer>
+    <footer>
+        <p>&copy; 2026 Nexus6 ニュースポータル. All rights reserved.</p>
+    </footer>
 </body>
 </html>

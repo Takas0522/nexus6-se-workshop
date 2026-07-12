@@ -1,95 +1,89 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>総務省、5G周波数帯の追加割当を決定 - Nexus6 ニュースポータル</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
-    
-    header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 0; }
-    .header-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }
-    .header-top h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.05em; }
-    .header-top h1 a { color: #fff; text-decoration: none; }
-    
-    nav { background: #a00000; border-top: 1px solid rgba(255,255,255,0.2); }
-    nav ul { display: flex; list-style: none; padding: 0 24px; }
-    nav ul li a { display: block; padding: 10px 20px; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; }
-    nav ul li a:hover { background: rgba(255,255,255,0.15); }
-    
-    main { max-width: 800px; margin: 32px auto; padding: 0 16px; }
-    
-    .back-link { display: inline-block; margin-bottom: 20px; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-    .back-link:hover { text-decoration: underline; }
-    .back-link::before { content: "← "; }
-    
-    .article-header { margin-bottom: 32px; }
-    .article-header .category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #fff; background: #8b0000; padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
-    .article-header h1 { font-size: 1.6rem; line-height: 1.5; margin-bottom: 12px; }
-    .article-header .meta { font-size: 0.85rem; color: #888; }
-    
-    .article-body { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 32px; }
-    .article-body p { margin-bottom: 1.5em; font-size: 1rem; line-height: 2; text-align: justify; }
-    .article-body h2 { font-size: 1.2rem; margin: 2em 0 1em; padding-bottom: 6px; border-bottom: 2px solid #8b0000; }
-    
-    footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px; margin-top: 48px; font-size: 0.8rem; }
-    
-    @media (max-width: 768px) {
-      .header-top h1 { font-size: 1.3rem; }
-      .article-header h1 { font-size: 1.3rem; }
-      .article-body { padding: 20px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EU、AI規制法の施行細則を7月1日付で発効 - Nexus6 ニュースポータル</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
+        header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .header-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+        .site-title { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.05em; }
+        .site-title a { color: #fff; text-decoration: none; }
+        .site-date { font-size: 0.85rem; opacity: 0.85; }
+        nav { background: #fff; border-bottom: 1px solid #ddd; }
+        .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 0; }
+        .nav-tab { padding: 12px 24px; font-size: 0.9rem; font-weight: 600; color: #555; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .nav-tab:hover, .nav-tab.active { color: #8b0000; border-bottom-color: #c0392b; }
+        main { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .breadcrumb { font-size: 0.8rem; color: #888; margin-bottom: 20px; }
+        .breadcrumb a { color: #8b0000; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .article-header { margin-bottom: 24px; }
+        .article-category { display: inline-block; background: #c0392b; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 2px; margin-bottom: 12px; }
+        .article-title { font-size: 1.5rem; font-weight: 700; line-height: 1.5; margin-bottom: 12px; }
+        .article-meta { font-size: 0.8rem; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 16px; }
+        .article-body { background: #fff; border-radius: 6px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 30px; }
+        .article-body p { margin-bottom: 1.4em; font-size: 0.95rem; text-align: justify; }
+        .back-link { display: inline-block; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; padding: 10px 0; }
+        .back-link:hover { text-decoration: underline; }
+        footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px 20px; margin-top: 60px; font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; gap: 6px; text-align: center; }
+            .site-title { font-size: 1.4rem; }
+            .article-title { font-size: 1.2rem; }
+            .article-body { padding: 20px; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="header-top">
-      <h1><a href="index.html">Nexus6 ニュースポータル</a></h1>
-    </div>
+    <header>
+        <div class="header-inner">
+            <div class="site-title"><a href="index.html">Nexus6 ニュースポータル</a></div>
+            <div class="site-date">2026年7月12日（土）</div>
+        </div>
+    </header>
+
     <nav>
-      <ul>
-        <li><a href="index.html">トップ</a></li>
-        <li><a href="#">規制・政策</a></li>
-        <li><a href="#">経済・産業</a></li>
-        <li><a href="#">テクノロジー</a></li>
-        <li><a href="#">セキュリティ</a></li>
-      </ul>
+        <div class="nav-inner">
+            <a href="index.html" class="nav-tab">トップ</a>
+            <a href="article-1.html" class="nav-tab active">規制・法務</a>
+            <a href="article-2.html" class="nav-tab">テクノロジー・半導体</a>
+            <a href="article-3.html" class="nav-tab">政策・通信インフラ</a>
+        </div>
     </nav>
-  </header>
 
-  <main>
-    <a href="index.html" class="back-link">トップに戻る</a>
+    <main>
+        <div class="breadcrumb">
+            <a href="index.html">← トップに戻る</a> ／ 規制・法務
+        </div>
 
-    <div class="article-header">
-      <span class="category">規制・政策</span>
-      <h1>総務省、2026年度中に5G周波数帯の追加割当を決定——3.8GHz帯を新たに120MHz幅開放</h1>
-      <p class="meta">2026年7月10日 14:00 配信 ｜ カテゴリ：規制・政策</p>
-    </div>
+        <div class="article-header">
+            <span class="article-category">規制・法務</span>
+            <h1 class="article-title">EU、AI規制法の施行細則を7月1日付で発効——域内で事業展開するテック企業に年間売上高の最大3%の制裁金</h1>
+            <div class="article-meta">2026年7月1日 配信 ｜ ブリュッセル</div>
+        </div>
 
-    <div class="article-body">
-      <p>総務省は2026年7月10日、第5世代移動通信システム（5G）向けに3.8GHz帯（3800〜3920MHz）を新たに開放する方針を正式に発表した。情報通信審議会の答申を受けた措置で、年内にも既存の携帯電話事業者4社（NTTドコモ、KDDI、ソフトバンク、楽天モバイル）および新規参入を希望する事業者を対象に割当審査を開始する。</p>
+        <div class="article-body">
+            <p>欧州連合（EU）は2026年7月1日、AI規制法（AI Act）の施行細則を正式に発効させた。新細則では、汎用目的AI（GPAI）モデルの提供者に対し、学習データの著作権処理証明および安全性評価レポートの欧州AI局への提出を義務化している。違反時の制裁金は年間グローバル売上高の最大3%または3,500万ユーロのいずれか高い方に設定された。</p>
 
-      <h2>5Gトラフィック急増が背景</h2>
+            <p>欧州AI局のルチアナ・バルボサ事務局長は、ブリュッセルで開催された記者会見において「本日の施行は、AI技術の透明性と説明責任を確保するための画期的な一歩である」と声明を発表した。バルボサ事務局長はさらに、「欧州市民の権利保護とイノベーション促進の両立を図る枠組みが整った」と強調した。</p>
 
-      <p>総務省の有識者会議「周波数の経済的価値に関する研究会」が2026年5月にまとめた報告書によると、国内の5Gトラフィックは2025年度に前年比約62%増加した。特に東京23区、大阪市、名古屋市の都心部では、平日夕方のピーク時に既存の割当帯域（3.7GHz帯および4.5GHz帯）の使用率が90%を超える基地局が全体の約35%に達している。このまま増加が続けば、2027年度にはピーク時のトラフィックが現行帯域の処理能力を恒常的に上回る見通しとなっていた。</p>
+            <p>施行細則の主な内容は以下のとおりである。第一に、GPAIモデルの提供者は学習に使用したデータセットの出所を文書化し、著作権法との整合性を証明する報告書を四半期ごとに提出しなければならない。第二に、システミックリスクを有するAIモデル（パラメータ数10兆以上または計算量10^26 FLOPs以上）については、第三者機関による安全性監査が義務付けられる。第三に、AIが生成したコンテンツには機械可読なメタデータによる識別表示が必要となる。</p>
 
-      <h2>設備投資額は業界全体で4,500億円規模</h2>
+            <p>Microsoft、Google、Meta、ByteDanceなど主要テック企業は既にコンプライアンス対応チームを設置したと報じられている。Microsoftのブラッド・スミス副会長は「責任あるAI開発のグローバルスタンダード形成に貢献する」とコメント。Googleのケント・ウォーカー法務担当上級副社長も「透明性報告の枠組みを歓迎し、建設的に協力する」と述べた。</p>
 
-      <p>追加帯域の開放に伴い、各事業者は対応する基地局設備の新設・更新が必要となる。同研究会の試算では、業界全体の設備投資額は約4,500億円に達する見込みだ。基地局メーカーのNEC、ノキア・ジャパン、エリクソン・ジャパンの3社が主要な受注先として想定されており、NECは「国内製造拠点のフル稼働体制で対応する」とのコメントを発表した。</p>
+            <p>一方で、欧州デジタル権利団体EDRi（European Digital Rights）のエラ・ヤクボウスカ政策担当ディレクターは「中小企業やスタートアップに対する猶予期間が12ヶ月では不十分であり、コンプライアンスコストが欧州のAIエコシステムの競争力を削ぐ恐れがある」と懸念を表明した。市場調査会社Forrester Researchの試算によれば、対象企業1社あたりの年間コンプライアンスコスト増加額は平均120万ユーロに達する見通しである。</p>
 
-      <p>また、端末メーカーも3.8GHz帯に対応した新モデルの開発を急ぐ必要がある。Qualcommは既に同帯域をサポートする最新チップセット「Snapdragon 8 Gen 4」を発表済みで、2026年冬モデルからの搭載が見込まれている。</p>
+            <p>欧州AI局は今後6ヶ月間を「移行期間」と位置付け、軽微な違反については是正指導を優先する方針を示している。本格的な執行は2027年1月以降となる見込みで、各国の規制当局との連携体制構築が進められている。なお、米国商務省は同日、EU側と規制相互承認に向けた技術協議を8月に開始すると発表しており、国際的なAI規制の調和に向けた動きも加速している。</p>
+        </div>
 
-      <h2>衛星通信との周波数共用が焦点</h2>
+        <a href="index.html" class="back-link">← トップに戻る</a>
+    </main>
 
-      <p>一方で、3.8GHz帯は固定衛星通信（FSS）の地球局と周波数を共用する帯域であり、干渉問題の解決が技術的な課題として残されている。総務省は干渉を避けるための離隔距離や出力制限などの技術的条件を2026年9月末までにとりまとめる方針だ。衛星通信事業者のスカパーJSATは「既存サービスへの影響が最小限となるよう、技術検討に積極的に協力する」としている。</p>
-
-      <p>総務省電波部の担当者は「5Gの高速・大容量通信は社会インフラとして不可欠であり、周波数資源の有効活用を通じて国民生活の利便性向上と産業競争力の強化を図る」と述べた。割当審査の結果は2027年3月頃に公表される見通しだ。</p>
-    </div>
-  </main>
-
-  <footer>
-    <p>&copy; 2026 Nexus6 ニュースポータル — ニュース分析・インパクト診断システム デモ環境</p>
-  </footer>
+    <footer>
+        <p>&copy; 2026 Nexus6 ニュースポータル. All rights reserved.</p>
+    </footer>
 </body>
 </html>

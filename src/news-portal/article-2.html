@@ -1,95 +1,89 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EU、大規模プラットフォーム規制を強化 - Nexus6 ニュースポータル</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
-    
-    header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 0; }
-    .header-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }
-    .header-top h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.05em; }
-    .header-top h1 a { color: #fff; text-decoration: none; }
-    
-    nav { background: #a00000; border-top: 1px solid rgba(255,255,255,0.2); }
-    nav ul { display: flex; list-style: none; padding: 0 24px; }
-    nav ul li a { display: block; padding: 10px 20px; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; }
-    nav ul li a:hover { background: rgba(255,255,255,0.15); }
-    
-    main { max-width: 800px; margin: 32px auto; padding: 0 16px; }
-    
-    .back-link { display: inline-block; margin-bottom: 20px; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-    .back-link:hover { text-decoration: underline; }
-    .back-link::before { content: "← "; }
-    
-    .article-header { margin-bottom: 32px; }
-    .article-header .category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #fff; background: #8b0000; padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
-    .article-header h1 { font-size: 1.6rem; line-height: 1.5; margin-bottom: 12px; }
-    .article-header .meta { font-size: 0.85rem; color: #888; }
-    
-    .article-body { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 32px; }
-    .article-body p { margin-bottom: 1.5em; font-size: 1rem; line-height: 2; text-align: justify; }
-    .article-body h2 { font-size: 1.2rem; margin: 2em 0 1em; padding-bottom: 6px; border-bottom: 2px solid #8b0000; }
-    
-    footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px; margin-top: 48px; font-size: 0.8rem; }
-    
-    @media (max-width: 768px) {
-      .header-top h1 { font-size: 1.3rem; }
-      .article-header h1 { font-size: 1.3rem; }
-      .article-body { padding: 20px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVIDIA、次世代GPU「Blackwell Ultra B300」を正式発表 - Nexus6 ニュースポータル</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
+        header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .header-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+        .site-title { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.05em; }
+        .site-title a { color: #fff; text-decoration: none; }
+        .site-date { font-size: 0.85rem; opacity: 0.85; }
+        nav { background: #fff; border-bottom: 1px solid #ddd; }
+        .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 0; }
+        .nav-tab { padding: 12px 24px; font-size: 0.9rem; font-weight: 600; color: #555; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .nav-tab:hover, .nav-tab.active { color: #8b0000; border-bottom-color: #c0392b; }
+        main { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .breadcrumb { font-size: 0.8rem; color: #888; margin-bottom: 20px; }
+        .breadcrumb a { color: #8b0000; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .article-header { margin-bottom: 24px; }
+        .article-category { display: inline-block; background: #c0392b; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 2px; margin-bottom: 12px; }
+        .article-title { font-size: 1.5rem; font-weight: 700; line-height: 1.5; margin-bottom: 12px; }
+        .article-meta { font-size: 0.8rem; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 16px; }
+        .article-body { background: #fff; border-radius: 6px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 30px; }
+        .article-body p { margin-bottom: 1.4em; font-size: 0.95rem; text-align: justify; }
+        .back-link { display: inline-block; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; padding: 10px 0; }
+        .back-link:hover { text-decoration: underline; }
+        footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px 20px; margin-top: 60px; font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; gap: 6px; text-align: center; }
+            .site-title { font-size: 1.4rem; }
+            .article-title { font-size: 1.2rem; }
+            .article-body { padding: 20px; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="header-top">
-      <h1><a href="index.html">Nexus6 ニュースポータル</a></h1>
-    </div>
+    <header>
+        <div class="header-inner">
+            <div class="site-title"><a href="index.html">Nexus6 ニュースポータル</a></div>
+            <div class="site-date">2026年7月12日（土）</div>
+        </div>
+    </header>
+
     <nav>
-      <ul>
-        <li><a href="index.html">トップ</a></li>
-        <li><a href="#">規制・政策</a></li>
-        <li><a href="#">経済・産業</a></li>
-        <li><a href="#">テクノロジー</a></li>
-        <li><a href="#">セキュリティ</a></li>
-      </ul>
+        <div class="nav-inner">
+            <a href="index.html" class="nav-tab">トップ</a>
+            <a href="article-1.html" class="nav-tab">規制・法務</a>
+            <a href="article-2.html" class="nav-tab active">テクノロジー・半導体</a>
+            <a href="article-3.html" class="nav-tab">政策・通信インフラ</a>
+        </div>
     </nav>
-  </header>
 
-  <main>
-    <a href="index.html" class="back-link">トップに戻る</a>
+    <main>
+        <div class="breadcrumb">
+            <a href="index.html">← トップに戻る</a> ／ テクノロジー・半導体
+        </div>
 
-    <div class="article-header">
-      <span class="category">規制・政策</span>
-      <h1>欧州連合、大規模プラットフォーム規制を強化——デジタルサービス法に基づき Meta・TikTok に追加義務</h1>
-      <p class="meta">2026年7月8日 18:30 配信 ｜ カテゴリ：規制・政策</p>
-    </div>
+        <div class="article-header">
+            <span class="article-category">テクノロジー・半導体</span>
+            <h1 class="article-title">NVIDIA、次世代GPU「Blackwell Ultra B300」を正式発表——TSMC 3nmプロセス採用で前世代比1.8倍の電力効率を実現</h1>
+            <div class="article-meta">2026年7月8日 配信 ｜ 台北</div>
+        </div>
 
-    <div class="article-body">
-      <p>欧州委員会は2026年7月8日、デジタルサービス法（DSA: Digital Services Act）に基づく定期監査の結果を公表し、Meta Platforms（Facebook・Instagram）およびByteDance（TikTok）に対して追加の義務を課す決定を下した。両社は90日以内にレコメンドアルゴリズムの動作原理を欧州域内のユーザーに開示し、18歳未満への行動ターゲティング広告を全面禁止する義務を負う。</p>
+        <div class="article-body">
+            <p>米NVIDIAは2026年7月8日、台北で開催されたCOMPUTEX 2026の基調講演において、次世代GPUアーキテクチャ「Blackwell Ultra B300」を正式発表した。台湾TSMCの最先端3nmプロセスノード（N3E）を採用し、前世代のBlackwell B200と比較してAI推論性能が2.5倍、電力効率が1.8倍に向上している。</p>
 
-      <h2>監査で明らかになった問題点</h2>
+            <p>B300の主要スペックとして、HBM4（High Bandwidth Memory 4）を288GB搭載し、メモリ帯域幅は毎秒12テラバイトに達する。トランジスタ数は約2,080億個で、新たに導入された「第2世代Transformerエンジン」により、FP4精度での推論性能は毎秒20ペタFLOPSを記録する。消費電力は1,200Wに抑えられ、性能あたりの電力効率で業界をリードする。</p>
 
-      <p>欧州委員会デジタル政策担当のティエリー・ブルトン委員によると、今回の監査は2025年10月から2026年4月にかけて実施された。監査チームは両社のアルゴリズムが未成年ユーザーに対して過度にエンゲージメントを促進するコンテンツ（挑発的動画、過激なダイエット情報など）を優先表示していた実態を確認した。Metaの場合、13〜17歳のユーザーに表示されるコンテンツの約42%がアルゴリズムによる推薦であり、そのうち約15%が「有害コンテンツの閾値に近い」と判定された。</p>
+            <p>ジェンスン・フアンCEOは約2時間に及ぶ基調講演で「B300はリアルタイムの物理シミュレーションとゲームAIに革命をもたらす。デジタルツインの精度は現実世界と区別がつかないレベルに到達する」と述べた。さらに「AIデータセンターのエネルギー消費が社会的課題となるなか、1.8倍の電力効率改善は持続可能なAI基盤への重要な貢献である」と強調した。</p>
 
-      <h2>違反時は売上高の最大6%の制裁金</h2>
+            <p>データセンター向けのB300 HGXシステム（8 GPU構成）の価格は1ノードあたり約65万ドル（約9,750万円）に設定され、2026年第4四半期から出荷を開始する予定である。初期導入パートナーとしてAmazon Web Services（AWS）、Microsoft Azure、Google Cloud Platform（GCP）の3社が発表された。AWSのアダム・セリプスキーCEOはビデオメッセージで「B300はAWS顧客のAIワークロードを根本的に変革する」とコメントした。</p>
 
-      <p>DSAの規定に基づき、今回の決定に従わない場合、違反企業には全世界年間売上高の最大6%に相当する制裁金が科される。Metaの2025年度売上高は約1,600億ドル（約22兆円）であり、最大制裁金は約1.3兆円に達する計算だ。ByteDanceの場合は推定売上高約1,200億ドルに対し、最大約7,200億ドルの制裁金リスクを負う。</p>
+            <p>コンシューマー向けには、ゲーミングGPU「GeForce RTX 6090」が2027年第1四半期に投入されることも予告された。RTX 6090はB300と同じBlackwell Ultraアーキテクチャをベースとし、32GBのGDDR7Xメモリを搭載。レイトレーシング性能はRTX 5090比で約1.6倍に向上する見込みである。希望小売価格は2,499ドル前後になるとアナリストは予測している。</p>
 
-      <h2>広告市場への波及効果</h2>
+            <p>市場調査会社Mercury Researchのディーン・マッカロン社長は「B300の電力効率改善は、データセンター事業者の運用コストを15〜20%削減する可能性がある。2027年にはNVIDIAのデータセンター部門売上が年間2,000億ドルに達する見通し」と分析した。NVIDIAの株価は発表翌日の7月9日、NASDAQ市場で前日比4.2%高の186.40ドルで取引を終えた。</p>
+        </div>
 
-      <p>調査会社Sensor Towerの推計では、欧州域内のソーシャルメディア広告市場は2025年に約580億ユーロ（約9.3兆円）規模に達している。行動ターゲティング広告の制限により、広告主はコンテキスト広告やファーストパーティーデータに基づく手法への移行を迫られる。デジタル広告業界団体IAB Europeのタウンゼント・フェリン事務局長は「短期的には広告効果の低下が避けられないが、中長期的にはユーザーの信頼回復によりプラットフォーム全体の価値が向上する」との見方を示した。</p>
+        <a href="index.html" class="back-link">← トップに戻る</a>
+    </main>
 
-      <h2>日本国内への波及</h2>
-
-      <p>日本の個人情報保護委員会も2026年6月、「プラットフォームサービスにおけるプロファイリングの在り方に関する検討会」を発足させており、EUの動向を参考に国内規制の方向性を年内にとりまとめる予定だ。検討会の座長を務める東京大学の宍戸常寿教授は「EUの先行事例を踏まえつつ、日本の事業環境に適した規制枠組みを構築する必要がある」と述べている。</p>
-    </div>
-  </main>
-
-  <footer>
-    <p>&copy; 2026 Nexus6 ニュースポータル — ニュース分析・インパクト診断システム デモ環境</p>
-  </footer>
+    <footer>
+        <p>&copy; 2026 Nexus6 ニュースポータル. All rights reserved.</p>
+    </footer>
 </body>
 </html>

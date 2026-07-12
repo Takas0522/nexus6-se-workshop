@@ -1,97 +1,89 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>経産省「クラウド・バイ・デフォルト2.0」策定 - Nexus6 ニュースポータル</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
-    
-    header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 0; }
-    .header-top { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }
-    .header-top h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.05em; }
-    .header-top h1 a { color: #fff; text-decoration: none; }
-    
-    nav { background: #a00000; border-top: 1px solid rgba(255,255,255,0.2); }
-    nav ul { display: flex; list-style: none; padding: 0 24px; }
-    nav ul li a { display: block; padding: 10px 20px; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; }
-    nav ul li a:hover { background: rgba(255,255,255,0.15); }
-    
-    main { max-width: 800px; margin: 32px auto; padding: 0 16px; }
-    
-    .back-link { display: inline-block; margin-bottom: 20px; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-    .back-link:hover { text-decoration: underline; }
-    .back-link::before { content: "← "; }
-    
-    .article-header { margin-bottom: 32px; }
-    .article-header .category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: #fff; background: #2980b9; padding: 3px 10px; border-radius: 3px; margin-bottom: 12px; }
-    .article-header h1 { font-size: 1.6rem; line-height: 1.5; margin-bottom: 12px; }
-    .article-header .meta { font-size: 0.85rem; color: #888; }
-    
-    .article-body { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 32px; }
-    .article-body p { margin-bottom: 1.5em; font-size: 1rem; line-height: 2; text-align: justify; }
-    .article-body h2 { font-size: 1.2rem; margin: 2em 0 1em; padding-bottom: 6px; border-bottom: 2px solid #2980b9; }
-    
-    footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px; margin-top: 48px; font-size: 0.8rem; }
-    
-    @media (max-width: 768px) {
-      .header-top h1 { font-size: 1.3rem; }
-      .article-header h1 { font-size: 1.3rem; }
-      .article-body { padding: 20px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>総務省、光ファイバー網整備に追加予算4,200億円を計上 - Nexus6 ニュースポータル</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
+        header { background: linear-gradient(135deg, #8b0000, #c0392b); color: #fff; padding: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        .header-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+        .site-title { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.05em; }
+        .site-title a { color: #fff; text-decoration: none; }
+        .site-date { font-size: 0.85rem; opacity: 0.85; }
+        nav { background: #fff; border-bottom: 1px solid #ddd; }
+        .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 0; }
+        .nav-tab { padding: 12px 24px; font-size: 0.9rem; font-weight: 600; color: #555; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .nav-tab:hover, .nav-tab.active { color: #8b0000; border-bottom-color: #c0392b; }
+        main { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .breadcrumb { font-size: 0.8rem; color: #888; margin-bottom: 20px; }
+        .breadcrumb a { color: #8b0000; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .article-header { margin-bottom: 24px; }
+        .article-category { display: inline-block; background: #c0392b; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 2px; margin-bottom: 12px; }
+        .article-title { font-size: 1.5rem; font-weight: 700; line-height: 1.5; margin-bottom: 12px; }
+        .article-meta { font-size: 0.8rem; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 16px; }
+        .article-body { background: #fff; border-radius: 6px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 30px; }
+        .article-body p { margin-bottom: 1.4em; font-size: 0.95rem; text-align: justify; }
+        .back-link { display: inline-block; color: #8b0000; text-decoration: none; font-size: 0.9rem; font-weight: 600; padding: 10px 0; }
+        .back-link:hover { text-decoration: underline; }
+        footer { background: #2c2c2c; color: #aaa; text-align: center; padding: 24px 20px; margin-top: 60px; font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; gap: 6px; text-align: center; }
+            .site-title { font-size: 1.4rem; }
+            .article-title { font-size: 1.2rem; }
+            .article-body { padding: 20px; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="header-top">
-      <h1><a href="index.html">Nexus6 ニュースポータル</a></h1>
-    </div>
+    <header>
+        <div class="header-inner">
+            <div class="site-title"><a href="index.html">Nexus6 ニュースポータル</a></div>
+            <div class="site-date">2026年7月12日（土）</div>
+        </div>
+    </header>
+
     <nav>
-      <ul>
-        <li><a href="index.html">トップ</a></li>
-        <li><a href="#">規制・政策</a></li>
-        <li><a href="#">経済・産業</a></li>
-        <li><a href="#">テクノロジー</a></li>
-        <li><a href="#">セキュリティ</a></li>
-      </ul>
+        <div class="nav-inner">
+            <a href="index.html" class="nav-tab">トップ</a>
+            <a href="article-1.html" class="nav-tab">規制・法務</a>
+            <a href="article-2.html" class="nav-tab">テクノロジー・半導体</a>
+            <a href="article-3.html" class="nav-tab active">政策・通信インフラ</a>
+        </div>
     </nav>
-  </header>
 
-  <main>
-    <a href="index.html" class="back-link">トップに戻る</a>
+    <main>
+        <div class="breadcrumb">
+            <a href="index.html">← トップに戻る</a> ／ 政策・通信インフラ
+        </div>
 
-    <div class="article-header">
-      <span class="category">経済・産業</span>
-      <h1>経済産業省、DX推進に向け「クラウド・バイ・デフォルト2.0」を策定——官公庁IT調達の7割をクラウド前提に</h1>
-      <p class="meta">2026年7月9日 10:00 配信 ｜ カテゴリ：経済・産業</p>
-    </div>
+        <div class="article-header">
+            <span class="article-category">政策・通信インフラ</span>
+            <h1 class="article-title">総務省、日本国内の光ファイバー網整備に追加予算4,200億円を計上——2028年度末までに全世帯カバー率99.9%を目指す</h1>
+            <div class="article-meta">2026年7月10日 配信 ｜ 東京</div>
+        </div>
 
-    <div class="article-body">
-      <p>経済産業省は2026年7月9日、中央省庁および独立行政法人のIT調達において、新規システムの70%以上をクラウドサービス上に構築することを義務付ける新方針「クラウド・バイ・デフォルト2.0」を正式に公表した。2018年に策定された初代「クラウド・バイ・デフォルト原則」を全面的に改定したもので、2027年度予算から適用される。</p>
+        <div class="article-body">
+            <p>総務省は2026年7月10日、2026年度補正予算案において国内光ファイバー網整備事業に追加で4,200億円を計上する方針を発表した。現在、全国の光ファイバー（FTTH）世帯カバー率は99.3%に達しているものの、中山間地域や離島部を中心に約52万世帯が依然として未整備のまま残されている。</p>
 
-      <h2>年間8,200件・1.2兆円規模の調達が対象</h2>
+            <p>今回の追加投資の柱となるのが、主要通信事業者に対する新たな補助制度の創設である。NTT東日本・西日本、KDDI、ソフトバンクの主要3グループに対し、未整備地域への光ファイバー敷設費用の最大70%を国が補助する。従来の補助率は最大50%であったが、採算性の低い地域への民間投資を促進するため上限を引き上げた。</p>
 
-      <p>経済産業省の試算によると、対象となる調達案件は年間約8,200件に上り、総額は約1兆2,000億円に達する見込みだ。これまで「クラウド利用を第一候補として検討する」という努力義務にとどまっていた方針を、明確な数値目標付きの義務規定に格上げした形となる。各省庁は調達計画の段階でクラウド以外の選択肢を採る場合、CIO補佐官による合理性の審査を必須とする。</p>
+            <p>松本剛明総務大臣は閣議後の記者会見で「デジタル田園都市国家構想の実現に不可欠なインフラ整備を加速する。すべての国民がデジタルサービスの恩恵を等しく享受できる環境を2028年度末までに構築する」と述べた。具体的な整備計画として、2027年度末までに未整備世帯を26万世帯以下に半減させ、2028年度末に全世帯カバー率99.9%の達成を目指す。</p>
 
-      <h2>国産クラウドもISMAP認定で調達対象に</h2>
+            <p>補正予算4,200億円の内訳は、光ファイバー敷設補助に2,800億円、5G基地局整備補助に900億円、ローカル5G推進事業に300億円、海底ケーブル冗長化に200億円となっている。特に離島部については、海底ケーブルの多ルート化により災害時の通信途絶リスクを低減する。</p>
 
-      <p>調達対象のクラウドサービスとしては、Amazon Web Services（AWS）、Microsoft Azure、Google Cloudの主要3社に加え、さくらインターネット、インターネットイニシアティブ（IIJ）、NTTコミュニケーションズなど国産クラウド事業者も政府情報システムのためのセキュリティ評価制度（ISMAP）の認定を受けることで参入が可能だ。現在ISMAPに登録されているサービスは約350件で、経済産業省は2027年度末までに500件への拡大を目指している。</p>
+            <p>あわせて総務省は、5G基地局の共用促進ガイドラインの改定も発表した。改定ガイドラインでは、既存の鉄塔・電柱・公共施設への基地局設置に関する手続きが簡素化され、ローカル5G事業者の参入障壁が大幅に緩和される。インフラシェアリングの推進により、地方部での基地局設置コストは従来比30〜40%の削減が見込まれている。</p>
 
-      <h2>ゼロトラストアーキテクチャが必須要件に</h2>
+            <p>業界団体のテレコムサービス協会の北俊一会長は「投資回収が見込みにくい地域への公的支援は歓迎する。通信事業者だけでなく、自治体やケーブルテレビ事業者との連携スキームが整備されることで、より効率的なネットワーク構築が可能になる」とコメントした。一方、野村総合研究所の桑津浩太郎シニアコンサルタントは「残る52万世帯の多くは地形的条件が厳しく、1世帯あたりの整備コストが都市部の5〜8倍に達する地域もある。補助率70%でも事業者の負担は小さくない」と指摘している。</p>
+        </div>
 
-      <p>新方針の大きな特徴として、クラウド移行に伴うセキュリティ評価において「ゼロトラストアーキテクチャ」の導入が必須要件とされた点がある。具体的には、ネットワーク境界に依存しないアクセス制御、全通信の暗号化、継続的な認証・認可の実装が求められる。内閣サイバーセキュリティセンター（NISC）が策定するガイドラインへの準拠も条件に含まれている。</p>
+        <a href="index.html" class="back-link">← トップに戻る</a>
+    </main>
 
-      <h2>現行のクラウド移行率は38%にとどまる</h2>
-
-      <p>富士通総研が2026年3月に実施した調査によると、中央省庁におけるクラウド移行率は2025年末時点で約38%にとどまっている。特にレガシーシステムの移行が遅れており、基幹業務システムのクラウド化率はわずか12%だ。経済産業省商務情報政策局の担当者は「今回の方針により、2028年度末までに全体の移行率を65%に引き上げることが目標。特に基幹系システムについてはモダナイゼーションとクラウドネイティブ化を同時に進める」と説明した。</p>
-
-      <p>IT業界からは歓迎の声が上がっている。日本情報システム・ユーザー協会（JUAS）の石黒不二代会長は「明確な数値目標の設定により、官民双方のDX推進が加速する。ベンダーにとっても予見可能性が高まり、人材育成や技術投資の計画が立てやすくなる」と評価した。</p>
-    </div>
-  </main>
-
-  <footer>
-    <p>&copy; 2026 Nexus6 ニュースポータル — ニュース分析・インパクト診断システム デモ環境</p>
-  </footer>
+    <footer>
+        <p>&copy; 2026 Nexus6 ニュースポータル. All rights reserved.</p>
+    </footer>
 </body>
 </html>
