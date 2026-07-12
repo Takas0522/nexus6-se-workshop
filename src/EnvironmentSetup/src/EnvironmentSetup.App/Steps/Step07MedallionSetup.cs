@@ -637,6 +637,7 @@ public class Step07MedallionSetup : ISetupStep
     private static string BuildFullMedallionEtlCode(AnalysisResult analysis)
     {
         var sb = new StringBuilder();
+        sb.AppendLine("# Fabric notebook source");
         sb.AppendLine("# Full Medallion ETL: Bronze CSV → Delta Tables + Gold Analytics");
         sb.AppendLine("from pyspark.sql import SparkSession");
         sb.AppendLine("from pyspark.sql.functions import col, current_timestamp, lit, lower, avg, when");
